@@ -6,6 +6,9 @@
   "license": "MIT",
   "author": "cadaeix",
   "type": "module",
+  "repository": { "type": "git", "url": "git+https://github.com/cadaeix/eglantine-marginalia.git" },
+  "homepage": "https://github.com/cadaeix/eglantine-marginalia#readme",
+  "bugs": "https://github.com/cadaeix/eglantine-marginalia/issues",
   "sideEffects": ["*.css"],
   "exports": {
     ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },

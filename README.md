@@ -12,6 +12,10 @@ The library is TypeScript with no runtime dependencies. It grows each garden pro
 
 ## Usage
 
+```sh
+npm install github:cadaeix/eglantine-marginalia
+```
+
 ```ts
 import { growGarden, renderGarden } from "eglantine-marginalia";
 
