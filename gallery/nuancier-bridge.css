@@ -1,0 +1,28 @@
+/* The four inks from a nuancier palette (eighteenth-century palettes published as CSS custom properties).
+   Paper and ink come from the palette's neutral ladder and the accent from its rubric. The wash is the
+   palette's --lavis-dessin, the pigment a wash drawing in that palette would be laid in; until a palette
+   defines one, the rules below suggest it from the palette's own colours: a single pigment, because a wash
+   in one pigment suits every day, where a green one turns rock and dead wood green. Each rule matches
+   both readings, since the palette resolves its colours for the reading in force. */
+[data-nuancier] {
+  --eglantine-paper: var(--velin);
+  --eglantine-ink: var(--encre);
+  --eglantine-accent: var(--rubric);
+  --eglantine-wash: var(--lavis-dessin, var(--grisaille));
+}
+/* Flea's-back brown, and the rose of cuisse de nymphe émue on the pistils. */
+[data-nuancier^="puce"] { --eglantine-wash: var(--lavis-dessin, var(--dos-de-puce)); --eglantine-accent: var(--nymphe-emue); }
+/* Paris mud as the wash, burnt opera on the pistils. */
+[data-nuancier^="boue"] { --eglantine-wash: var(--lavis-dessin, var(--saucisson)); --eglantine-accent: var(--opera-brule); }
+/* Café de Foy brown, and the red of Paris. */
+[data-nuancier^="palais-royal"] { --eglantine-wash: var(--lavis-dessin, var(--cafe-de-foy)); --eglantine-accent: var(--rouge-de-paris); }
+/* Aged iron-gall ink, and sealing wax. */
+[data-nuancier^="cordelier"] { --eglantine-wash: var(--lavis-dessin, var(--encre-vieillie)); --eglantine-accent: var(--cire-d-espagne); }
+/* Bilberry, and the pansy. */
+[data-nuancier^="germinal"] { --eglantine-wash: var(--lavis-dessin, var(--myrtille)); --eglantine-accent: var(--pensee); }
+/* Bleu nouveau, as on blue-and-white porcelain, with its gilding. */
+[data-nuancier^="sevres"] { --eglantine-wash: var(--lavis-dessin, var(--bleu-nouveau)); --eglantine-accent: var(--dorure); }
+/* A toile printed in madder alone: line and wash in garance, the pencilled indigo on the pistils. */
+[data-nuancier^="jouy"] { --eglantine-ink: var(--garance); --eglantine-wash: var(--lavis-dessin, var(--garance)); --eglantine-accent: var(--bleu-de-pinceau); }
+/* Black chalk and red chalk, with carmine lake. */
+[data-nuancier^="crayons"] { --eglantine-wash: var(--lavis-dessin, var(--sanguine)); --eglantine-accent: var(--laque-carminee); }

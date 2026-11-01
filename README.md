@@ -30,6 +30,8 @@ Neither value takes back what it has shown: a leaf or bloom present at some mome
 
 The SVG refers to four inks through CSS custom properties, each with a fallback colour: `--eglantine-ink`, `--eglantine-paper`, `--eglantine-accent` and `--eglantine-wash`. A page's stylesheet can set them to match a theme. A garden shown as an image or saved as a file has no stylesheet, so `withInks(svg, { ink: "#1b1b1b" })` writes the colours into the SVG and keeps the fallbacks for the inks left out.
 
+A theme that publishes its colours as custom properties joins the garden in four declarations. [gallery/nuancier-bridge.css](gallery/nuancier-bridge.css) maps the palettes of nuancier, a set of eighteenth-century colour palettes, onto the four inks: paper and ink from the palette's paper and ink, the accent from its rubric, and the wash from the single pigment a wash drawing in that palette would use. A wash in one pigment, such as iron-gall brown, madder or red chalk, suits every day. A green wash suits flowers but colours rock sections and dead wood green as well.
+
 ## The calendar
 
 ```ts
@@ -88,7 +90,7 @@ The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres an
 npm install
 npm test          # the garden invariants over every form's examples, and the calendar
 npm run typecheck
-npm run gallery   # http://localhost:5210
+npm run gallery   # http://localhost:5210; EGLANTINE_PALETTES=path/to/nuancier.css adds a palette chooser
 npm run build     # dist/
 ```
 

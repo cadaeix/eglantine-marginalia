@@ -20,7 +20,7 @@
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "gallery": "vite gallery --port 5210",
+    "gallery": "vite --config gallery/vite.config.ts",
     "check": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {

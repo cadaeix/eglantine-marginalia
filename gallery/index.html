@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Églantine: the gallery</title>
+    <link rel="stylesheet" href="./nuancier-bridge.css" />
     <style>
       :root { --paper: #f3ead8; --text: #2a221c; --muted: #7a6a58; color-scheme: light; }
       :root[data-paper="night"] {
@@ -26,6 +27,10 @@
       figure { margin: 0; }
       figcaption { font-size: 0.75rem; color: var(--muted); text-align: center; }
       svg.eglantine { display: block; overflow: hidden; }
+      /* A palette from the palette sheet sets the page's paper and ink as well as the garden's. */
+      :root[data-nuancier] { --muted: var(--estompe); }
+      :root[data-nuancier] body { background: var(--velin); color: var(--encre); }
+      nav select { font: inherit; }
     </style>
   </head>
   <body>
