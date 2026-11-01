@@ -8,12 +8,16 @@ import type { Body, Shape } from "./shapes.js";
 
 export type Manner = "taille-douce" | "lavis";
 
+const idPart = (value: string): string =>
+  value.replace(/[^A-Za-z0-9-]/gu, character => `_${character.codePointAt(0)!.toString(16)}_`);
+
 /** Collects clip paths and filters for one SVG; ids carry a prefix so several gardens can share a page. */
 export class Sheet {
   readonly defs: string[] = [];
   #next = 0;
-  constructor(readonly prefix: string) {}
-  id(kind: string): string { this.#next += 1; return `${this.prefix}-${kind}${this.#next}`; }
+  readonly #prefix: string;
+  constructor(readonly prefix: string) { this.#prefix = idPart(prefix); }
+  id(kind: string): string { this.#next += 1; return `${this.#prefix}-${idPart(kind)}${this.#next}`; }
 }
 
 const INK = inkRef("ink"), PAPER = inkRef("paper"), ACCENT = inkRef("accent"), WASH = inkRef("wash");

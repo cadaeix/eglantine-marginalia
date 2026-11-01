@@ -752,7 +752,7 @@ const cladode: FruitMaker = f => (rng, s, stage) => {
 
 /** Each fruit draws one fruit on its stalk, origin at the stalk's base, hanging along +y. */
 const FRUITS: Record<string, FruitMaker> = {
-  fig: () => fig, pome, pear, drupe, citrus, pomegranate, berry: berryFruit, mulberry, aubergine, tomato, pepper, pod, nut, capsule, boll, caltrop, cladode,
+  fig: f => (rng, s, stage) => fig(rng, s * f.size, stage), pome, pear, drupe, citrus, pomegranate, berry: berryFruit, mulberry, aubergine, tomato, pepper, pod, nut, capsule, boll, caltrop, cladode,
 };
 
 // ---------------------------------------------------------------- groups of fruit

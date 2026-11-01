@@ -228,19 +228,26 @@ export function growGarden(spec: GrowSpec): Garden {
     // Its own stream: the guest's choices never move the rest of the layout's draws.
     const visit = createRng(Math.imul(spec.seed, 7919) + 101);
     const { kind, aspect, size } = spec.guest;
-    const width = kind === "visitor" ? size * aspect : size, height = kind === "visitor" ? size : size / aspect;
+    const wantedWidth = kind === "visitor" ? size * aspect : size, wantedHeight = kind === "visitor" ? size : size / aspect;
+    const tilt = kind === "rest" ? 7 : 4;
+    const fitAngle = Math.min(tilt * RAD, Math.atan2(wantedHeight, wantedWidth));
+    const span = wantedWidth * Math.cos(fitAngle) + wantedHeight * Math.sin(fitAngle);
+    const fit = Math.min(1, (W - 0.3) / span);
+    const width = wantedWidth * fit, height = wantedHeight * fit, halfSpan = span * fit / 2;
     const reach = Math.max(width, height) * 0.5;
     let best = -Infinity;
     // A foot that spans the column, such as a bed of strata, is the ground the guest stands or lies on.
     const floor = foot ? Math.max(0, ...foot.room.filter(rect => rect[2] - rect[0] > 0.5).map(rect => rect[3])) : 0;
     for (let attempt = 0; attempt < 40; attempt += 1) {
       let at: Pt, facing: 1 | -1;
+      let stemX: number | null = null;
       if (kind === "visitor" && mains.length > 0) {
         const points = visit.pick(mains);
         const p = points[Math.floor(points.length * visit.range(0.25, 0.7))]!;
         const side = visit.chance(0.5) ? 1 : -1;
         at = [p[0] + side * (width / 2 + 0.12), p[1] + height * 0.15];
         facing = side > 0 ? -1 : 1;
+        stemX = p[0];
       } else if (kind === "visitor") {
         at = [visit.range(width / 2 + 0.3, W - width / 2 - 0.3), floor + height / 2 + visit.range(0.1, 0.6)];
         facing = visit.chance(0.5) ? 1 : -1;
@@ -248,11 +255,12 @@ export function growGarden(spec: GrowSpec): Garden {
         at = [visit.range(width / 2 + 0.3, W - width / 2 - 0.3), floor + visit.range(height / 2 + 0.45, 2.2)];
         facing = visit.chance(0.5) ? 1 : -1;
       }
-      if (at[0] - width / 2 < 0.15 || at[0] + width / 2 > W - 0.15) continue;
+      at[0] = clamp(at[0], halfSpan + 0.15, W - halfSpan - 0.15);
+      if (stemX !== null && at[0] !== stemX) facing = at[0] > stemX ? -1 : 1;
       const room = Math.min(field.freeAt(at[0], at[1]), field.freeAt(at[0] - width * 0.35, at[1]), field.freeAt(at[0] + width * 0.35, at[1]));
       if (room > best) {
         best = room;
-        guest = { kind, at, width, height, angle: kind === "rest" ? visit.sym(7) : visit.sym(4), facing, born: kind === "rest" ? 0 : 0.2 };
+        guest = { kind, at, width, height, angle: visit.sym(tilt), facing, born: kind === "rest" ? 0 : 0.2 };
       }
     }
     if (guest) for (const f of [-0.3, 0, 0.3]) field.disc(guest.at[0] + guest.width * f, guest.at[1], Math.max(guest.height * 0.6, reach * 0.55), 1);

@@ -335,7 +335,7 @@ function closedBud(rng: Rng, s: number, b: Bloom): Shape[] {
     const spurs = [-1, 0, 1].map(sd => line(sample(v => [sd * s * 0.05 * (1 + v), -s * 0.22 * v + s * 0.03 * v * v], 5), s * 0.025));
     return [...spurs, solidBody(head, [0, s * 0.16], s * 0.08, 0.5)];
   }
-  if (b.cluster === "corymb") return [];
+  if (b.cluster === "corymb") return [roundBody(circle([0, s * 0.12], s * 0.12, s * 0.12, 10), [0, s * 0.12], s * 0.12, HATCH * 0.6, 0.35)];
   const round = b.seed === "berry" && b.boss === "brush";
   const length = round ? s * 0.22 : b.tube > 0 ? s * (0.35 + b.tube * 0.5) : s * (b.budNod ? 0.36 : 0.32);
   const width = round ? s * 0.2 : s * (b.tube > 0 ? 0.09 : 0.18);

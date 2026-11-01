@@ -163,7 +163,7 @@ function shoulder(organ: Organ): number {
 }
 
 /** The organ, drawn downward from its crown at the origin; its rootlets shown as far as the day has filled. */
-function rootStudy(rng: Rng, organ: Organ, fullness: number): Shape[] {
+function rootStudy(rng: Rng, organ: Organ, fullness: number, room: number): Shape[] {
   const { depth: L, girth: W, long } = organ;
   const at = (depth: number, x = 0): Pt => [x, -depth];
   const shapes: Shape[] = [];
@@ -198,11 +198,14 @@ function rootStudy(rng: Rng, organ: Organ, fullness: number): Shape[] {
       // A bundle of slender storage roots spreading from the crown.
       const n = Math.max(2, organ.count);
       const order = Array.from({ length: n }, (_, k) => k).sort((a, b) => Math.abs(b - (n - 1) / 2) - Math.abs(a - (n - 1) / 2));
+      const rootletRoom = 0.6;
+      const width = Math.min(W, Math.max(0, room - rootletRoom) / 1.5);
+      const reach = Math.min(Math.max(W * 3, 0.45), Math.max(0, room - width * 1.5 - rootletRoom));
       for (const k of order) {
         const u = k / (n - 1) * 2 - 1;
-        const len = L * rng.range(0.78, 1), spread = u * Math.max(W * 3, 0.45);
-        shapes.push(...rootBody(rng, v => { const [px, py] = at(len * v); return [px + spread * Math.sin(v * 1.4) + u * W * 0.5, py]; },
-          v => W * Math.sin(Math.PI * Math.min(1, 0.1 + v * 0.95)) ** 0.7 * (1 - 0.5 * v) + 0.006, organ.skin, len, fibres));
+        const len = L * rng.range(0.78, 1), spread = u * reach;
+        shapes.push(...rootBody(rng, v => { const [px, py] = at(len * v); return [px + spread * Math.sin(v * 1.4) + u * width * 0.5, py]; },
+          v => width * Math.sin(Math.PI * Math.min(1, 0.1 + v * 0.95)) ** 0.7 * (1 - 0.5 * v) + 0.006, organ.skin, len, fibres));
       }
       break;
     }
@@ -290,7 +293,7 @@ function rootFoot(organ: Organ): Foot {
     scroll: false,
     draw: (rng, column, _t, fullness) => {
       const cx = column.width * CROWN_X;
-      return [...ground(rng, column.width, soilY, cx, shoulder(organ) + 0.06, fullness), ...place(rootStudy(rng, organ, fullness), 0, [cx, crownY])];
+      return [...ground(rng, column.width, soilY, cx, shoulder(organ) + 0.06, fullness), ...place(rootStudy(rng, organ, fullness, Math.min(cx, column.width - cx)), 0, [cx, crownY])];
     },
   };
 }

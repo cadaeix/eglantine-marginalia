@@ -15,7 +15,7 @@ const garden = growGarden({ seed: 1793, form: "capitule", variant: { rays: 21 } 
 const svg = renderGarden(garden, { t: 0.6, fullness: 0.4 }, { manner: "taille-douce", id: "margin", scale: 36 });
 ```
 
-`growGarden` lays the whole garden out once from its seed. `renderGarden` draws it at a moment and returns an SVG string. The garden fills a column 6 cm wide and 22 cm tall, and `scale` sets the pixels per centimetre. `id` prefixes the SVG's internal ids, so several gardens can share a page.
+`growGarden` lays the whole garden out once from its seed. `renderGarden` draws it at a moment and returns an SVG string. The garden fills a column 6 cm wide and 22 cm tall, and `scale` sets the pixels per centimetre. `id` prefixes the SVG's internal ids, so several gardens can share a page. The renderer encodes characters other than ASCII letters, digits and hyphens in internal SVG ids.
 
 A moment has two values between 0 and 1:
 
@@ -42,7 +42,7 @@ import { paletteInks, withInks } from "eglantine-marginalia";
 const print = withInks(svg, paletteInks("iron-gall", "dark"));
 ```
 
-Eight palettes come with the library, after colours documented in eighteenth-century France. Each has a light reading, by daylight on a pale page, and a dark one, by candlelight on a dark page. In the stylesheet, `data-eglantine-palette="madder"` follows the system's colour scheme, and `madder-light` or `madder-dark` fixes a reading. Every wash stands between 6:1 and 10:1 from its paper and every line at least 7:1.
+Eight palettes come with the library, after colours inspired by eighteenth-century France. Each has a light reading, by daylight on a pale page, and a dark one, by candlelight on a dark page. In the stylesheet, `data-eglantine-palette="madder"` follows the system's colour scheme, and `madder-light` or `madder-dark` fixes a reading. Every wash stands between 6:1 and 10:1 from its paper and every line at least 7:1.
 
 | Palette | Name | Period | Wash and accent |
 |---|---|---|---|
@@ -75,6 +75,8 @@ if (day.plant) {
 
 The French Republican calendar was in use from 1793 to 1805. It divides the year into twelve months of thirty days, followed by five complementary days, or six in a sextile year. In his report to the National Convention in 1793, Fabre d'Églantine gave each day of a month a name: a plant for most days, an animal for every fifth day and a tool for every tenth. The library takes the names as they were printed and gives each of the 288 plant days a form and a variant (see `PLANTS`). On an animal or tool day the garden grows the previous day's plant, and an engraved figure of the animal visits it or the tool lies at rest at its foot. The complementary days have no plant.
 
+Guest sizes are upper limits. The layout scales wide figures proportionally to fit the column, including their tilt.
+
 The Republic declared years III, VII and XI sextile before it abolished the calendar, and later readings disagree on the years after. `republicanDate` keeps the four-year rhythm those years set: year XV and every fourth year after are sextile, with no exception for centuries. By this rule 31 October 2026 is 8 brumaire an CCXXXV, a day later than a reading that follows the autumn equinox.
 
 The figures are ink masks cut from eighteenth-century engravings, in public-domain scans by the Smithsonian Libraries, the Bibliothèque interuniversitaire de santé in Paris, the University of Seville, Naturalis and other libraries, served through the Internet Archive. [figures/PROVENANCE.md](figures/PROVENANCE.md) lists the work, plate and scan for each of the 67 figures. Five days have no figure: le cordeau, le bœuf, la vache, la houlette and le traîneau. On those days the garden grows without a guest.
@@ -105,7 +107,7 @@ The forms carry French names, like the calendar's days, and plain lowercase ASCI
 
 `growGarden` also accepts a `FormModule` object in place of a registered id. The `eglantine-marginalia/toolkit` entry point exports what the bundled forms are built with: plane geometry, seeded randomness, engraved bodies and the shared leaves and flowers. A form can grow out of a foot, such as a root, a stump or a bed of strata drawn at the column's base, and can ink its stems as threads or bark (see `Foot` and `StemInk` in `src/form.ts`).
 
-`renderGarden` takes a `decorate` option that lays further marks on a garden. An inlay lies at a numbered layer among the plant's parts, inside the wash, and the `under` and `over` marks lie beneath and above the whole garden.
+`renderGarden` takes a `decorate` option that lays further marks on a garden. An inlay lies at a numbered layer among the plant's parts, inside the wash, and the `under` and `over` marks lie beneath and above the whole garden. Decoration strings are raw SVG and must come from trusted sources.
 
 The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres and a foot is placed within that column, so a much narrower or shorter column crowds the plants. A larger margin on screen comes from a larger `scale`, not a larger column.
 

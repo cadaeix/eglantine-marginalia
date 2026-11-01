@@ -59,6 +59,8 @@ function motifShapes(item: MotifItem, moment: Moment): Shape[] | null {
   return item.draw(createRng(item.seed), item.size, stage);
 }
 
+const ATTRIBUTE_ENTITIES: Readonly<Record<string, string>> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;" };
+
 const group = (at: Pt, angle: number, body: string): string =>
   `<g transform="translate(${num(at[0])} ${num(at[1])}) rotate(${num(angle - 90)})">${body}</g>`;
 
@@ -91,9 +93,10 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
   const guest = garden.guest;
   if (guest && options.guestFigure && moment.t >= guest.born) {
     const mask = sheet.id("guest");
+    const figure = options.guestFigure.replace(/[&<>"']/gu, character => ATTRIBUTE_ENTITIES[character]!);
     const box = `x="${num(-guest.width / 2)}" y="${num(-guest.height / 2)}" width="${num(guest.width)}" height="${num(guest.height)}"`;
     // mask-type as a presentation attribute, not a style: pages with a strict content policy refuse inline styles.
-    sheet.defs.push(`<mask id="${mask}" maskUnits="userSpaceOnUse" ${box} mask-type="alpha"><image href="${options.guestFigure}" ${box} preserveAspectRatio="none"/></mask>`);
+    sheet.defs.push(`<mask id="${mask}" maskUnits="userSpaceOnUse" ${box} mask-type="alpha"><image href="${figure}" ${box} preserveAspectRatio="none"/></mask>`);
     const ink = options.manner === "taille-douce" ? `fill="${inkRef("ink")}"` : `fill="${inkRef("wash")}" fill-opacity="0.85"`;
     // The page is drawn with y up; the engraving is y down, so it is flipped back, and mirrored to face the plant.
     add(guest.kind === "visitor" ? VISITOR_LAYER : REST_LAYER, `<g transform="translate(${num(guest.at[0])} ${num(guest.at[1])}) rotate(${num(guest.angle)}) scale(${guest.facing} -1)"><rect ${box} ${ink} mask="url(#${mask})"/></g>`);
