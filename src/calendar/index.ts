@@ -59,7 +59,7 @@ export function figureName(article: string): string {
 
 /** Where a figure's PNG lies, as a URL beside this module; read it with `fs.readFile` in Node or fetch it in a browser. */
 export function figureURL(figure: string): URL {
-  if (!(figure in FIGURES)) throw new Error(`no figure ${figure}`);
+  if (!Object.hasOwn(FIGURES, figure)) throw new Error(`no figure ${figure}`);
   return new URL(`../../figures/${figure}.png`, import.meta.url);
 }
 

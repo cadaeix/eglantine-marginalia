@@ -65,6 +65,7 @@ describe("a plant for every day", () => {
     const missing = DAYS.filter((_, day) => (day % 30 + 1) % 5 === 0).map(figureName).filter(name => FIGURES[name] === undefined);
     expect(missing.sort()).toEqual(["boeuf", "cordeau", "houlette", "traineau", "vache"]);
     for (const name of Object.keys(FIGURES)) expect(existsSync(fileURLToPath(figureURL(name))), name).toBe(true);
+    for (const name of ["boeuf", "toString", "../oie"]) expect(() => figureURL(name), name).toThrow();
   });
 
   it("spells figure names without articles, accents or ligatures", () => {
