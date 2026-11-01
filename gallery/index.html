@@ -26,9 +26,10 @@
       figure { margin: 0; }
       figcaption { font-size: 0.75rem; color: var(--muted); text-align: center; }
       svg.eglantine { display: block; overflow: hidden; }
-      /* A palette from the palette sheet sets the page's paper and ink as well as the garden's. */
-      :root[data-nuancier] { --muted: var(--estompe); }
-      :root[data-nuancier] body { background: var(--velin); color: var(--encre); }
+      /* A chosen palette sets the page's paper and ink as well as the garden's. */
+      :root[data-eglantine-palette] { --muted: color-mix(in oklab, var(--eglantine-ink) 62%, var(--eglantine-paper)); }
+      :root[data-eglantine-palette] body { background: var(--eglantine-paper); color: var(--eglantine-ink); }
+      .palette-note { font-size: 0.85rem; color: var(--muted); margin: -0.5rem 0 1rem; }
       nav select { font: inherit; }
     </style>
   </head>

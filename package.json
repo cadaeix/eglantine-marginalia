@@ -6,21 +6,22 @@
   "license": "MIT",
   "author": "cadaeix",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": ["*.css"],
   "exports": {
     ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
     "./calendar": { "types": "./dist/calendar/index.d.ts", "default": "./dist/calendar/index.js" },
     "./toolkit": { "types": "./dist/toolkit.d.ts", "default": "./dist/toolkit.js" },
+    "./palettes.css": "./dist/palettes.css",
     "./figures/*": "./figures/*"
   },
   "files": ["dist", "figures", "florilegium-LICENSE.txt"],
   "engines": { "node": ">=20" },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/palettes-css.mjs",
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "gallery": "vite --config gallery/vite.config.ts",
+    "gallery": "vite gallery --port 5210",
     "check": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {

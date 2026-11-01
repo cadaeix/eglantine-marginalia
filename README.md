@@ -32,7 +32,30 @@ The SVG refers to four inks through CSS custom properties, each with a fallback 
 
 A theme sets the four inks with a few needs in mind. The forms are cut out of `--eglantine-paper`, so the paper has to match the surface the garden lies on: in a sidebar of another colour, set the paper to that colour, or the forms show as patches of the page. The lavis manner lays the wash in layers of 14% to 38% opacity, and the default bistre stands 8.4:1 in contrast from the default cream; a much lighter wash fades out. The accent marks pistils that sit on washed petals, so it should stand apart from the wash.
 
-nuancier, a set of eighteenth-century colour palettes, ships a port for Églantine. Linking its `nuancier.css` and then its `ports/eglantine/nuancier.css` tints every garden inside a `data-nuancier` element, and its `ports/eglantine/nuancier.json` gives the same inks to `withInks`.
+## Palettes
+
+```ts
+import "eglantine-marginalia/palettes.css";
+// <aside data-eglantine-palette="madder">…</aside> tints every garden inside it.
+
+import { paletteInks, withInks } from "eglantine-marginalia";
+const print = withInks(svg, paletteInks("iron-gall", "dark"));
+```
+
+Eight palettes come with the library, after colours documented in eighteenth-century France. Each has a light reading, by daylight on a pale page, and a dark one, by candlelight on a dark page. In the stylesheet, `data-eglantine-palette="madder"` follows the system's colour scheme, and `madder-light` or `madder-dark` fixes a reading. Every wash stands between 6:1 and 10:1 from its paper and every line at least 7:1.
+
+| Palette | Name | Period | Wash and accent |
+|---|---|---|---|
+| `puce` | Couleur de puce | 1775 | flea's-back brown, with the rose of cuisse de nymphe émue |
+| `olive` | Boue de Paris | 1775 to 1781 | toad green, with Dutch-cheese orange |
+| `cockade` | Palais-Royal | 12 July 1789 | cockade green, with the red of Paris |
+| `iron-gall` | Le Vieux Cordelier | winter 1793 to 1794 | aged iron-gall ink, with sealing-wax red |
+| `pansy` | Germinal an II | spring 1794 | pansy violet, with jonquil yellow |
+| `porcelain` | Fonds de Sèvres | 1752 to 1763 | Sèvres blue, with gilding |
+| `madder` | Toile de Jouy | 1770 to the 1790s | madder, with pencilled indigo |
+| `red-chalk` | Aux trois crayons | about 1715 to 1720 | bistre on chamois, with red chalk |
+
+A wash in one brown, madder or blue suits every day. The green washes of `olive` and `cockade` suit flowers but turn rock sections and dead wood green as well.
 
 ## The calendar
 
@@ -60,23 +83,23 @@ The figures are ink masks cut from eighteenth-century engravings, in public-doma
 
 A form describes what a plant is made of and how it stands: its stems, leaves, bloom and what the bloom becomes. A variant tunes a form to a particular plant, such as a pear rather than a fig. Each form documents its variant keys, and `resolveVariant` rejects unknown keys and values out of range.
 
-| Form | Draws | Calendar days |
-|---|---|---|
-| `arbre-fruitier` | trees, shrubs and fruiting shoots, shown by fruit that buds, swells and ripens | 39 |
-| `capitule` | composite flower heads, going to a clock of plumed seeds or a dry head | 17 |
-| `conifère` | needled or scaled sprays and their cones, berry-like cones or arils | 8 |
-| `cryptogame` | fungi from soil and dead wood over their mycelium, mosses, lichens, ferns and horsetails | 10 |
-| `épi-aromatique` | upright stems of small flowers in spikes, whorls, heads or panicles | 45 |
-| `épi-graminée` | grasses and grains under their ears and panicles | 15 |
-| `feuillage` | plants shown by their leaves, with catkins, nuts or berries | 36 |
-| `grimpante` | climbers held by tendrils, twining stems or rootlets | 15 |
-| `hiver` | winter: rocks, earths and metals in an engraved geological section with their period chemical signs, under bare twigs | 26 |
-| `lis-bulbe` | scape-and-strap plants with six tepals over a bulb or corm | 18 |
-| `ombelle-corymbe` | flat-topped clusters: corymbs and compound umbels | 17 |
-| `racine-tubercule` | plants known by a root or tuber at the foot of the column, some of them very long | 18 |
-| `rosacée-coupe` | radial and cupped flowers in perspective, going to hips, haws and capsules | 24 |
+| Form | Name | Draws | Calendar days |
+|---|---|---|---|
+| `arbre-fruitier` | arbre fruitier | trees, shrubs and fruiting shoots, shown by fruit that buds, swells and ripens | 39 |
+| `capitule` | capitule | composite flower heads, going to a clock of plumed seeds or a dry head | 17 |
+| `conifere` | conifère | needled or scaled sprays and their cones, berry-like cones or arils | 8 |
+| `cryptogame` | cryptogame | fungi from soil and dead wood over their mycelium, mosses, lichens, ferns and horsetails | 10 |
+| `epi-aromatique` | épi aromatique | upright stems of small flowers in spikes, whorls, heads or panicles | 45 |
+| `epi-graminee` | épi de graminée | grasses and grains under their ears and panicles | 15 |
+| `feuillage` | feuillage | plants shown by their leaves, with catkins, nuts or berries | 36 |
+| `grimpante` | grimpante | climbers held by tendrils, twining stems or rootlets | 15 |
+| `hiver` | hiver | winter: rocks, earths and metals in an engraved geological section with their period chemical signs, under bare twigs | 26 |
+| `lis-bulbe` | lis et bulbe | scape-and-strap plants with six tepals over a bulb or corm | 18 |
+| `ombelle-corymbe` | ombelle et corymbe | flat-topped clusters: corymbs and compound umbels | 17 |
+| `racine-tubercule` | racine et tubercule | plants known by a root or tuber at the foot of the column, some of them very long | 18 |
+| `rosacee-coupe` | rosacée en coupe | radial and cupped flowers in perspective, going to hips, haws and capsules | 24 |
 
-The form ids are French, like the calendar's names. `npm run gallery` serves a page that shows every form's examples at bloom and at seed, with their flowers and leaves drawn large, and the calendar's garden for any date.
+The forms carry French names, like the calendar's days, and plain lowercase ASCII ids. `npm run gallery` serves a page that shows every form's examples at bloom and at seed, with their flowers and leaves drawn large, the calendar's garden for any date, and every palette.
 
 ## Extending
 
@@ -92,13 +115,15 @@ The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres an
 npm install
 npm test          # the garden invariants over every form's examples, and the calendar
 npm run typecheck
-npm run gallery   # http://localhost:5210; EGLANTINE_PALETTES="<nuancier>/dist/nuancier.css;<nuancier>/dist/ports/eglantine/nuancier.css" adds a palette chooser (":" between paths outside Windows)
+npm run gallery   # http://localhost:5210
 npm run build     # dist/
 ```
 
 ## Credits
 
 The growth loop follows the grown composition of Kevin Raymond's [florilegium](https://github.com/kevinraymond/florilegium), a LuaLaTeX package under the MIT licence, whose notice is in [florilegium-LICENSE.txt](florilegium-LICENSE.txt). Florilegium in turn follows Michael T. Wong, Douglas E. Zongker and David H. Salesin, "Computer-Generated Floral Ornament", SIGGRAPH 1998.
+
+The palettes were resolved after the method of [madoromi](https://github.com/the-moonwitch/madoromi), which reads historical inks at the lightness each role needs; they share no code or colours with it. Several colour names come from the children's trail [Les couleurs au 18e siècle](https://lesbateliers.namur.be/documentation-et-presse/publications/carnets-pedagogiques/les-couleurs-du-18e-siecle) (Musée Les Bateliers, Namur, 2023).
 
 Six figures come from scans by the Bibliothèque interuniversitaire de santé, Paris, published under the Etalab Open Licence, which asks for attribution to the library.
 

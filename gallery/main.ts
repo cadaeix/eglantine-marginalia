@@ -2,13 +2,14 @@
 // bloom and seed and their leaf drawn large, so a form's author can judge it by eye; and today's garden
 // from the calendar through the day. `#form=<id>` opens one form, `#all` shows every example small,
 // `#today` shows the calendar's day (`&date=YYYY-MM-DD` another day's); `&manner=lavis` and `&paper=night` change the plate.
-// When the dev server is given a palette sheet (see vite.config.ts), `&palette=<reading>` draws everything in one of its palettes.
+// `&palette=<id>-light` or `-dark` draws everything in one of the library's palettes.
 import { calendarDay, figureURL, localDate } from "../src/calendar/index.js";
 import type { FormModule, Variant } from "../src/form.js";
 import { num, type Pt } from "../src/geometry.js";
 import { growGarden } from "../src/grow.js";
 import { type Manner, paintShapes, Sheet } from "../src/paint.js";
 import { createRng, seedFromText } from "../src/random.js";
+import { PALETTES, palettesCss } from "../src/palettes.js";
 import { FORM_MODULES, plantForm } from "../src/registry.js";
 import { renderGarden } from "../src/render.js";
 import type { Shape } from "../src/shapes.js";
@@ -24,21 +25,11 @@ function readRoute(): Route {
   };
 }
 
-/**
- * The readings of the palette sheets the dev server was given, such as `cordelier-chandelle`, with the sheets
- * added to the page; none without a sheet. The sheets themselves set the garden's four inks for each reading.
- */
-async function loadPalettes(): Promise<string[]> {
-  const response = await fetch("/palettes.css");
-  if (!response.ok) return [];
-  const sheet = await response.text();
-  const style = document.createElement("style");
-  style.textContent = sheet;
-  document.head.prepend(style);
-  return [...new Set([...sheet.matchAll(/\[data-nuancier="([a-z-]+-(?:jour|chandelle))"\]/gu)].map(match => match[1]!))];
-}
-
-const PALETTES = await loadPalettes();
+const palettes = document.createElement("style");
+palettes.textContent = palettesCss();
+document.head.append(palettes);
+/** Every palette in both readings, as `data-eglantine-palette` takes them. */
+const READINGS = PALETTES.flatMap(palette => (["light", "dark"] as const).map(reading => ({ value: `${palette.id}-${reading}`, palette, reading })));
 
 const escape = (text: string): string => text.replace(/[&<>"]/gu, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]!);
 
@@ -96,9 +87,9 @@ function today(manner: Manner, asked: string | null): string {
 
 function draw(): void {
   const route = readRoute();
-  const palette = route.palette !== null && PALETTES.includes(route.palette) ? route.palette : null;
+  const chosen = READINGS.find(reading => reading.value === route.palette) ?? null;
   const root = document.documentElement;
-  if (palette) { root.dataset.nuancier = palette; delete root.dataset.paper; } else { delete root.dataset.nuancier; root.dataset.paper = route.paper; }
+  if (chosen) { root.dataset.eglantinePalette = chosen.value; delete root.dataset.paper; } else { delete root.dataset.eglantinePalette; root.dataset.paper = route.paper; }
   const modules = [...FORM_MODULES.values()].sort((a, b) => a.id.localeCompare(b.id));
   const selected = route.form ? FORM_MODULES.get(route.form) : undefined;
   const link = (place: Record<string, string>, change: Partial<Route> = {}): string => {
@@ -106,19 +97,20 @@ function draw(): void {
     return `#${new URLSearchParams({ ...place, manner: next.manner, paper: next.paper, ...(next.palette ? { palette: next.palette } : {}) })}`;
   };
   const here: Record<string, string> = route.form ? { form: route.form } : route.all ? { all: "" } : route.today ? { today: "", ...(route.date ? { date: route.date } : {}) } : {};
-  const chooser = PALETTES.length === 0 ? "" : `<select id="palette" aria-label="Palette"><option value="">no palette</option>`
-    + PALETTES.map(id => `<option value="${id}"${id === palette ? " selected" : ""}>${id}</option>`).join("") + "</select>";
+  const chooser = `<select id="palette" aria-label="Palette"><option value="">no palette</option>`
+    + READINGS.map(({ value, palette, reading }) => `<option value="${value}"${value === chosen?.value ? " selected" : ""}>${escape(palette.name)}, ${reading === "light" ? "jour" : "chandelle"} (${value})</option>`).join("") + "</select>";
   let html = `<nav><a href="${link({ today: "" })}"${route.today ? " aria-current=\"page\"" : ""}>today</a><a href="${link({ all: "" })}"${route.all ? " aria-current=\"page\"" : ""}>all</a>`
-    + modules.map(module => `<a href="${link({ form: module.id })}"${module === selected ? " aria-current=\"page\"" : ""}>${module.id}</a>`).join("")
+    + modules.map(module => `<a href="${link({ form: module.id })}"${module === selected ? " aria-current=\"page\"" : ""}>${escape(module.name)}</a>`).join("")
     + `<span class="switch"><a href="${link(here, { manner: route.manner === "lavis" ? "taille-douce" : "lavis" })}">${route.manner === "lavis" ? "taille-douce" : "lavis"}</a>`
-    + (palette ? "" : `<a href="${link(here, { paper: route.paper === "night" ? "cream" : "night" })}">${route.paper === "night" ? "cream paper" : "night paper"}</a>`)
-    + `${chooser}</span></nav>`;
+    + (chosen ? "" : `<a href="${link(here, { paper: route.paper === "night" ? "cream" : "night" })}">${route.paper === "night" ? "cream paper" : "night paper"}</a>`)
+    + `${chooser}</span></nav>`
+    + (chosen ? `<p class="palette-note"><i>${escape(chosen.palette.name)}</i>, ${escape(chosen.palette.period)}. ${escape(chosen.palette.note)}</p>` : "");
   if (route.today) html += today(route.manner, route.date);
   else if (route.all) {
     html += `<div class="all">${modules.flatMap(module => module.examples.map(item =>
-      figure(garden(module, item.variant, 0.7, route.manner, slug(`all-${module.id}-${item.name}`), 11), `${escape(item.name)}<br><small>${module.id}</small>`))).join("")}</div>`;
+      figure(garden(module, item.variant, 0.7, route.manner, slug(`all-${module.id}-${item.name}`), 11), `${escape(item.name)}<br><small>${escape(module.name)}</small>`))).join("")}</div>`;
   } else if (selected) {
-    html += `<header><h1>${selected.id}</h1><p>${escape(selected.doc)}</p><table><tbody>`
+    html += `<header><h1>${escape(selected.name)} <code>${selected.id}</code></h1><p>${escape(selected.doc)}</p><table><tbody>`
       + Object.entries(selected.variants).map(([key, spec]) => `<tr><th>${key}</th><td>${escape(spec.doc)}</td><td><code>${escape(spec.values ? spec.values.map(String).join(" | ") : spec.range?.join("..") ?? "")}</code> (default <code>${escape(String(spec.default))}</code>)</td></tr>`).join("")
       + "</tbody></table></header>"
       + selected.examples.map(item => example(selected, item.name, item.variant, route.manner)).join("");
