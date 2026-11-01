@@ -105,29 +105,82 @@ export function blade(spine: (v: number) => Pt, n: number, left: (v: number) => 
 }
 
 const trim = (text: string): string => text.includes(".") ? text.replace(/0+$/, "").replace(/\.$/, "") : text;
-/** A coordinate in SVG path data: a hundredth of a centimetre is finer than a pixel at screen sizes. */
+/** A number in an SVG attribute: a hundredth of a centimetre is finer than a pixel at screen sizes. */
 export const num = (value: number): string => trim(value.toFixed(2));
 /** A stroke width or radius, which can be finer than any coordinate. */
 export const fine = (value: number): string => trim(value.toFixed(4));
 
+// Path data is written in hundredths of a centimetre, finer than a pixel at screen sizes. Each subpath
+// starts at an absolute point and steps from point to point in relative commands, so most numbers are
+// small; the steps are taken between rounded points, so rounding never drifts along a path.
+const hundredthsOf = (point: Pt): [number, number] => [Math.round(point[0] * 100), Math.round(point[1] * 100)];
+
+/** A whole number of hundredths written as briefly as path data allows: "3", "-1.2", ".05". */
+function hundredths(value: number): string {
+  const magnitude = Math.abs(value);
+  const whole = Math.trunc(magnitude / 100), part = magnitude % 100;
+  const sign = value < 0 ? "-" : "";
+  if (part === 0) return `${sign}${whole}`;
+  return `${sign}${whole === 0 ? "" : whole}.${part < 10 ? `0${part}` : `${part}`.replace(/0$/u, "")}`;
+}
+
+/** Numbers of hundredths as path data, with a separator only where one number would run into the next. */
+function numbers(values: readonly number[]): string {
+  let out = "", dotted = false;
+  for (const value of values) {
+    const text = hundredths(value);
+    if (out !== "" && text[0] !== "-" && !(text[0] === "." && dotted)) out += " ";
+    out += text;
+    dotted = text.includes(".");
+  }
+  return out;
+}
+
 /** A straight polyline or polygon as SVG path data. */
 export function polyPath(points: readonly Pt[], closed = false): string {
   if (points.length === 0) return "";
-  const body = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${num(x)} ${num(y)}`).join("");
-  return closed ? `${body}Z` : body;
+  let [x, y] = hundredthsOf(points[0]!);
+  let d = `M${numbers([x, y])}`;
+  if (points.length > 1) {
+    const steps: number[] = [];
+    for (let index = 1; index < points.length; index += 1) {
+      const [nx, ny] = hundredthsOf(points[index]!);
+      steps.push(nx - x, ny - y);
+      x = nx; y = ny;
+    }
+    d += `l${numbers(steps)}`;
+  }
+  return closed ? `${d}z` : d;
 }
 
-/** A smooth curve through the points (Catmull-Rom as cubic Béziers) as SVG path data. */
+/**
+ * A smooth curve through the points (Catmull-Rom as cubic Béziers) as SVG path data. A Catmull-Rom curve's
+ * control points mirror each other about every point it passes through, so each segment after the first is
+ * written with the `s` shorthand, which mirrors the last control point; each tangent is rounded once, so
+ * the mirroring holds exactly in hundredths.
+ */
 export function smoothPath(points: readonly Pt[], closed = false, tension = 1): string {
   const count = points.length;
   if (count < 3) return polyPath(points, closed);
   const at = (index: number): Pt => closed ? points[(index + count) % count]! : points[clamp(index, 0, count - 1)]!;
-  let d = `M${num(points[0]![0])} ${num(points[0]![1])}`;
+  const k = tension / 6 * 100;
   const segments = closed ? count : count - 1;
-  for (let index = 0; index < segments; index += 1) {
-    const p0 = at(index - 1), p1 = at(index), p2 = at(index + 1), p3 = at(index + 2);
-    const k = tension / 6;
-    d += `C${num(p1[0] + (p2[0] - p0[0]) * k)} ${num(p1[1] + (p2[1] - p0[1]) * k)} ${num(p2[0] - (p3[0] - p1[0]) * k)} ${num(p2[1] - (p3[1] - p1[1]) * k)} ${num(p2[0])} ${num(p2[1])}`;
+  const knots: [number, number][] = [], tangents: [number, number][] = [];
+  for (let index = 0; index <= segments; index += 1) {
+    knots.push(hundredthsOf(at(index)));
+    const next = at(index + 1), previous = at(index - 1);
+    tangents.push([Math.round((next[0] - previous[0]) * k), Math.round((next[1] - previous[1]) * k)]);
   }
-  return closed ? `${d}Z` : d;
+  // A segment's second control point and its end, relative to its start.
+  const segment = (index: number): number[] => {
+    const [x, y] = knots[index]!, [nx, ny] = knots[index + 1]!, [tx, ty] = tangents[index + 1]!;
+    return [nx - tx - x, ny - ty - y, nx - x, ny - y];
+  };
+  let d = `M${numbers(knots[0]!)}c${numbers([...tangents[0]!, ...segment(0)])}`;
+  if (segments > 1) {
+    const rest: number[] = [];
+    for (let index = 1; index < segments; index += 1) rest.push(...segment(index));
+    d += `s${numbers(rest)}`;
+  }
+  return closed ? `${d}z` : d;
 }

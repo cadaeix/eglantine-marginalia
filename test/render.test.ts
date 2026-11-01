@@ -1,13 +1,57 @@
 import { describe, expect, it } from "vitest";
+import { polyPath, type Pt, smoothPath } from "../src/geometry.js";
 import { growGarden } from "../src/grow.js";
 import { DEFAULT_INKS, withInks } from "../src/inks.js";
 import { Sheet } from "../src/paint.js";
+import { createRng } from "../src/random.js";
 import { renderGarden } from "../src/render.js";
+
+/** The points path data passes through, read back by SVG's number grammar, in hundredths of a centimetre. */
+function passesThrough(d: string): [number, number][] {
+  const tokens = d.match(/[A-Za-z]|-?(?:\d+\.?\d*|\.\d+)/gu) ?? [];
+  const points: [number, number][] = [];
+  let command = "", x = 0, y = 0, start: [number, number] = [0, 0], index = 0;
+  const next = (): number => Math.round(Number(tokens[index++]) * 100);
+  while (index < tokens.length) {
+    if (/[A-Za-z]/u.test(tokens[index]!)) command = tokens[index++]!;
+    switch (command) {
+      case "M": x = next(); y = next(); start = [x, y]; break;
+      case "l": x += next(); y += next(); break;
+      case "c": index += 4; x += next(); y += next(); break;
+      case "s": index += 2; x += next(); y += next(); break;
+      case "z": [x, y] = start; command = ""; continue;
+      default: throw new Error(`unexpected ${command ? `command ${command}` : "numbers"} in ${d}`);
+    }
+    points.push([x, y]);
+  }
+  return points;
+}
 
 const garden = growGarden({ seed: 1793, form: "capitule", variant: {} });
 const moment = { t: 0.7, fullness: 0.6 };
 
 describe("rendering", () => {
+  it("writes path data that passes through every point it is given, to the hundredth", () => {
+    const rng = createRng(1793);
+    const steps = [0, 0.001, 0.004, 0.006, 0.01, 0.05, 0.1, 0.5, 1, 3];
+    let d = "";
+    const expected: [number, number][] = [];
+    for (let path = 0; path < 300; path += 1) {
+      const points: Pt[] = [[rng.range(-3, 25), rng.range(-3, 25)]];
+      const count = rng.int(1, 14);
+      while (points.length < count) {
+        const [x, y] = points.at(-1)!;
+        points.push([x + rng.pick(steps) * (rng.chance(0.5) ? 1 : -1), y + rng.pick(steps) * (rng.chance(0.5) ? 1 : -1)]);
+      }
+      const closed = rng.chance(0.5), smooth = rng.chance(0.5);
+      const hundredths = points.map(([x, y]): [number, number] => [Math.round(x * 100), Math.round(y * 100)]);
+      d += smooth ? smoothPath(points, closed, rng.range(0.5, 1)) : polyPath(points, closed);
+      // A smooth closed curve ends its last segment back at its first point.
+      expected.push(...hundredths, ...(smooth && closed && count >= 3 ? [hundredths[0]!] : []));
+    }
+    expect(passesThrough(d)).toEqual(expected);
+  });
+
   it("lays decorations under the garden, among its layers inside the wash, and over it", () => {
     const svg = renderGarden(garden, moment, {
       manner: "lavis", id: "d", scale: 10,

@@ -31,7 +31,8 @@ function dotsPath(points: readonly Pt[], radius: number): string {
 
 /**
  * A body's outline defined once in the sheet's defs, so its fill, clip and stroke reuse it instead of
- * repeating its path data, which is most of a garden's weight.
+ * repeating its path data, which is most of a garden's weight. The definition carries no paint of its own,
+ * since a `<use>` keeps the attributes of what it copies.
  */
 function outlineOf(body: Body, sheet: Sheet): string {
   const id = sheet.id("o");
@@ -40,12 +41,14 @@ function outlineOf(body: Body, sheet: Sheet): string {
 }
 
 function engraveBody(body: Body, sheet: Sheet): string {
-  const outline = outlineOf(body, sheet);
-  if (body.tone === "accent") {
-    return `<use href="#${outline}" fill="${ACCENT}" fill-opacity="0.82"/><use href="#${outline}" fill="none" stroke="${INK}" stroke-width="0.011"/>`;
-  }
-  let out = `<use href="#${outline}" fill="${PAPER}"/>`;
-  if (body.grain.length > 0) {
+  // With nothing cut between its fill and its outline, a body is one path painting both, in that order.
+  if (body.tone === "accent") return `<path d="${smoothPath(body.outline, true, 0.9)}" fill="${ACCENT}" fill-opacity="0.82" stroke="${INK}" stroke-width="0.011"/>`;
+  const stroke = ` stroke="${INK}" stroke-width="0.012" stroke-linejoin="round"`;
+  let out: string;
+  if (body.grain.length === 0) {
+    out = `<path d="${smoothPath(body.outline, true, 0.9)}" fill="${PAPER}"${stroke}/>`;
+  } else {
+    const outline = outlineOf(body, sheet);
     const clip = sheet.id("c");
     sheet.defs.push(`<clipPath id="${clip}"><use href="#${outline}"/></clipPath>`);
     let hatching = `<path d="${cuts(body.grain)}" fill="none" stroke="${INK}" stroke-width="${fine(0.006 + 0.007 * body.weight)}" stroke-linecap="round"/>`;
@@ -54,9 +57,8 @@ function engraveBody(body: Body, sheet: Sheet): string {
       sheet.defs.push(`<clipPath id="${shade}"><path d="${rings(body.shadow)}" clip-rule="evenodd"/></clipPath>`);
       hatching = `<g clip-path="url(#${shade})">${hatching}</g>`;
     }
-    out += `<g clip-path="url(#${clip})">${hatching}</g>`;
+    out = `<use href="#${outline}" fill="${PAPER}"/><g clip-path="url(#${clip})">${hatching}</g><use href="#${outline}" fill="none"${stroke}/>`;
   }
-  out += `<use href="#${outline}" fill="none" stroke="${INK}" stroke-width="0.012" stroke-linejoin="round"/>`;
   if (body.veins.length > 0) out += `<path d="${curves(body.veins)}" fill="none" stroke="${INK}" stroke-width="0.008" stroke-linecap="round"/>`;
   return out;
 }
@@ -70,45 +72,67 @@ function variance(body: Body): number {
 
 function washBody(body: Body, sheet: Sheet): string {
   if (body.tone === "accent") return `<path d="${smoothPath(body.outline, true, 0.9)}" fill="${ACCENT}" fill-opacity="0.55"/>`;
-  const outline = outlineOf(body, sheet);
   const depth = 0.75 + 0.5 * variance(body);
-  let out = `<use href="#${outline}" fill="${WASH}" fill-opacity="${num((0.14 + 0.22 * body.weight) * depth)}"/>`;
-  if (body.shadow.length > 0) {
+  const fill = ` fill="${WASH}" fill-opacity="${num((0.14 + 0.22 * body.weight) * depth)}"`;
+  const edge = ` stroke="${WASH}" stroke-opacity="0.38" stroke-width="0.022" stroke-linejoin="round"`;
+  let out: string;
+  // With no shadow laid between its wash and its pooled edge, a body is one path painting both, in that order.
+  if (body.shadow.length === 0) {
+    out = `<path d="${smoothPath(body.outline, true, 0.9)}"${fill}${edge}/>`;
+  } else {
+    const outline = outlineOf(body, sheet);
     const clip = sheet.id("c");
     sheet.defs.push(`<clipPath id="${clip}"><use href="#${outline}"/></clipPath>`);
-    out += `<g clip-path="url(#${clip})"><path d="${rings(body.shadow)}" fill="${WASH}" fill-opacity="${num(0.18 + 0.2 * body.weight)}" fill-rule="evenodd"/></g>`;
+    out = `<use href="#${outline}"${fill}/>`
+      + `<g clip-path="url(#${clip})"><path d="${rings(body.shadow)}" fill="${WASH}" fill-opacity="${num(0.18 + 0.2 * body.weight)}" fill-rule="evenodd"/></g>`
+      + `<use href="#${outline}" fill="none"${edge}/>`;
   }
-  out += `<use href="#${outline}" fill="none" stroke="${WASH}" stroke-opacity="0.38" stroke-width="0.022" stroke-linejoin="round"/>`;
   if (body.veins.length > 0) out += `<path d="${curves(body.veins)}" fill="none" stroke="${PAPER}" stroke-opacity="0.75" stroke-width="0.014" stroke-linecap="round"/>`;
   return out;
 }
 
 export function paintShapes(shapes: readonly Shape[], manner: Manner, sheet: Sheet): string {
   let out = "";
+  // Neighbouring paths with the same attributes share one group that carries them, since the attributes
+  // are most of a stroke's markup. A group with no opacity or filter of its own paints its children
+  // exactly as it would paint them alone, so overlapping washes still darken where they cross.
+  let run: string[] = [], runAttributes = "";
+  const flush = (): void => {
+    if (run.length === 1) out += `<path d="${run[0]}"${runAttributes}/>`;
+    else if (run.length > 1) out += `<g${runAttributes}>${run.map(d => `<path d="${d}"/>`).join("")}</g>`;
+    run = [];
+  };
+  const path = (d: string, attributes: string): void => {
+    if (attributes !== runAttributes) { flush(); runAttributes = attributes; }
+    run.push(d);
+  };
   for (const shape of shapes) {
     switch (shape.type) {
       case "body":
+        flush();
         out += manner === "taille-douce" ? engraveBody(shape, sheet) : washBody(shape, sheet);
         break;
       case "solid": {
         const colour = shape.tone === "accent" ? ACCENT : manner === "taille-douce" ? INK : WASH;
         const opacity = manner === "taille-douce" || shape.tone === "accent" ? "" : ` fill-opacity="0.82"`;
-        out += `<path d="${shape.smooth === false ? polyPath(shape.outline, true) : smoothPath(shape.outline, true, 0.9)}" fill="${colour}"${opacity}/>`;
+        path(shape.smooth === false ? polyPath(shape.outline, true) : smoothPath(shape.outline, true, 0.9), ` fill="${colour}"${opacity}`);
         break;
       }
       case "line": {
         const colour = shape.tone === "accent" ? ACCENT : manner === "taille-douce" ? INK : WASH;
         const opacity = manner === "lavis" && shape.tone !== "accent" ? ` stroke-opacity="0.85"` : "";
-        out += `<path d="${shape.smooth === false ? polyPath(shape.points) : smoothPath(shape.points)}" fill="none" stroke="${colour}"${opacity} stroke-width="${fine(shape.width)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+        path(shape.smooth === false ? polyPath(shape.points) : smoothPath(shape.points),
+          ` fill="none" stroke="${colour}"${opacity} stroke-width="${fine(shape.width)}" stroke-linecap="round" stroke-linejoin="round"`);
         break;
       }
       case "dots": {
         const colour = shape.tone === "accent" ? ACCENT : manner === "taille-douce" ? INK : WASH;
-        out += `<path d="${dotsPath(shape.points, shape.radius)}" fill="${colour}"/>`;
+        path(dotsPath(shape.points, shape.radius), ` fill="${colour}"`);
         break;
       }
     }
   }
+  flush();
   return out;
 }
 
