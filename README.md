@@ -127,8 +127,10 @@ The growth loop follows the grown composition of Kevin Raymond's [florilegium](h
 
 The palettes were resolved after the method of [madoromi](https://github.com/the-moonwitch/madoromi), which reads historical inks at the lightness each role needs; they share no code or colours with it. Several colour names come from the children's trail [Les couleurs au 18e siècle](https://lesbateliers.namur.be/documentation-et-presse/publications/carnets-pedagogiques/les-couleurs-du-18e-siecle) (Musée Les Bateliers, Namur, 2023).
 
-Six figures come from scans by the Bibliothèque interuniversitaire de santé, Paris, published under the Etalab Open Licence, which asks for attribution to the library.
+Plant-only SVGs require no attribution to the scanning libraries. Six guest figures use scans by the Bibliothèque interuniversitaire de santé, Paris under the Etalab Open Licence. The licence requires attribution to the library when those images are reused or redistributed, including within the full package.
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE). The figures' sources are public domain, as [figures/PROVENANCE.md](figures/PROVENANCE.md) records.
+The code is licensed under [MIT](LICENSE). Copies or substantial portions of the code must retain its copyright and licence notices.
+
+The guest figures derive from public-domain engravings. [Figure provenance](figures/PROVENANCE.md) records their scan terms and source credits.
