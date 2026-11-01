@@ -1,0 +1,32 @@
+{
+  "name": "eglantine-marginalia",
+  "version": "0.1.0",
+  "description": "Margin gardens in the manner of eighteenth-century French engraving: a plant for every day of the French Republican calendar, grown procedurally as SVG.",
+  "keywords": ["svg", "procedural", "generative", "botanical", "engraving", "margin", "ornament", "french-republican-calendar"],
+  "license": "MIT",
+  "author": "cadaeix",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./calendar": { "types": "./dist/calendar/index.d.ts", "default": "./dist/calendar/index.js" },
+    "./toolkit": { "types": "./dist/toolkit.d.ts", "default": "./dist/toolkit.js" },
+    "./figures/*": "./figures/*"
+  },
+  "files": ["dist", "figures", "florilegium-LICENSE.txt"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "gallery": "vite gallery --port 5210",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vite": "^7.1.0",
+    "vitest": "^3.0.0"
+  }
+}
