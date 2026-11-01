@@ -1559,6 +1559,7 @@ function modeOf(name: string, size: number, cluster: number): Mode {
 
 export const form: FormModule = {
   id: "cryptogame",
+  name: "cryptogame",
   doc: "Fungi, mosses, lichens, ferns and horsetails, each in its own mode, shedding spores at the end of the day; fungi fruit from soil and dead wood over their mycelium, or on a stem like a plant.",
   variants: {
     mode: { doc: "What is drawn: gilled cap, honeycomb morel, puffball, bracket on a stub, truffle on roots, moss cushion with capsules, foliose lichen, fern frond, maidenhair fans, or jointed horsetail", default: "gilled",

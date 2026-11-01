@@ -109,6 +109,7 @@ function leafOf(kind: string): PlantForm["leaf"] {
 
 export const form: FormModule = {
   id: "ombelle-corymbe",
+  name: "ombelle et corymbe",
   doc: "Flat-topped clusters: a branched corymb of five-petalled florets, or a compound umbel of tiny florets.",
   variants: {
     mode: { doc: "A branched corymb or rays from one point", default: "corymb", values: ["corymb", "umbel"] },

@@ -151,6 +151,7 @@ function leafOf(kind: string): PlantForm["leaf"] {
 
 export const form: FormModule = {
   id: "capitule",
+  name: "capitule",
   doc: "Composite flower heads: rays round a disc of florets over bracts; a clock of plumed seeds or a dry head.",
   variants: {
     rays: { doc: "Ray florets in the outer ring (0 for a head of disc florets only)", default: 22, range: [0, 44] },

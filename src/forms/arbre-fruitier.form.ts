@@ -1071,6 +1071,7 @@ const SHOOTS: Record<string, PlantForm["stems"]> = {
 
 export const form: FormModule = {
   id: "arbre-fruitier",
+  name: "arbre fruitier",
   doc: "Trees, shrubs and fruiting shoots shown by their fruit, which buds, swells and ripens, darkens or splits.",
   variants: {
     fruit: { doc: "The fruit drawn at the nodes", default: "fig", values: Object.keys(FRUITS) },

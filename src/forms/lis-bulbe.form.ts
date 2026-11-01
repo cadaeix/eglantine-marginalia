@@ -348,6 +348,7 @@ const BULB_LEAF = 3.4;
 
 export const form: FormModule = {
   id: "lis-bulbe",
+  name: "lis et bulbe",
   doc: "Scape-and-strap plants: six tepals singly, in racemes or umbels on a bare scape over strap leaves and a bulb; capsules, berries or bulbils after.",
   variants: {
     flower: { doc: "The flower: tulip cup, crocus goblet on a tube, flaring trumpet, starry narcissus with a corona, hanging bell, turk's cap, waxy tube, a cyclamen's swept-back petals, or an allium's ball of star florets", default: "cup",

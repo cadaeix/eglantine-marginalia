@@ -617,6 +617,7 @@ const ROSETTES: Record<string, PlantForm["basal"]> = {
 
 export const form: FormModule = {
   id: "racine-tubercule",
+  name: "racine et tubercule",
   doc: "Plants known by their underground organ: a root study at the foot (taproot, globe, fork, bundle, tubers, creeping root) with the plant growing out of its crown.",
   variants: {
     organ: { doc: "The organ: tapering taproot, swollen globe with a tail, forked (mandragore), bundle of slender roots, stem tubers on runners, or a creeping woody root", default: "taproot", values: ["taproot", "globe", "forked", "bundle", "tuber", "rhizome"] },

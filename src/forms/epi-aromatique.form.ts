@@ -556,7 +556,8 @@ function hairs(rng: Rng, shapes: Shape[], length: number): Shape[] {
 }
 
 export const form: FormModule = {
-  id: "épi-aromatique",
+  id: "epi-aromatique",
+  name: "épi aromatique",
   doc: "Upright stems of small flowers: spike, raceme, whorls, head, panicle, coiled cyme or tassel; tube, lip, pea, cross, bell or star corollas going to their fruit.",
   variants: {
     inflorescence: { doc: "How the flowers stand: a dense spike (lavande), a stalked raceme (giroflée), interrupted whorls (sauge), a round head (trèfle), a branched panicle (lilas), a coiled cyme (consoude) or a hanging tassel (amarante)", default: "spike", values: ["spike", "raceme", "whorls", "head", "panicle", "coil", "tassel"] },
@@ -610,7 +611,7 @@ export const form: FormModule = {
     const small = spec.inflorescence === "head";
     const bare = numberOf(variant, "bare");
     return {
-      id: "épi-aromatique",
+      id: "epi-aromatique",
       stems: shrub ? { count: 3, amplitude: 0.13, lambda: [3.5, 5.5], width: 0.07, tops: [0.9, 0.74, 0.58] }
         : rosette ? { count: 2, amplitude: 0.05, lambda: [8, 12], width: 0.065, tops: [0.93, 0.66] }
           : { count: 3, amplitude: 0.08, lambda: [6, 9], width: 0.052, tops: [0.93, 0.72, 0.52] },

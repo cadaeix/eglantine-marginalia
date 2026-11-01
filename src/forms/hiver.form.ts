@@ -1869,6 +1869,7 @@ function sectionFoot(plan: SectionPlan): Foot {
 
 export const form: FormModule = {
   id: "hiver",
+  name: "hiver",
   doc: "A bare winter garden of dormant twigs and dried leaves for the day's material: an engraved geological section at its foot with the material's chemical sign, or the material set in the twigs' forks as specimens that frost at the end.",
   variants: {
     mode: { doc: "How the material is shown: a geological section through its beds at the column's foot, the twigs rising from its soil, or specimens set in the twigs' forks", default: "section", values: ["section", "specimens"] },

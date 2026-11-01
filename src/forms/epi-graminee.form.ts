@@ -356,7 +356,8 @@ function grassBlade(rng: Rng, length: number, bend: number, width: number): Shap
 }
 
 export const form: FormModule = {
-  id: "épi-graminée",
+  id: "epi-graminee",
+  name: "épi de graminée",
   doc: "Grasses and grains: tufted culms and arching blades under a compact ear, a foxtail, an open panicle, or maize's tassel and husked cobs.",
   variants: {
     head: { doc: "The inflorescence: a compact ear (blé), a bristly foxtail (panic), an open panicle (avoine) or maize's tassel with cobs at the nodes", default: "ear", values: ["ear", "foxtail", "panicle", "cob"] },
@@ -397,7 +398,7 @@ export const form: FormModule = {
     const earRow = { name: "ear", w: 3.4, smin: 1.15, smax: 1.5, max: 7, hard: true, layer: LAYER.bloom, upright: 2.2, staged: true,
       r: (s: number) => (0.42 + awned * 0.25) * s, off: (s: number) => (0.55 + awned * 0.2) * s, draw };
     return {
-      id: "épi-graminée",
+      id: "epi-graminee",
       stems: stout
         ? { count: 3, amplitude: 0.05, lambda: [9, 13], width: 0.042 * culm, tops: [0.94, 0.78, 0.62] }
         : { count: 4, amplitude: 0.06, lambda: [8, 12], width: 0.042 * culm, tops: [0.95, 0.85, 0.74, 0.62] },

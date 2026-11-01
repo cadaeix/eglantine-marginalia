@@ -739,7 +739,8 @@ const OPPOSITE = 55;
 // ---------------------------------------------------------------- the form
 
 export const form: FormModule = {
-  id: "rosacée-coupe",
+  id: "rosacee-coupe",
+  name: "rosacée en coupe",
   doc: "Radial and cupped flowers in perspective, a boss of stamens at the heart; hips, haws, capsules, follicles or berries after.",
   variants: {
     petals: { doc: "Petals (or petal-like sepals) in a ring", default: 5, range: [3, 8] },
@@ -798,7 +799,7 @@ export const form: FormModule = {
     const low = height < 0.6;
     const tops = [0.92, 0.7, 0.5].map(top => top * height);
     return {
-      id: "rosacée-coupe",
+      id: "rosacee-coupe",
       stems: { count: 3, amplitude: woody ? 0.15 : 0.1, lambda: woody ? [4, 6] : [6, 9], width: woody ? 0.085 : 0.05, tops },
       basal: basal ? { count: [4, 7], length: low ? [2.6, 3.8] : [2.8, 4.4] } : null,
       nodes: { every: opposite ? [2.0, 2.8] : low ? [2.2, 3.0] : broad ? [1.9, 2.7] : [1.5, 2.3], length: h => lerp(broad ? 2.2 : 1.9, broad ? 1.4 : 1.2, h) * (low ? 0.85 : 1),

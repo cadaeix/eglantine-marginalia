@@ -652,6 +652,7 @@ function leafOf(variant: Variant): { leaf: PlantForm["leaf"]; proxy: number; sca
 
 export const form: FormModule = {
   id: "grimpante",
+  name: "grimpante",
   doc: "Climbers held by tendrils, twining or rootlets: lobed, pinnate or trifoliate leaves; bunches, cones, berries, gourds or pods.",
   variants: {
     attach: { doc: "How it holds on: coiled simple tendrils (gourds, lentil), forked tendrils (vine, pea, vetch), twining shoots wound about each other, or clinging rootlets (ivy)", default: "branched", values: ["coil", "branched", "twining", "clinging"] },

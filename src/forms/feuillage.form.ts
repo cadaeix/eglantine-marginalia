@@ -837,6 +837,7 @@ function leafyTwig(rng: Rng, s: number, leaf: LeafDraw, opposite: boolean, leafL
 
 export const form: FormModule = {
   id: "feuillage",
+  name: "feuillage",
   doc: "Plants shown by their leaves (outline, division, margin, arrangement) with a secondary mark: catkins, nuts, keys, curds, racemes.",
   variants: {
     habit: { doc: "How the plant stands: tree, shrub, leafy herb, basal rosette, creeping stems, or jointed fleshy stems", default: "tree", values: Object.keys(HABITS) },

@@ -90,7 +90,10 @@ export interface VariantKey {
 }
 
 export interface FormModule {
+  /** The form's id, in lowercase ASCII and hyphens: "epi-aromatique". */
   id: string;
+  /** The form's name as written in French, for display: "épi aromatique". */
+  name: string;
   /** One line on what the form draws. */
   doc: string;
   variants: Readonly<Record<string, VariantKey>>;

@@ -417,7 +417,8 @@ const POSTURES: Record<string, Posture> = {
 };
 
 export const form: FormModule = {
-  id: "conifère",
+  id: "conifere",
+  name: "conifère",
   doc: "Conifers: needled or scaled sprays, and woody cones that open or shatter, berry-like cones or red arils.",
   variants: {
     needles: { doc: "How the leaves sit: flat two-ranked needles, whorls of three, tufts on spurs, long paired needles in brushes, or scale leaves", default: "flat", values: ["flat", "whorl", "tufts", "paired", "scale"] },
@@ -455,7 +456,7 @@ export const form: FormModule = {
     const draw = (rng: Rng, s: number, stage: Stage): Shape[] => coneMotif(rng, s, stage, k);
     const long = ["barrel", "ovoid"].includes(k.cone) ? Math.max(1, k.coneLength / 2) : 1;
     return {
-      id: "conifère",
+      id: "conifere",
       stems: { count: posture.count, amplitude: posture.amplitude, lambda: [5, 9], width: posture.width, tops: posture.tops },
       basal: null,
       nodes: { every: posture.every, length: posture.length, angle: posture.angle, below: 0.96 },
