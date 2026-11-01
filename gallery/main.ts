@@ -25,8 +25,8 @@ function readRoute(): Route {
 }
 
 /**
- * The readings of the palette sheet the dev server was given, such as `cordelier-chandelle`, with the sheet
- * added to the page; none without a sheet. nuancier-bridge.css turns a reading into the garden's four inks.
+ * The readings of the palette sheets the dev server was given, such as `cordelier-chandelle`, with the sheets
+ * added to the page; none without a sheet. The sheets themselves set the garden's four inks for each reading.
  */
 async function loadPalettes(): Promise<string[]> {
   const response = await fetch("/palettes.css");

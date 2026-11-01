@@ -30,7 +30,9 @@ Neither value takes back what it has shown: a leaf or bloom present at some mome
 
 The SVG refers to four inks through CSS custom properties, each with a fallback colour: `--eglantine-ink`, `--eglantine-paper`, `--eglantine-accent` and `--eglantine-wash`. A page's stylesheet can set them to match a theme. A garden shown as an image or saved as a file has no stylesheet, so `withInks(svg, { ink: "#1b1b1b" })` writes the colours into the SVG and keeps the fallbacks for the inks left out.
 
-A theme that publishes its colours as custom properties joins the garden in four declarations. [gallery/nuancier-bridge.css](gallery/nuancier-bridge.css) maps the palettes of nuancier, a set of eighteenth-century colour palettes, onto the four inks: paper and ink from the palette's paper and ink, the accent from its rubric, and the wash from the single pigment a wash drawing in that palette would use. A wash in one pigment, such as iron-gall brown, madder or red chalk, suits every day. A green wash suits flowers but colours rock sections and dead wood green as well.
+A theme sets the four inks with a few needs in mind. The forms are cut out of `--eglantine-paper`, so the paper has to match the surface the garden lies on: in a sidebar of another colour, set the paper to that colour, or the forms show as patches of the page. The lavis manner lays the wash in layers of 14% to 38% opacity, and the default bistre stands 8.4:1 in contrast from the default cream; a much lighter wash fades out. The accent marks pistils that sit on washed petals, so it should stand apart from the wash.
+
+nuancier, a set of eighteenth-century colour palettes, ships a port for Églantine. Linking its `nuancier.css` and then its `ports/eglantine/nuancier.css` tints every garden inside a `data-nuancier` element, and its `ports/eglantine/nuancier.json` gives the same inks to `withInks`.
 
 ## The calendar
 
@@ -90,7 +92,7 @@ The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres an
 npm install
 npm test          # the garden invariants over every form's examples, and the calendar
 npm run typecheck
-npm run gallery   # http://localhost:5210; EGLANTINE_PALETTES=path/to/nuancier.css adds a palette chooser
+npm run gallery   # http://localhost:5210; EGLANTINE_PALETTES="<nuancier>/dist/nuancier.css;<nuancier>/dist/ports/eglantine/nuancier.css" adds a palette chooser (":" between paths outside Windows)
 npm run build     # dist/
 ```
 
