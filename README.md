@@ -1,10 +1,14 @@
 # Églantine
 
-Églantine (`eglantine-marginalia`) grows procedural plants for the margin of a page and draws them as SVG in the manner of eighteenth-century French engraving. A garden grows from a seed and a plant form, and it can be drawn at any moment of a day: stems lengthen, buds open, flowers go to seed and leaves fill in. A calendar module gives each day of the year a plant, after the day names of the French Republican calendar.
+Églantine (`eglantine-marginalia`) grows a plant in the margin of a page and draws it in the manner of eighteenth-century French engraving, in copperplate line or in bistre wash. The plant keeps time with the day. Its stems lengthen and its buds open, and towards evening its flowers go to seed. Its leaves come in as the day fills, with words written, pages read or whatever else the page counts.
 
-![Gardens in the two manners](docs/showcase.webp)
+![Gardens for five days of an CCXXXV, in the two manners: la carotte, l'amaryllis, l'oie, le fléau and l'amadouvier](docs/showcase.webp)
 
-The library is TypeScript with no runtime dependencies. Growing and rendering use no DOM, so a garden can be drawn in a browser, a web worker or Node.
+A garden grows from one of thirteen plant forms, each tuned by a variant to a particular plant: carrots, pears, tulips and so on. A page can choose its own plants from these and never touch the calendar, or build new forms with the toolkit.
+
+The calendar, a separate entry point, can choose instead: a plant for each day of the year, after the [French Republican calendar](https://en.wikipedia.org/wiki/French_Republican_calendar#Gallery). On animal and tool days, the plant has company, cut from engravings of the period.
+
+The library is TypeScript with no runtime dependencies. It grows each garden procedurally from a seed and a plant form, then draws it as an SVG string at any moment of the day. Growing and rendering use no DOM, so a garden can be drawn in a browser, a web worker or Node.
 
 ## Usage
 
@@ -23,6 +27,28 @@ A moment has two values between 0 and 1:
 - `fullness` measures how full the day is, in whatever sense the page chooses: words written, pages read, tasks done. It brings the leaves, the mycelium of the fungi and the crystals in the rock. A garden at fullness 0 already shows 30% of its leaves, and a quiet day keeps the same flowers as a full one.
 
 Neither value takes back what it has shown: a leaf or bloom present at some moment stays present at every later time and greater fullness.
+
+## Forms
+
+A form describes what a plant is made of and how it stands: its stems, leaves, bloom and what the bloom becomes. A variant tunes a form to a particular plant, such as a pear rather than a fig. Each form documents its variant keys, and `resolveVariant` rejects unknown keys and values out of range.
+
+| Form | Name | Draws | Calendar days |
+|---|---|---|---|
+| `arbre-fruitier` | arbre fruitier | trees, shrubs and fruiting shoots, shown by fruit that buds, swells and ripens | 39 |
+| `capitule` | capitule | composite flower heads, going to a clock of plumed seeds or a dry head | 17 |
+| `conifere` | conifère | needled or scaled sprays and their cones, berry-like cones or arils | 8 |
+| `cryptogame` | cryptogame | fungi from soil and dead wood over their mycelium, mosses, lichens, ferns and horsetails | 10 |
+| `epi-aromatique` | épi aromatique | upright stems of small flowers in spikes, whorls, heads or panicles | 45 |
+| `epi-graminee` | épi de graminée | grasses and grains under their ears and panicles | 15 |
+| `feuillage` | feuillage | plants shown by their leaves, with catkins, nuts or berries | 36 |
+| `grimpante` | grimpante | climbers held by tendrils, twining stems or rootlets | 15 |
+| `hiver` | hiver | winter: rocks, earths and metals in an engraved geological section with their period chemical signs, under bare twigs | 26 |
+| `lis-bulbe` | lis et bulbe | scape-and-strap plants with six tepals over a bulb or corm | 18 |
+| `ombelle-corymbe` | ombelle et corymbe | flat-topped clusters: corymbs and compound umbels | 17 |
+| `racine-tubercule` | racine et tubercule | plants known by a root or tuber at the foot of the column, some of them very long | 18 |
+| `rosacee-coupe` | rosacée en coupe | radial and cupped flowers in perspective, going to hips, haws and capsules | 24 |
+
+The forms carry French names, like the calendar's days, and plain lowercase ASCII ids. `npm run gallery` serves a page that shows every form's examples at bloom and at seed, with their flowers and leaves drawn large, the calendar's garden for any date, and every palette.
 
 ## Manners
 
@@ -73,35 +99,7 @@ if (day.plant) {
 }
 ```
 
-The French Republican calendar was in use from 1793 to 1805. It divides the year into twelve months of thirty days, followed by five complementary days, or six in a sextile year. In his report to the National Convention in 1793, Fabre d'Églantine gave each day of a month a name: a plant for most days, an animal for every fifth day and a tool for every tenth. The library takes the names as they were printed and gives each of the 288 plant days a form and a variant (see `PLANTS`). On an animal or tool day the garden grows the previous day's plant, and an engraved figure of the animal visits it or the tool lies at rest at its foot. The complementary days have no plant.
-
-Guest sizes are upper limits. The layout scales wide figures proportionally to fit the column, including their tilt.
-
-The Republic declared years III, VII and XI sextile before it abolished the calendar, and later readings disagree on the years after. `republicanDate` keeps the four-year rhythm those years set: year XV and every fourth year after are sextile, with no exception for centuries. By this rule 31 October 2026 is 8 brumaire an CCXXXV, a day later than a reading that follows the autumn equinox.
-
-The figures are ink masks cut from eighteenth-century engravings, in public-domain scans by the Smithsonian Libraries, the Bibliothèque interuniversitaire de santé in Paris, the University of Seville, Naturalis and other libraries, served through the Internet Archive. [figures/PROVENANCE.md](figures/PROVENANCE.md) lists the work, plate and scan for each of the 67 figures. Five days have no figure: le cordeau, le bœuf, la vache, la houlette and le traîneau. On those days the garden grows without a guest.
-
-## Forms
-
-A form describes what a plant is made of and how it stands: its stems, leaves, bloom and what the bloom becomes. A variant tunes a form to a particular plant, such as a pear rather than a fig. Each form documents its variant keys, and `resolveVariant` rejects unknown keys and values out of range.
-
-| Form | Name | Draws | Calendar days |
-|---|---|---|---|
-| `arbre-fruitier` | arbre fruitier | trees, shrubs and fruiting shoots, shown by fruit that buds, swells and ripens | 39 |
-| `capitule` | capitule | composite flower heads, going to a clock of plumed seeds or a dry head | 17 |
-| `conifere` | conifère | needled or scaled sprays and their cones, berry-like cones or arils | 8 |
-| `cryptogame` | cryptogame | fungi from soil and dead wood over their mycelium, mosses, lichens, ferns and horsetails | 10 |
-| `epi-aromatique` | épi aromatique | upright stems of small flowers in spikes, whorls, heads or panicles | 45 |
-| `epi-graminee` | épi de graminée | grasses and grains under their ears and panicles | 15 |
-| `feuillage` | feuillage | plants shown by their leaves, with catkins, nuts or berries | 36 |
-| `grimpante` | grimpante | climbers held by tendrils, twining stems or rootlets | 15 |
-| `hiver` | hiver | winter: rocks, earths and metals in an engraved geological section with their period chemical signs, under bare twigs | 26 |
-| `lis-bulbe` | lis et bulbe | scape-and-strap plants with six tepals over a bulb or corm | 18 |
-| `ombelle-corymbe` | ombelle et corymbe | flat-topped clusters: corymbs and compound umbels | 17 |
-| `racine-tubercule` | racine et tubercule | plants known by a root or tuber at the foot of the column, some of them very long | 18 |
-| `rosacee-coupe` | rosacée en coupe | radial and cupped flowers in perspective, going to hips, haws and capsules | 24 |
-
-The forms carry French names, like the calendar's days, and plain lowercase ASCII ids. `npm run gallery` serves a page that shows every form's examples at bloom and at seed, with their flowers and leaves drawn large, the calendar's garden for any date, and every palette.
+`day.plant` is null on the complementary days at the year's end; [History](#history) explains the days and their guests.
 
 ## Extending
 
@@ -120,6 +118,14 @@ npm run typecheck
 npm run gallery   # http://localhost:5210
 npm run build     # dist/
 ```
+
+## History
+
+The French Republican calendar was in use from 1793 to 1805. It divides the year into twelve months of thirty days, followed by five complementary days, or six in a sextile year. In his report to the National Convention in 1793, Fabre d'Églantine gave each day of a month a name: a plant for most days, an animal for every fifth day and a tool for every tenth. The library takes the names as they were printed and gives each of the 288 plant days a form and a variant (see `PLANTS`). On an animal or tool day the garden grows the previous day's plant, and an engraved figure of the animal visits it or the tool lies at rest at its foot. The complementary days have no plant.
+
+The Republic declared years III, VII and XI sextile before it abolished the calendar, and later readings disagree on the years after. `republicanDate` keeps the four-year rhythm those years set: year XV and every fourth year after are sextile, with no exception for centuries. By this rule 31 October 2026 is 8 brumaire an CCXXXV, a day later than a reading that follows the autumn equinox.
+
+The figures are ink masks cut from eighteenth-century engravings, in public-domain scans by the Smithsonian Libraries, the Bibliothèque interuniversitaire de santé in Paris, the University of Seville, Naturalis and other libraries, served through the Internet Archive. [figures/PROVENANCE.md](figures/PROVENANCE.md) lists the work, plate and scan for each of the 67 figures. Five days have no figure: le cordeau, le bœuf, la vache, la houlette and le traîneau. On those days the garden grows without a guest… for now.
 
 ## Credits
 
