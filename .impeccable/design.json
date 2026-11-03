@@ -1,0 +1,392 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-03T06:30:18.638Z",
+  "title": "Design System: Églantine playground",
+  "extensions": {
+    "colorMeta": {
+      "surface": {
+        "role": "neutral",
+        "displayName": "surface",
+        "tonalRamp": [
+          "oklch(15% 0.0054 106.63)",
+          "oklch(26.43% 0.0088 106.63)",
+          "oklch(37.86% 0.0111 106.63)",
+          "oklch(49.29% 0.0119 106.63)",
+          "oklch(60.71% 0.0113 106.63)",
+          "oklch(72.14% 0.0092 106.63)",
+          "oklch(83.57% 0.0059 106.63)",
+          "oklch(95% 0.0019 106.63)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "ink",
+        "tonalRamp": [
+          "oklch(15% 0.0151 154.49)",
+          "oklch(26.43% 0.0245 154.49)",
+          "oklch(37.86% 0.0308 154.49)",
+          "oklch(49.29% 0.0332 154.49)",
+          "oklch(60.71% 0.0313 154.49)",
+          "oklch(72.14% 0.0255 154.49)",
+          "oklch(83.57% 0.0164 154.49)",
+          "oklch(95% 0.0052 154.49)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "muted",
+        "tonalRamp": [
+          "oklch(15% 0.0102 140.46)",
+          "oklch(26.43% 0.0166 140.46)",
+          "oklch(37.86% 0.0208 140.46)",
+          "oklch(49.29% 0.0224 140.46)",
+          "oklch(60.71% 0.0212 140.46)",
+          "oklch(72.14% 0.0172 140.46)",
+          "oklch(83.57% 0.0111 140.46)",
+          "oklch(95% 0.0035 140.46)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "line",
+        "tonalRamp": [
+          "oklch(15% 0.0099 124.74)",
+          "oklch(26.43% 0.0161 124.74)",
+          "oklch(37.86% 0.0202 124.74)",
+          "oklch(49.29% 0.0218 124.74)",
+          "oklch(60.71% 0.0206 124.74)",
+          "oklch(72.14% 0.0167 124.74)",
+          "oklch(83.57% 0.0107 124.74)",
+          "oklch(95% 0.0034 124.74)"
+        ]
+      },
+      "soft": {
+        "role": "neutral",
+        "displayName": "soft",
+        "tonalRamp": [
+          "oklch(15% 0.0075 121.79)",
+          "oklch(26.43% 0.0123 121.79)",
+          "oklch(37.86% 0.0154 121.79)",
+          "oklch(49.29% 0.0166 121.79)",
+          "oklch(60.71% 0.0157 121.79)",
+          "oklch(72.14% 0.0128 121.79)",
+          "oklch(83.57% 0.0082 121.79)",
+          "oklch(95% 0.0026 121.79)"
+        ]
+      },
+      "selected": {
+        "role": "neutral",
+        "displayName": "selected",
+        "tonalRamp": [
+          "oklch(15% 0.0120 130.93)",
+          "oklch(26.43% 0.0196 130.93)",
+          "oklch(37.86% 0.0246 130.93)",
+          "oklch(49.29% 0.0265 130.93)",
+          "oklch(60.71% 0.0250 130.93)",
+          "oklch(72.14% 0.0204 130.93)",
+          "oklch(83.57% 0.0131 130.93)",
+          "oklch(95% 0.0042 130.93)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "accent",
+        "tonalRamp": [
+          "oklch(15% 0.0221 151.60)",
+          "oklch(26.43% 0.0360 151.60)",
+          "oklch(37.86% 0.0453 151.60)",
+          "oklch(49.29% 0.0488 151.60)",
+          "oklch(60.71% 0.0460 151.60)",
+          "oklch(72.14% 0.0374 151.60)",
+          "oklch(83.57% 0.0241 151.60)",
+          "oklch(95% 0.0076 151.60)"
+        ]
+      },
+      "on-accent": {
+        "role": "neutral",
+        "displayName": "on accent",
+        "tonalRamp": [
+          "oklch(15% 0.0060 102.01)",
+          "oklch(26.43% 0.0097 102.01)",
+          "oklch(37.86% 0.0123 102.01)",
+          "oklch(49.29% 0.0132 102.01)",
+          "oklch(60.71% 0.0125 102.01)",
+          "oklch(72.14% 0.0101 102.01)",
+          "oklch(83.57% 0.0065 102.01)",
+          "oklch(95% 0.0021 102.01)"
+        ]
+      },
+      "error": {
+        "role": "error",
+        "displayName": "error",
+        "tonalRamp": [
+          "oklch(15% 0.0637 28.48)",
+          "oklch(26.43% 0.1036 28.48)",
+          "oklch(37.86% 0.1303 28.48)",
+          "oklch(49.29% 0.1403 28.48)",
+          "oklch(60.71% 0.1325 28.48)",
+          "oklch(72.14% 0.1077 28.48)",
+          "oklch(83.57% 0.0693 28.48)",
+          "oklch(95% 0.0220 28.48)"
+        ]
+      },
+      "dark-surface": {
+        "role": "neutral",
+        "displayName": "dark surface",
+        "tonalRamp": [
+          "oklch(15% 0.0077 155.85)",
+          "oklch(26.43% 0.0125 155.85)",
+          "oklch(37.86% 0.0157 155.85)",
+          "oklch(49.29% 0.0170 155.85)",
+          "oklch(60.71% 0.0160 155.85)",
+          "oklch(72.14% 0.0130 155.85)",
+          "oklch(83.57% 0.0084 155.85)",
+          "oklch(95% 0.0027 155.85)"
+        ]
+      },
+      "dark-ink": {
+        "role": "neutral",
+        "displayName": "dark ink",
+        "tonalRamp": [
+          "oklch(15% 0.0092 115.98)",
+          "oklch(26.43% 0.0149 115.98)",
+          "oklch(37.86% 0.0188 115.98)",
+          "oklch(49.29% 0.0202 115.98)",
+          "oklch(60.71% 0.0191 115.98)",
+          "oklch(72.14% 0.0155 115.98)",
+          "oklch(83.57% 0.0100 115.98)",
+          "oklch(95% 0.0032 115.98)"
+        ]
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "dark muted",
+        "tonalRamp": [
+          "oklch(15% 0.0120 126.63)",
+          "oklch(26.43% 0.0195 126.63)",
+          "oklch(37.86% 0.0245 126.63)",
+          "oklch(49.29% 0.0264 126.63)",
+          "oklch(60.71% 0.0249 126.63)",
+          "oklch(72.14% 0.0202 126.63)",
+          "oklch(83.57% 0.0130 126.63)",
+          "oklch(95% 0.0041 126.63)"
+        ]
+      },
+      "dark-line": {
+        "role": "neutral",
+        "displayName": "dark line",
+        "tonalRamp": [
+          "oklch(15% 0.0150 133.99)",
+          "oklch(26.43% 0.0244 133.99)",
+          "oklch(37.86% 0.0307 133.99)",
+          "oklch(49.29% 0.0331 133.99)",
+          "oklch(60.71% 0.0313 133.99)",
+          "oklch(72.14% 0.0254 133.99)",
+          "oklch(83.57% 0.0163 133.99)",
+          "oklch(95% 0.0052 133.99)"
+        ]
+      },
+      "dark-soft": {
+        "role": "neutral",
+        "displayName": "dark soft",
+        "tonalRamp": [
+          "oklch(15% 0.0098 155.74)",
+          "oklch(26.43% 0.0159 155.74)",
+          "oklch(37.86% 0.0201 155.74)",
+          "oklch(49.29% 0.0216 155.74)",
+          "oklch(60.71% 0.0204 155.74)",
+          "oklch(72.14% 0.0166 155.74)",
+          "oklch(83.57% 0.0107 155.74)",
+          "oklch(95% 0.0034 155.74)"
+        ]
+      },
+      "dark-selected": {
+        "role": "neutral",
+        "displayName": "dark selected",
+        "tonalRamp": [
+          "oklch(15% 0.0199 137.68)",
+          "oklch(26.43% 0.0323 137.68)",
+          "oklch(37.86% 0.0406 137.68)",
+          "oklch(49.29% 0.0438 137.68)",
+          "oklch(60.71% 0.0413 137.68)",
+          "oklch(72.14% 0.0336 137.68)",
+          "oklch(83.57% 0.0216 137.68)",
+          "oklch(95% 0.0068 137.68)"
+        ]
+      },
+      "dark-accent": {
+        "role": "primary",
+        "displayName": "dark accent",
+        "tonalRamp": [
+          "oklch(15% 0.0192 125.04)",
+          "oklch(26.43% 0.0312 125.04)",
+          "oklch(37.86% 0.0392 125.04)",
+          "oklch(49.29% 0.0422 125.04)",
+          "oklch(60.71% 0.0398 125.04)",
+          "oklch(72.14% 0.0324 125.04)",
+          "oklch(83.57% 0.0208 125.04)",
+          "oklch(95% 0.0066 125.04)"
+        ]
+      },
+      "dark-on-accent": {
+        "role": "neutral",
+        "displayName": "dark on accent",
+        "tonalRamp": [
+          "oklch(15% 0.0136 150.23)",
+          "oklch(26.43% 0.0221 150.23)",
+          "oklch(37.86% 0.0278 150.23)",
+          "oklch(49.29% 0.0299 150.23)",
+          "oklch(60.71% 0.0283 150.23)",
+          "oklch(72.14% 0.0230 150.23)",
+          "oklch(83.57% 0.0148 150.23)",
+          "oklch(95% 0.0047 150.23)"
+        ]
+      },
+      "dark-error": {
+        "role": "error",
+        "displayName": "dark error",
+        "tonalRamp": [
+          "oklch(15% 0.0418 28.22)",
+          "oklch(26.43% 0.0680 28.22)",
+          "oklch(37.86% 0.0855 28.22)",
+          "oklch(49.29% 0.0921 28.22)",
+          "oklch(60.71% 0.0869 28.22)",
+          "oklch(72.14% 0.0707 28.22)",
+          "oklch(83.57% 0.0454 28.22)",
+          "oklch(95% 0.0144 28.22)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Specimen heading",
+        "purpose": "Heading beside the generated garden."
+      },
+      "wordmark": {
+        "displayName": "Églantine wordmark",
+        "purpose": "The masthead name."
+      },
+      "body": {
+        "displayName": "Specimen prose",
+        "purpose": "The reading sample beside the garden."
+      },
+      "button": {
+        "displayName": "Action label",
+        "purpose": "Export and share actions."
+      },
+      "palette-label": {
+        "displayName": "Palette name",
+        "purpose": "Readable names beside visual swatches."
+      }
+    },
+    "shadows": [
+      {
+        "name": "page",
+        "value": "0 8px 22px #18241b0d",
+        "purpose": "The paper preview above its soft frame."
+      }
+    ],
+    "motion": [
+      {
+        "name": "paper-colours",
+        "value": "160ms ease-out",
+        "purpose": "Paper and swatch colour transitions when reduced motion is not requested."
+      },
+      {
+        "name": "choice-colours",
+        "value": "120ms ease-out",
+        "purpose": "Plant and radio selection backgrounds when reduced motion is not requested."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1600px"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "1100px"
+      },
+      {
+        "name": "phone",
+        "value": "760px"
+      },
+      {
+        "name": "narrow-phone",
+        "value": "370px"
+      },
+      {
+        "name": "short-phone-height",
+        "value": "500px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Save SVG",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary garden export action.",
+      "html": "<button class=\"ds-primary\">Save SVG</button>",
+      "css": ".ds-primary {font: 12.75px \"Segoe UI\", \"Helvetica Neue\", sans-serif; min-height:42px; padding:7.5px 12.75px; border:1px solid var(--line,#b9bfb0); border-radius:3px; cursor:pointer;background:var(--accent,#35513c);color:var(--on-accent,#faf9ef);border-color:var(--accent,#35513c)} .ds-primary:hover {background:var(--ink,#2d4033);color:var(--surface,#eeeee5)} .ds-primary:focus-visible { outline: 2px solid var(--accent, #35513c); outline-offset: 4px; }.ds-primary:disabled {opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Copy link",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary sharing action.",
+      "html": "<button class=\"ds-secondary\">Copy link</button>",
+      "css": ".ds-secondary {font: 12.75px \"Segoe UI\", \"Helvetica Neue\", sans-serif; min-height:42px; padding:7.5px 12.75px; border:1px solid var(--line,#b9bfb0); border-radius:3px; cursor:pointer;background:transparent;color:var(--ink,#2d4033)} .ds-secondary:hover {background:var(--soft,#e0e4d8);border-color:var(--accent,#35513c)} .ds-secondary:focus-visible { outline: 2px solid var(--accent, #35513c); outline-offset: 4px; }"
+    },
+    {
+      "name": "Named palette swatch",
+      "kind": "custom",
+      "refersTo": "palette-choice",
+      "description": "Ink, wash and accent samples on the palette paper, with a visible name.",
+      "html": "<button class=\"ds-palette\" aria-pressed=\"true\"><span class=\"ds-swatch\" aria-hidden=\"true\"><i></i><i></i><i></i></span><span class=\"ds-palette-name\">Iron-gall brown</span></button>",
+      "css": ".ds-palette {background:transparent;color:var(--ink,#2d4033);border:1px solid var(--accent,#35513c);border-radius:2px;padding:2.25px;width:78px;cursor:pointer} .ds-swatch {display:flex;justify-content:center;align-items:center;gap:4px;height:27px;background:#f4ecdd;border:1px solid #c0b9ad;padding:3px} .ds-swatch i {display:block;width:7px;height:15px;background:#23201d} .ds-swatch i:nth-child(2) {width:17px;background:#603a1a} .ds-swatch i:nth-child(3) {width:5px;height:10px;background:#b12e23} .ds-palette-name {display:block;font:12px/1.2 \"Segoe UI\",sans-serif;margin-top:4.5px} .ds-palette:hover {border-color:var(--accent,#35513c)} .ds-palette:focus-visible { outline: 2px solid var(--accent, #35513c); outline-offset: 4px; }"
+    },
+    {
+      "name": "Calendar date",
+      "kind": "input",
+      "description": "Native date input with a visible label.",
+      "html": "<label class=\"ds-date-label\">Choose a date<input class=\"ds-date\" type=\"date\" value=\"2026-11-03\" min=\"1792-09-22\"></label>",
+      "css": ".ds-date-label {display:grid;gap:10px;font:15px var(--serif,Baskervville,Georgia,serif);color:var(--ink,#2d4033)} .ds-date {font:15px var(--sans,\"Segoe UI\",sans-serif);background:var(--surface,#eeeee5);color:var(--ink,#2d4033);border:1px solid var(--line,#b9bfb0);border-radius:3px;padding:9.75px;color-scheme:light dark} .ds-date:hover {border-color:var(--accent,#35513c)} .ds-date:focus-visible { outline: 2px solid var(--accent, #35513c); outline-offset: 4px; }"
+    },
+    {
+      "name": "Settings disclosure",
+      "kind": "custom",
+      "description": "Native disclosure for the optional page settings.",
+      "html": "<details class=\"ds-details\"><summary>On the page</summary><p>The garden can appear on the left or right.</p></details>",
+      "css": ".ds-details {border-top:1px solid var(--line,#b9bfb0);color:var(--ink,#2d4033);width:260px} .ds-details summary {display:flex;align-items:center;justify-content:space-between;min-height:44px;list-style:none;cursor:pointer;font:16.5px var(--serif,Baskervville,Georgia,serif)} .ds-details summary::-webkit-details-marker {display:none} .ds-details summary::after {content:\"\";width:7px;height:7px;border-right:1px solid currentColor;border-bottom:1px solid currentColor;transform:rotate(45deg);margin-right:4.5px} .ds-details[open] summary::after {transform:rotate(225deg)} .ds-details summary:hover {color:var(--accent,#35513c)} .ds-details summary:focus-visible { outline: 2px solid var(--accent, #35513c); outline-offset: 4px; }.ds-details p {font:12.3px/1.5 var(--sans,\"Segoe UI\",sans-serif)}"
+    },
+    {
+      "name": "Masthead links",
+      "kind": "nav",
+      "description": "Links to technical specimens and the source repository.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Project\"><a href=\"./specimens.html#all\">Specimens</a><a href=\"https://github.com/cadaeix/eglantine-marginalia\">Source</a></nav>",
+      "css": ".ds-nav {display:flex;gap:22.5px;font:12.75px var(--sans,\"Segoe UI\",sans-serif);color:var(--ink,#2d4033)} .ds-nav a {display:inline-flex;align-items:center;min-height:32px;color:inherit;text-underline-offset:.24em;text-decoration-thickness:1px} .ds-nav a:hover {text-decoration-thickness:2px} .ds-nav a:focus-visible { outline: 2px solid var(--accent, #35513c); outline-offset: 4px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Interactive botanical plate",
+    "overview": "The playground follows the approved interactive botanical plate direction. Generated engraving and wash drawings provide its illustration. Fine rules and restrained controls surround a page preview that pairs a garden with text.\n\nEnglish names identify the public choices. Historical French names remain secondary information. Plant thumbnails and named palette swatches let visitors inspect choices before selecting them.",
+    "keyCharacteristics": [
+      "Generated engraving and wash drawings provide its illustration.",
+      "English names identify the public choices."
+    ],
+    "rules": [],
+    "dos": [
+      "Do use generated gardens as the primary artwork.",
+      "Do show English names alongside visual choices.",
+      "Do show palette names and swatches together.",
+      "Do preserve the SVG aspect ratio when adjusting page margins.",
+      "Do leave advanced controls inside their disclosures."
+    ],
+    "donts": [
+      "Don't replace the botanical artwork with generic decorative illustrations.",
+      "Don't use historical French terminology as the sole label for a public control.",
+      "Don't rely on colour alone to distinguish selected controls."
+    ]
+  }
+}

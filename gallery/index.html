@@ -2,39 +2,65 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Églantine: the gallery</title>
-    <style>
-      :root { --paper: #f3ead8; --text: #2a221c; --muted: #7a6a58; color-scheme: light; }
-      :root[data-paper="night"] {
-        --paper: #1d1a17; --text: #e9dfcc; --muted: #9c8f7d; color-scheme: dark;
-        --eglantine-ink: #e9dfcc; --eglantine-paper: #1d1a17; --eglantine-accent: #d9785f; --eglantine-wash: #c9a77c;
-      }
-      body { margin: 0; background: var(--paper); color: var(--text); font: 15px/1.45 Georgia, "Times New Roman", serif; }
-      main { padding: 1rem 1.5rem 3rem; }
-      nav { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; }
-      nav a { color: inherit; }
-      nav a[aria-current] { font-weight: 700; }
-      .switch { margin-left: auto; display: flex; gap: 0.75rem; }
-      h1 { font-size: 1.25rem; margin: 0; }
-      h2 { font-size: 0.95rem; margin: 1.25rem 0 0.4rem; }
-      code { font-size: 0.75rem; color: var(--muted); }
-      table { font-size: 0.8rem; border-collapse: collapse; margin: 0.5rem 0; }
-      th, td { text-align: left; padding: 0.15rem 0.6rem 0.15rem 0; vertical-align: top; }
-      .row { display: flex; gap: 1.5rem; align-items: flex-end; flex-wrap: wrap; }
-      .all { display: flex; flex-wrap: wrap; gap: 1.25rem; }
-      figure { margin: 0; }
-      figcaption { font-size: 0.75rem; color: var(--muted); text-align: center; }
-      svg.eglantine { display: block; overflow: hidden; }
-      /* A chosen palette sets the page's paper and ink as well as the garden's. */
-      :root[data-eglantine-palette] { --muted: color-mix(in oklab, var(--eglantine-ink) 62%, var(--eglantine-paper)); }
-      :root[data-eglantine-palette] body { background: var(--eglantine-paper); color: var(--eglantine-ink); }
-      .palette-note { font-size: 0.85rem; color: var(--muted); margin: -0.5rem 0 1rem; }
-      nav select { font: inherit; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Grow a little garden in the margin. Explore Églantine's botanical engravings, try historical inks, and take a garden home as SVG." />
+    <meta name="theme-color" content="#eeeee5" />
+    <title>Églantine — a garden in the margin</title>
+    <link rel="stylesheet" href="./playground.css" />
   </head>
   <body>
-    <main id="gallery"></main>
-    <script type="module" src="./main.ts"></script>
+    <a class="skip-link" href="#controls">Skip to garden controls</a>
+    <header class="masthead">
+      <a class="wordmark" href="./" aria-label="Églantine playground">Églantine<span class="wordmark-period">.</span></a>
+      <p>A little garden in the margin.</p>
+      <nav aria-label="Main navigation">
+        <a href="./specimens.html#all">Specimens</a>
+        <a href="https://github.com/cadaeix/eglantine-marginalia">Source <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 12 12 4M4 4h8v8" /></svg></a>
+      </nav>
+    </header>
+    <main class="workshop">
+      <section class="preview" aria-label="Live garden preview">
+        <div class="preview-topline"><span id="preview-name">Rose</span><span id="preview-manner">Ink wash</span></div>
+        <div class="page-stage">
+          <article class="specimen-page" id="page" data-side="right">
+            <div class="page-text">
+              <h1>Room<br />to grow.</h1>
+              <p class="page-intro">A page needn’t end<br class="desktop-break" /> where the words do.</p>
+              <p>There is a little room beside the reading, between one thought and the next. A stem finds its way into it. A leaf unfolds.</p>
+              <p class="page-extra">Églantine grows these gardens from a seed, then draws them in the manner of an old engraving. No two seeds give quite the same arrangement.</p>
+              <p class="page-extra">As the day passes, buds open and flowers go to seed. A fuller day brings more leaves. A quiet day still has its flowers.</p>
+              <div class="page-colophon"><span id="page-plant">La rose</span><span>Grown, not picked.</span></div>
+            </div>
+            <div class="garden-frame" id="garden" aria-busy="true"></div>
+            <p class="empty-garden" id="empty-garden" hidden></p>
+          </article>
+        </div>
+        <div class="preview-caption"><p id="plant-description">A garden is growing…</p><button type="button" id="new-seed" class="text-button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.5 7A6 6 0 1 0 16 12M15.5 3v4h-4" /></svg>Another garden</button></div>
+      </section>
+      <aside class="controls" id="controls" aria-label="Garden controls" tabindex="-1">
+        <fieldset class="source-controls"><legend>Choose a plant</legend><div class="segmented"><label><input type="radio" name="source" value="plants" checked /><span>Plants</span></label><label><input type="radio" name="source" value="calendar" /><span>The calendar</span></label></div></fieldset>
+        <div id="plant-panel">
+          <div class="plant-grid" id="featured-plants" role="group" aria-label="Featured plants"></div>
+          <details class="more-plants" id="more-plants"><summary>More plants <span id="plant-count"></span></summary><div class="plant-grid" id="other-plants" role="group" aria-label="More plants"></div></details>
+        </div>
+        <div class="calendar-panel" id="calendar-panel" hidden>
+          <label for="calendar-date">A garden for a day</label>
+          <div class="date-row"><input type="date" id="calendar-date" min="1792-09-22" max="9999-12-31" /><button type="button" id="today">Today</button></div>
+          <p id="calendar-dateline" class="calendar-dateline"></p>
+          <p class="hint">Plants, animals and tools from the French Republican calendar. Each date brings its own subject.</p>
+          <p class="field-error" id="date-error" role="alert" hidden>Choose a valid date on or after 22 September 1792.</p>
+        </div>
+        <fieldset class="ink-controls"><legend>Choose your inks</legend><div class="palette-grid" id="palettes"></div><p class="palette-story" id="palette-story"></p><div class="paired-controls"><div class="segmented" role="group" aria-label="Drawing style"><label><input type="radio" name="manner" value="taille-douce" /><span>Engraving</span></label><label><input type="radio" name="manner" value="lavis" checked /><span>Ink wash</span></label></div><div class="segmented" role="group" aria-label="Paper reading"><label><input type="radio" name="reading" value="light" checked /><span>Light</span></label><label><input type="radio" name="reading" value="dark" /><span>Dark</span></label></div></div></fieldset>
+        <details class="adjustments" id="page-settings"><summary>On the page</summary><div class="disclosure-content"><fieldset><legend>Margin side</legend><div class="segmented"><label><input type="radio" name="side" value="left" /><span>Left</span></label><label><input type="radio" name="side" value="right" checked /><span>Right</span></label></div></fieldset><label class="range-label" for="margin">Room in the margin <output id="margin-value" for="margin"></output></label><input type="range" id="margin" min="22" max="42" step="1" value="32" /><div class="range-ends"><span>Narrow</span><span>Generous</span></div><p class="hint">The page makes room; the plant keeps its proportions.</p></div></details>
+        <details class="adjustments" id="growth-settings"><summary>Watch it grow</summary><div class="disclosure-content"><label class="range-label" for="time">Time of day <output id="time-value" for="time"></output></label><input type="range" id="time" min="0" max="1" step="0.01" value="0.68" /><div class="range-ends"><span>Morning</span><span>Evening</span></div><label class="range-label" for="fullness">Fullness <output id="fullness-value" for="fullness"></output></label><input type="range" id="fullness" min="0" max="1" step="0.01" value="0.65" /><div class="range-ends"><span>A quiet day</span><span>A full day</span></div><p class="hint">Time brings the flowers. Fullness brings the leaves.</p></div></details>
+        <div class="takeaway"><button type="button" class="primary-button" id="download">Save SVG <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 13v4h12v-4" /></svg></button><button type="button" class="share-button" id="share">Copy link</button></div>
+        <details class="code-disclosure" id="code-details"><summary>Use it on a website</summary><div class="disclosure-content"><p class="hint">Install <code>eglantine-marginalia</code> from <a href="https://github.com/cadaeix/eglantine-marginalia#usage">GitHub</a>, then use this browser example.</p><pre tabindex="0" aria-label="Garden usage code"><code id="usage-code"></code></pre><button type="button" id="copy-code">Copy code</button></div></details>
+        <p class="action-status" id="action-status" role="status" aria-live="polite"></p>
+        <div id="copy-fallback" hidden><label for="copy-value">Copy this text</label><textarea id="copy-value" rows="3" readonly></textarea><button type="button" id="close-copy">Close</button></div>
+      </aside>
+    </main>
+    <footer class="site-footer"><p>Procedural gardens, eighteenth-century inks. Made by <a href="https://github.com/cadaeix">Cad</a>.</p><p><a href="https://github.com/cadaeix/eglantine-marginalia/blob/main/figures/PROVENANCE.md">Figure credits</a><a id="font-license" href="./fonts/OFL.txt">Baskervville typeface</a></p></footer>
+    <noscript><p class="noscript">The playground needs JavaScript to grow its gardens. <a href="https://github.com/cadaeix/eglantine-marginalia">Read about Églantine and see the examples.</a></p></noscript>
+    <script type="module" src="./playground.ts"></script>
   </body>
 </html>

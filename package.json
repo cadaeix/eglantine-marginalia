@@ -24,8 +24,10 @@
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "gallery": "vite gallery --port 5210",
-    "check": "npm run typecheck && npm test && npm run build"
+    "gallery": "vite --config gallery/vite.config.ts --port 5210",
+    "gallery:build": "vite build --config gallery/vite.config.ts",
+    "gallery:preview": "vite preview --config gallery/vite.config.ts --port 5210",
+    "check": "npm run typecheck && npm test && npm run build && npm run gallery:build"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

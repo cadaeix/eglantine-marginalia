@@ -99,7 +99,7 @@ function draw(): void {
   const here: Record<string, string> = route.form ? { form: route.form } : route.all ? { all: "" } : route.today ? { today: "", ...(route.date ? { date: route.date } : {}) } : {};
   const chooser = `<select id="palette" aria-label="Palette"><option value="">no palette</option>`
     + READINGS.map(({ value, palette, reading }) => `<option value="${value}"${value === chosen?.value ? " selected" : ""}>${escape(palette.name)}, ${reading === "light" ? "jour" : "chandelle"} (${value})</option>`).join("") + "</select>";
-  let html = `<nav><a href="${link({ today: "" })}"${route.today ? " aria-current=\"page\"" : ""}>today</a><a href="${link({ all: "" })}"${route.all ? " aria-current=\"page\"" : ""}>all</a>`
+  let html = `<nav><a href="./">Playground</a><a href="${link({ today: "" })}"${route.today ? " aria-current=\"page\"" : ""}>today</a><a href="${link({ all: "" })}"${route.all ? " aria-current=\"page\"" : ""}>all</a>`
     + modules.map(module => `<a href="${link({ form: module.id })}"${module === selected ? " aria-current=\"page\"" : ""}>${escape(module.name)}</a>`).join("")
     + `<span class="switch"><a href="${link(here, { manner: route.manner === "lavis" ? "taille-douce" : "lavis" })}">${route.manner === "lavis" ? "taille-douce" : "lavis"}</a>`
     + (chosen ? "" : `<a href="${link(here, { paper: route.paper === "night" ? "cream" : "night" })}">${route.paper === "night" ? "cream paper" : "night paper"}</a>`)

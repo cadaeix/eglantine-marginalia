@@ -10,6 +10,18 @@ The calendar, a separate entry point, can choose instead: a plant for each day o
 
 The library is TypeScript with no runtime dependencies. It grows each garden procedurally from a seed and a plant form, then draws it as an SVG string at any moment of the day. Growing and rendering use no DOM, so a garden can be drawn in a browser, a web worker or Node.
 
+## Playground
+
+`npm run gallery` serves the public playground at `http://localhost:5210` after dependency installation. The preview places a generated garden beside a text sample. Plant choices use English names and thumbnails, and palette choices show named colour swatches. The calendar supplies gardens for dates beyond the curated selection. Time and fullness controls reveal the garden's growth.
+
+The page controls adjust the garden's side and its share of the preview width without stretching the artwork. The bundled forms remain composed for a 6 × 22 cm column, so a wider preview margin does not generate broader plants.
+
+The playground provides export and sharing actions:
+
+- "Save SVG" exports the current garden with resolved colours and embedded guest engravings. The SVG includes figure credits when required.
+- "Copy link" shares the current settings and seed through the URL fragment.
+- "Use it on a website" shows a rendering example for the selected garden.
+
 ## Usage
 
 ```sh
@@ -52,7 +64,9 @@ A form describes what a plant is made of and how it stands: its stems, leaves, b
 | `racine-tubercule` | racine et tubercule | plants known by a root or tuber at the foot of the column, some of them very long | 18 |
 | `rosacee-coupe` | rosacée en coupe | radial and cupped flowers in perspective, going to hips, haws and capsules | 24 |
 
-The forms carry French names, like the calendar's days, and plain lowercase ASCII ids. `npm run gallery` serves a page that shows every form's examples at bloom and at seed, with their flowers and leaves drawn large, the calendar's garden for any date, and every palette.
+The forms carry French names, like the calendar's days, and plain lowercase ASCII ids.
+
+The playground's Specimens link opens the technical gallery at `specimens.html#all`. It shows every form's examples at bloom and at seed, with their flowers and leaves drawn large, the calendar's garden for any date, and every palette.
 
 ## Manners
 
@@ -117,11 +131,21 @@ The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres an
 
 ```sh
 npm install
-npm test          # the garden invariants over every form's examples, and the calendar
+npm test                 # garden invariants, form examples, and calendar
 npm run typecheck
-npm run gallery   # http://localhost:5210
-npm run build     # dist/
+npm run gallery          # playground at http://localhost:5210
+npm run build            # library in dist/
+npm run gallery:build    # static website in site-dist/
+npm run gallery:preview  # serve the built website at http://localhost:5210
 ```
+
+`npm run check` runs typechecking, tests, and both builds. Stop the development server before running the preview server on the same port.
+
+### Static hosting
+
+Upload the contents of `site-dist/` to a static host after `npm run gallery:build`. Relative asset URLs support a site root or a subdirectory on a personal website. The build includes the playground, the specimen gallery, fonts and their licence, and guest figures.
+
+The [Pages workflow](.github/workflows/pages.yml) builds and deploys the static site on pushes to `main` or a manual workflow run. In the repository's Settings > Pages, select GitHub Actions as the build and deployment source before running the workflow. Local builds do not publish the site.
 
 ## History
 

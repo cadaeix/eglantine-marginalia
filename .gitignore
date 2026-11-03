@@ -1,3 +1,7 @@
 node_modules/
 dist/
 gallery/dist/
+site-dist/
+.impeccable/review/
+.impeccable/live/
+.impeccable/cache/
