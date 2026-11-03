@@ -61,16 +61,19 @@ function motifShapes(item: MotifItem, moment: Moment): Shape[] | null {
 
 const ATTRIBUTE_ENTITIES: Readonly<Record<string, string>> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;" };
 
-const group = (at: Pt, angle: number, body: string): string =>
-  `<g transform="translate(${num(at[0])} ${num(at[1])}) rotate(${num(angle - 90)})">${body}</g>`;
+/** A motif in place; a mirrored garden draws it as its mirror image, about its axis. */
+const group = (at: Pt, angle: number, mirrored: boolean, body: string): string =>
+  `<g transform="translate(${num(at[0])} ${num(at[1])}) rotate(${num(angle - 90)})${mirrored ? " scale(-1 1)" : ""}">${body}</g>`;
 
 export function renderGarden(garden: Garden, moment: Moment, options: RenderOptions): string {
   const sheet = new Sheet(options.id);
   const layers = new Map<number, string>();
   const add = (layer: number, body: string): void => { layers.set(layer, (layers.get(layer) ?? "") + body); };
   if (garden.foot) {
-    const column = { width: garden.width, height: garden.height };
-    add(FOOT_LAYER, paintShapes(garden.foot.draw(createRng(garden.foot.seed), column, moment.t, moment.fullness), options.manner, sheet));
+    // The foot is drawn for the column and stands where the column does, never mirrored.
+    const [x0, , x1] = garden.column;
+    const foot = paintShapes(garden.foot.draw(createRng(garden.foot.seed), { width: x1 - x0, height: garden.height }, moment.t, moment.fullness), options.manner, sheet);
+    add(FOOT_LAYER, x0 === 0 ? foot : `<g transform="translate(${num(x0)} 0)">${foot}</g>`);
   }
   for (const item of garden.items) {
     if (item.kind === "stem") {
@@ -88,7 +91,7 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
       continue;
     }
     const shapes = motifShapes(item, moment);
-    if (shapes) add(item.layer, group(item.at, item.angle, paintShapes(shapes, options.manner, sheet)));
+    if (shapes) add(item.layer, group(item.at, item.angle, garden.mirrored, paintShapes(shapes, options.manner, sheet)));
   }
   const guest = garden.guest;
   if (guest && options.guestFigure && moment.t >= guest.born) {

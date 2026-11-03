@@ -5,6 +5,11 @@
 // largest free hole within reach of a stem gets a motif that fits it, on a branch from the nearest
 // stem point. Big holes go first, so blooms land early and leaves fill the gaps.
 //
+// Given the page beside it, the garden reaches round the text as florilegium's does: a runner leaves
+// the root along the page's foot, and where the text ends early, arcs leave the main stems for the room
+// under it. A page is laid out as if the column stood left of its text; a right-hand one is that
+// layout's mirror image.
+//
 // The layout is fixed by the seed. Time only reveals it: every item carries the moment of the day
 // (0 at its start, 1 at its end) when it appears, and a staged motif buds, opens and goes to seed.
 import { createField, type Rect } from "./field.js";
@@ -51,8 +56,13 @@ export interface Garden {
   /** The plant form's id. */
   form: string;
   seed: number;
+  /** The canvas, in centimetres: the column alone, or the column and the page beside it. */
   width: number;
   height: number;
+  /** Where the column stands on the canvas, as [x0, y0, x1, y1]. */
+  column: Rect;
+  /** Laid out for a column right of its text, as the mirror of a left-hand garden: its motifs are drawn mirrored. */
+  mirrored: boolean;
   items: GardenItem[];
   /** The main stems' centrelines, for whatever must thread between them. */
   mains: Pt[][];
@@ -94,6 +104,20 @@ export interface GuestPlace {
 /** The column the forms are drawn for, in centimetres: a margin beside a page of text. */
 export const COLUMN = { width: 6, height: 22 } as const;
 
+/** The text beside the column, which the garden reaches round. */
+export interface Page {
+  /** Which side of the text the column stands on. */
+  side: "left" | "right";
+  /** The width of the text, in centimetres. */
+  text: number;
+  /**
+   * The free room under the text's last line, down to the page's foot, in centimetres. With two or more, a
+   * runner leaves bare ground along the foot under the text; with about four or more above any foot the plant
+   * stands on, arcs leave the main stems for the room under the text.
+   */
+  below: number;
+}
+
 export interface GrowSpec {
   seed: number;
   /** A registered plant form's id (see registry.ts) or a form of your own, and the variant that tunes it for one plant. */
@@ -105,6 +129,8 @@ export interface GrowSpec {
    */
   width?: number;
   height?: number;
+  /** The page beside the column; without it the garden keeps to its column. */
+  page?: Page;
   guest?: Guest;
 }
 
@@ -118,6 +144,11 @@ const STEM_PHASE = 0.3;
 const BUD_SPAN = 0.1;
 /** At fullness 0 a garden already shows this share of its leaves, so the plant is never bare. */
 const FOLIAGE_FLOOR = 0.3;
+/**
+ * Lattice cells in the column the forms are drawn for. A garden on a page holds more of each motif as its
+ * room grows; a column alone keeps its form's counts at any size, as it always has.
+ */
+const BASE_CELLS = createField([[0.15, 0.3, COLUMN.width - 0.15, COLUMN.height * (1 - SKY)]]).x.length;
 
 interface StemPoint { x: number; y: number; tx: number; ty: number; w: number }
 
@@ -125,6 +156,12 @@ export function growGarden(spec: GrowSpec): Garden {
   const form: PlantForm = typeof spec.form === "string" ? plantForm(spec.form, spec.variant) : spec.form.build(resolveVariant(spec.form, spec.variant));
   const formId = typeof spec.form === "string" ? spec.form : spec.form.id;
   const { width: W = COLUMN.width, height: H = COLUMN.height } = spec;
+  const page = spec.page ?? null;
+  if (page && (!(page.side === "left" || page.side === "right") || !(Number.isFinite(page.text) && page.text > 0) || !(page.below >= 0 && page.below <= H))) {
+    throw new RangeError(`A page needs a side, left or right, text wider than 0 cm, and room below the text from 0 to the column's ${H} cm`);
+  }
+  const mirrored = page?.side === "right";
+  const canvas = W + (page?.text ?? 0);
   const G = H * (1 - SKY);
   const root = createRng(Math.imul(spec.seed, 7919) + 13);
   const layout = root.fork();
@@ -132,7 +169,21 @@ export function growGarden(spec: GrowSpec): Garden {
   const items: GardenItem[] = [];
   let order = 0;
   const column: Rect = [0.15, 0.3, W - 0.15, G];
-  const field = createField([column]);
+  const foot = form.foot ?? null;
+  // The page draws from a stream of its own, so the runner's length, chosen here, never moves the main stems.
+  const spread = createRng(Math.imul(spec.seed, 7919) + 409);
+  let ground: Rect | null = null, room: Rect | null = null;
+  if (page) {
+    // A foot is its own ground, standing in the column: only bare ground sends a runner under the text, along
+    // a band no lower than its leaflets need, and beside a foot the room under the text begins at the foot's
+    // top, since below that it lies underground.
+    if (!foot && page.below >= 2) ground = [W - 0.16, 0.3, W + page.text * spread.range(0.42, 0.52), Math.min(1.75, page.below - 0.45)];
+    const base = foot ? Math.max(...foot.room.map(rect => rect[3])) + 0.1 : 0.3;
+    // Sprays and blooms reach past their room's edge, so the room stops well short of the last line.
+    if (page.below - 1.2 - base > 2.5) room = [W - 0.16, base, W + page.text - 0.6, page.below - 1.2];
+  }
+  const field = createField([column, ...(ground ? [ground] : []), ...(room ? [room] : [])]);
+  const plenty = page ? Math.max(1, field.x.length / BASE_CELLS) : 1;
   const nearestStemDistance = new Float64Array(field.x.length).fill(Infinity);
   const stemPoints: StemPoint[] = [];
 
@@ -171,9 +222,10 @@ export function growGarden(spec: GrowSpec): Garden {
   };
 
   // ---------------------------------------------------------------- 1. the foot, then the main stems out of it
-  const foot = form.foot ?? null;
-  if (foot) for (const [x0, y0, x1, y1] of foot.room) field.block([x0 * W, y0, x1 * W, y1]);
-  const rootAt: Pt = foot ? [W * foot.crown[0], foot.crown[1]] : [W * layout.range(0.22, 0.3), 0.75];
+  // A right-hand page is drawn as the mirror of this layout, but its foot is drawn as it is: the room the
+  // foot fills is mirrored here so that it lands under the drawing.
+  if (foot) for (const [x0, y0, x1, y1] of foot.room) field.block(mirrored ? [(1 - x1) * W, y0, (1 - x0) * W, y1] : [x0 * W, y0, x1 * W, y1]);
+  const rootAt: Pt = foot ? [W * (mirrored ? 1 - foot.crown[0] : foot.crown[0]), foot.crown[1]] : [W * layout.range(0.22, 0.3), 0.75];
   const centre = W * 0.47, amplitude = W * form.stems.amplitude * 2.2;
   const mains: Pt[][] = [];
   const mainItems: StemItem[] = [];
@@ -266,6 +318,57 @@ export function growGarden(spec: GrowSpec): Garden {
     if (guest) for (const f of [-0.3, 0, 0.3]) field.disc(guest.at[0] + guest.width * f, guest.at[1], Math.max(guest.height * 0.6, reach * 0.55), 1);
   }
 
+  // ---------------------------------------------------------------- 2c. the page: a runner along its foot, arcs into the room under the text
+  let runner: StemItem | null = null;
+  if (ground) {
+    const wave = fbm1(spread, 2);
+    const level = (ground[1] + ground[3]) / 2 - 0.05;
+    const points: Pt[] = [];
+    for (let x = rootAt[0]; x <= ground[2] - 0.3; x += 0.2) {
+      points.push([x, lerp(rootAt[1] + 0.1, level + 0.22 * wave(x / 3.5), smoothstep(rootAt[0], rootAt[0] + 1.5, x))]);
+    }
+    const w0 = form.stems.width * 0.7;
+    // A slim proxy, as florilegium's footer has, leaves its narrow band room for leaflets.
+    runner = stem(points, w0, 0.012, 0, Math.min(STEM_PHASE, STEM_PHASE * arcLength(points).total / longest), 0.06);
+    addStemPoints(points, w0, 0.012);
+  }
+  const arcs: StemItem[] = [];
+  if (room && mains.length > 0) {
+    // Arcs leave the stems a little above the room's foot, so beside a foot they never cross its drawing.
+    const floor = room[1] + 0.4;
+    const tall = room[3] - floor;
+    const count = Math.max(1, Math.floor(tall / 7));
+    for (let b = 0; b < count; b += 1) {
+      const y0 = floor + tall * (b + 0.25) / count;
+      const k = spread.int(0, mains.length - 1);
+      const source = mains[k]!;
+      let from = 0;
+      for (let index = 1; index < source.length; index += 1) if (Math.abs(source[index]![1] - y0) < Math.abs(source[from]![1] - y0)) from = index;
+      const start = source[from]!, reach = room[2] - start[0];
+      const end: Pt = [start[0] + reach * spread.range(0.7, 0.88), Math.max(floor, Math.min(room[3] - 1.4, y0 + tall / count * spread.range(0.35, 0.6)))];
+      const wave = fbm1(spread, 2);
+      const curve = sample(bezier3(start, [start[0] + reach * 0.25, start[1] + spread.range(-0.4, 0.8)],
+        [end[0] - reach * 0.3, end[1] + spread.range(-1.2, -0.3)], end), Math.max(8, Math.floor(reach / 0.2)));
+      const points = curve.map(([x, y], index): Pt =>
+        [x, clamp(y + 0.35 * wave(x / 3) * Math.sin(Math.PI * index / (curve.length - 1)), floor - 0.3, room[3] - 0.3)]);
+      const { at: lengths, total } = arcLength(source);
+      const born = lerp(mainItems[k]!.born, mainItems[k]!.grown, lengths[from]! / total);
+      const w0 = form.stems.width * 0.6;
+      const arc = stem(points, w0, 0.025, born, Math.max(born + 0.02, Math.min(STEM_PHASE, born + STEM_PHASE * arcLength(points).total / longest)));
+      addStemPoints(points, w0, 0.025);
+      arcs.push(arc);
+      // Each arc ends in the plant's bloom.
+      const tip = points[points.length - 1]!, before = points[points.length - 3]!;
+      const [hx, hy] = unit(tip[0] - before[0], tip[1] - before[1]);
+      const size = spread.range(...form.terminal.size) * 0.85;
+      const at: Pt = [tip[0] + hx * 0.05, tip[1] + hy * 0.05];
+      motif("terminal", at, degrees(hx, hy), size, LAYER.bloom, arc.grown, true, form.terminal.draw);
+      const r = form.terminal.r(size);
+      field.disc(at[0] + hx * r * 0.6, at[1] + hy * r * 0.6, r * 1.1, 0.85);
+      if (at[1] + r * 1.4 > crown[1]) crown = [at[0], Math.min(H, at[1] + r * 1.4)];
+    }
+  }
+
   // ---------------------------------------------------------------- 3. leaves: a basal rosette, then the nodes
   if (form.basal) {
     const count = layout.int(...form.basal.count);
@@ -280,8 +383,8 @@ export function growGarden(spec: GrowSpec): Garden {
     }
   }
   const leafProxy = form.leafProxy;
-  mains.forEach((points, k) => {
-    const item = mainItems[k]!;
+  /** Hangs leaves at a stem's nodes, alternating sides, wherever they fit. */
+  const hangLeaves = (points: Pt[], item: StemItem): void => {
     const { at: lengths, total } = arcLength(points);
     let next = layout.range(0.8, 1.4), sideOf = layout.chance(0.5) ? 1 : -1;
     for (let index = 2; index < points.length - 4; index += 1) {
@@ -305,12 +408,41 @@ export function growGarden(spec: GrowSpec): Garden {
       motif("leaf", p, angle, length, LAYER.leaf, born, false, (rng, size) => form.leaf(rng, size, bend));
       for (const f of [0.3, 0.55, 0.8]) field.disc(p[0] + ux * length * f, p[1] + uy * length * f, leafProxy * length, 0.85);
     }
-  });
+  };
+  mains.forEach((points, k) => hangLeaves(points, mainItems[k]!));
+  for (const arc of arcs) hangLeaves(arc.points, arc);
+  // The runner bears leaflets, thinning out towards its end.
+  if (runner) {
+    const { points } = runner;
+    const { at: lengths, total } = arcLength(points);
+    let next = layout.range(0.6, 1.3), sideOf = layout.chance(0.5) ? 1 : -1;
+    for (let index = 1; index < points.length - 4; index += 1) {
+      if (lengths[index]! < next) continue;
+      const u = lengths[index]! / total;
+      next += lerp(0.55, 1.4, u) * layout.range(0.8, 1.2);
+      sideOf = -sideOf;
+      const p = points[index]!;
+      const [tx, ty] = unit(points[index + 1]![0] - points[index - 1]![0], points[index + 1]![1] - points[index - 1]![1]);
+      const angle = degrees(tx, ty) + sideOf * layout.range(35, 60);
+      const ux = Math.cos(angle * RAD), uy = Math.sin(angle * RAD);
+      let length = lerp(0.95, 0.45, u) * layout.range(0.85, 1.1);
+      let fits = false;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (field.freeAt(p[0] + ux * length * 0.55, p[1] + uy * length * 0.55) >= 0.24 * length) { fits = true; break; }
+        length *= 0.75;
+      }
+      if (!fits || length < 0.3) continue;
+      const bend = -sideOf * layout.range(0.1, 0.3);
+      motif("leaflet", p, angle, length, LAYER.leaf, lerp(runner.born, runner.grown, u) + 0.005, false, (rng, size) => form.leaflet(rng, size, bend));
+      for (const f of [0.3, 0.55, 0.8]) field.disc(p[0] + ux * length * f, p[1] + uy * length * f, 0.24 * length, 0.85);
+    }
+  }
 
   // ---------------------------------------------------------------- 4. branches to the largest holes
   const counts = new Map(form.motifs.map(row => [row.name, 0]));
+  const caps = new Map(form.motifs.map(row => [row.name, Math.round(row.max * plenty)]));
   const branchItems: { stem: StemItem | null; leaves: MotifItem[]; motif: MotifItem }[] = [];
-  for (let round = 0; round < 300; round += 1) {
+  for (let round = 0; round < 300 * plenty; round += 1) {
     let best = -1, cell = -1;
     for (let index = 0; index < field.x.length; index += 1) {
       if (nearestStemDistance[index]! > REACH) continue;
@@ -319,9 +451,9 @@ export function growGarden(spec: GrowSpec): Garden {
     }
     if (cell < 0 || field.free[cell]! < SMALLEST) break;
     const free = field.free[cell]!, px = field.x[cell]!, py = field.y[cell]!;
-    const eligible = form.motifs.filter(row => row.r(row.smin) <= free * 1.05 && (!row.hard || counts.get(row.name)! < row.max));
+    const eligible = form.motifs.filter(row => row.r(row.smin) <= free * 1.05 && (!row.hard || counts.get(row.name)! < caps.get(row.name)!));
     if (eligible.length === 0) { field.free[cell] = 0; continue; }
-    const weights = eligible.map(row => row.w / (1 + counts.get(row.name)! / Math.max(1, row.max)));
+    const weights = eligible.map(row => row.w / (1 + counts.get(row.name)! / Math.max(1, caps.get(row.name)!)));
     let pick = eligible[eligible.length - 1]!, roll = layout.u() * weights.reduce((sum, w) => sum + w, 0);
     for (const [index, row] of eligible.entries()) { roll -= weights[index]!; if (roll <= 0) { pick = row; break; } }
     let size = pick.smax;
@@ -370,7 +502,7 @@ export function growGarden(spec: GrowSpec): Garden {
 
   // ---------------------------------------------------------------- 5. filler: small leaves tucked in near the stems
   const fillers: MotifItem[] = [];
-  for (let round = 0; round < FILLERS; round += 1) {
+  for (let round = 0; round < FILLERS * plenty; round += 1) {
     let best = -1, cell = -1;
     for (let index = 0; index < field.x.length; index += 1) {
       if (nearestStemDistance[index]! > 0.75) continue;
@@ -397,8 +529,18 @@ export function growGarden(spec: GrowSpec): Garden {
   const foliage = items.filter((item): item is MotifItem => item.kind === "motif" && item.layer === LAYER.leaf)
     .sort((a, b) => a.born - b.born || a.order - b.order);
   foliage.forEach((item, rank) => { item.leafRank = rank / foliage.length; });
+  if (mirrored) {
+    const mirror = (p: Pt): Pt => [canvas - p[0], p[1]];
+    for (const item of items) {
+      if (item.kind === "stem") item.points = item.points.map(mirror);
+      else { item.at = mirror(item.at); item.angle = 180 - item.angle; }
+    }
+    crown = mirror(crown);
+    if (guest) guest = { ...guest, at: mirror(guest.at), angle: -guest.angle, facing: guest.facing === 1 ? -1 : 1 };
+  }
   return {
-    form: formId, seed: spec.seed, width: W, height: H, items, mains, crown, guest,
+    form: formId, seed: spec.seed, width: canvas, height: H, column: mirrored ? [canvas - W, 0, canvas, H] : [0, 0, W, H], mirrored,
+    items, mains: mirrored ? mainItems.map(item => item.points) : mains, crown, guest,
     foot: foot ? { seed: Math.imul(spec.seed, 7919) + 307, draw: foot.draw } : null,
     stemInk: form.stemInk ?? null,
   };

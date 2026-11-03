@@ -35,7 +35,7 @@ const garden = growGarden({ seed: 1793, form: "capitule", variant: { rays: 21 } 
 const svg = renderGarden(garden, { t: 0.6, fullness: 0.4 }, { manner: "taille-douce", id: "margin", scale: 36 });
 ```
 
-`growGarden` lays the whole garden out once from its seed. `renderGarden` draws it at a moment and returns an SVG string. The garden fills a column 6 cm wide and 22 cm tall, and `scale` sets the pixels per centimetre. `id` prefixes the SVG's internal ids, so several gardens can share a page. The renderer encodes characters other than ASCII letters, digits and hyphens in internal SVG ids.
+`growGarden` lays the whole garden out once from its seed. `renderGarden` draws it at a moment and returns an SVG string. The garden fills a column 6 cm wide and 22 cm tall unless `width` and `height` say otherwise, and `scale` sets the pixels per centimetre. `id` prefixes the SVG's internal ids, so several gardens can share a page. The renderer encodes characters other than ASCII letters, digits and hyphens in internal SVG ids.
 
 A moment has two values between 0 and 1:
 
@@ -43,6 +43,19 @@ A moment has two values between 0 and 1:
 - `fullness` measures how full the day is, in whatever sense the page chooses: words written, pages read, tasks done. It brings the leaves, the mycelium of the fungi and the crystals in the rock. A garden at fullness 0 already shows 30% of its leaves, and a quiet day keeps the same flowers as a full one.
 
 Neither value takes back what it has shown: a leaf or bloom present at some moment stays present at every later time and greater fullness.
+
+## Round the text
+
+```ts
+const garden = growGarden({ seed: 1793, form: "rosacee-coupe", page: { side: "right", text: 14, below: 9 } });
+const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "lavis", id: "page", scale: 36 });
+```
+
+Given the text beside its column, a garden reaches round it, as florilegium's does. `side` says which side of the text the column stands on, `text` how wide the text is, and `below` how much free room lies under the text's last line, down to the page's foot, all in centimetres. With two centimetres or more below the text, a runner leaves the root along the foot of the page. With about four centimetres or more, arcs leave the main stems for the room under the text, each ending in a bloom, and the garden fills whatever room it reaches. A right-hand page is drawn as the mirror image of a left-hand one.
+
+The SVG covers the column and the text together, with the column at `garden.column`, so it lies under the text on the page. The garden keeps below the text's last line, but leaves on the column's edge overhang it by up to a centimetre, so leave a centimetre of gutter between the column and the text.
+
+A plant with a foot stands on its root study, rock section or bed of earth in the column and sends out no runner, since the room beside its foot lies underground. Its arcs leave the stems above the foot.
 
 ## Forms
 
@@ -125,7 +138,7 @@ if (day.plant) {
 
 `renderGarden` takes a `decorate` option that lays further marks on a garden. An inlay lies at a numbered layer among the plant's parts, inside the wash, and the `under` and `over` marks lie beneath and above the whole garden. Decoration strings are raw SVG and must come from trusted sources.
 
-The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres and a foot is placed within that column, so a much narrower or shorter column crowds the plants. A larger margin on screen comes from a larger `scale`, not a larger column.
+The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres and a foot is placed within that column, so a much narrower or shorter column crowds the plants and a much larger one spreads them out. A garden on a page holds more of each motif in proportion to its room, at the same sizes, so it fills the page rather than thinning out. A larger drawing of the same garden comes from a larger `scale`.
 
 ## Development
 
