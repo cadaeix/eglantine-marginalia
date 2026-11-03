@@ -1,10 +1,19 @@
-import { figureURL, republicanDate } from "../src/calendar/index.js";
-import { growGarden } from "../src/grow.js";
-import { INK_PROPERTIES, withInks } from "../src/inks.js";
+// The playground: a page with Églantine growing in its own margin. The text column holds the day's plant
+// and the garden's settings; the garden is grown for the page as it is laid out, and grown again when the
+// page changes shape, so with "round the text" it fills whatever room the text leaves below it.
+import { figureURL } from "../src/calendar/index.js";
+import { clamp } from "../src/geometry.js";
+import { INK_PROPERTIES } from "../src/inks.js";
 import { PALETTES, paletteInks } from "../src/palettes.js";
+import { createRng } from "../src/random.js";
+import { plantForm } from "../src/registry.js";
 import { renderGarden } from "../src/render.js";
-import { PLANTS, PALETTE_LABELS, type PlantChoice } from "./catalog.js";
-import { createGarden, defaultState, exportSvg, readState, stateHash, usageCode, type GardenPreview, type PlaygroundState } from "./garden-state.js";
+import { PLANTS } from "./catalog.js";
+import { shapesSvg } from "./drawing.js";
+import {
+  createGarden, defaultState, exportSvg, type GardenPreview, type Geometry, hangingSink, hangingSvg, type Mode,
+  type PlaygroundState, randomDay, readState, resolveSelection, stateHash, today, usageCode,
+} from "./garden-state.js";
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -12,31 +21,56 @@ function element<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-const page = element("page");
+const sheet = element("sheet");
+const text = element("text");
+const body = element("body");
 const gardenElement = element("garden");
-const status = element("action-status");
-const dateInput = element<HTMLInputElement>("calendar-date");
-const dateError = element("date-error");
-const download = element<HTMLButtonElement>("download");
-const codeDetails = element<HTMLDetailsElement>("code-details");
-const morePlants = element<HTMLDetailsElement>("more-plants");
-const copyFallback = element("copy-fallback");
-const copyValue = element<HTMLTextAreaElement>("copy-value");
+const status = element("status");
+const dateInput = element<HTMLInputElement>("date");
 const timeInput = element<HTMLInputElement>("time");
 const fullnessInput = element<HTMLInputElement>("fullness");
-const marginInput = element<HTMLInputElement>("margin");
-const plantButtons = new Map<string, HTMLButtonElement>();
-const paletteButtons = new Map<string, HTMLButtonElement>();
-const thumbnailDrawings = new Map<string, string>();
-const thumbnailImages = new Map<string, HTMLImageElement>();
-let state = readState(location.hash);
-let grown: GardenPreview | null = null;
-let grownKey = "";
+const playButton = element<HTMLButtonElement>("play");
+const download = element<HTMLButtonElement>("download");
+const plantDialog = element<HTMLDialogElement>("plant-dialog");
+const codeDialog = element<HTMLDialogElement>("code-dialog");
+const copyDialog = element<HTMLDialogElement>("copy-dialog");
+const phone = matchMedia("(max-width: 720px)");
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
+const MODE_NOTES: Readonly<Record<Mode, string>> = {
+  margin: "The plant keeps to its column, as it would in a sidebar.",
+  page: "The plant reaches round the text, into the room under its last line.",
+  hanging: "The plant hangs from the top of the margin, without its animal or tool.",
+};
+/** The garden's tallest column, in centimetres: a long page keeps its garden at its foot. */
+const TALLEST = 30;
+
+/**
+ * The visitor's hour as the garden's time of day: the day starts at six in the morning and ends at ten at
+ * night, and the night keeps the evening's seed heads. Before mid-morning it shows mid-morning, so the plant
+ * is always in leaf.
+ */
+function hourOfDay(): number {
+  const now = new Date();
+  const since = (now.getHours() + now.getMinutes() / 60 + 18) % 24;
+  return Math.round(clamp(since / 16, 0.4, 1) * 100) / 100;
+}
+
+const firstVisit = location.hash.length <= 1;
+const startingState = (): PlaygroundState => defaultState({
+  reading: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light", t: hourOfDay(),
+});
+let state = readState(location.hash, startingState());
+let geometry: Geometry | null = null;
+/** Pixels per centimetre of the garden, chosen so that the page holds a column about 25 cm tall. */
+let cm = 32;
+let grown: { key: string; preview: GardenPreview } | null = null;
 let drawnKey = "";
-let thumbnailReading = "";
-let pendingFrame = 0;
 let exporting = false;
-let othersLoaded = false;
+let animation = 0;
+let pendingFrame = 0;
+let resizeTimer = 0;
+const paletteInputs = new Map<string, HTMLInputElement>();
 
 element<HTMLAnchorElement>("font-license").href = new URL("./fonts/OFL.txt", import.meta.url).href;
 
@@ -45,154 +79,141 @@ function announce(message: string, error = false): void {
   status.dataset.error = String(error);
 }
 
-function thumbnail(plant: PlantChoice): string {
-  let svg = thumbnailDrawings.get(plant.id);
-  if (!svg) {
-    const garden = growGarden({ seed: 1793, form: plant.form, variant: plant.variant });
-    svg = renderGarden(garden, { t: 0.7, fullness: 0.7 }, { manner: "taille-douce", id: `thumb-${plant.id}`, scale: 10 });
-    svg = svg.replace('viewBox="0 0 6 22"', 'viewBox="0 3 6 19"');
-    thumbnailDrawings.set(plant.id, svg);
+// ---------------------------------------------------------------- the page's inks and text
+
+function applyInks(): void {
+  const inks = paletteInks(state.palette, state.reading);
+  const root = document.documentElement;
+  for (const name of Object.keys(INK_PROPERTIES) as (keyof typeof INK_PROPERTIES)[]) {
+    root.style.setProperty(`--${name}`, inks[name]);
+    root.style.setProperty(INK_PROPERTIES[name], inks[name]);
   }
-  const ink = state.reading === "light" ? "#304d37" : "#dae2ca";
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(withInks(svg, { ink, wash: ink, accent: ink, paper: "transparent" }))}`;
-}
-
-function plantButton(plant: PlantChoice): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "plant-choice";
-  button.dataset.plant = plant.id;
-  button.setAttribute("aria-pressed", String(state.source === "plants" && state.plant === plant.id));
-  const drawing = document.createElement("span");
-  drawing.className = "plant-drawing";
-  const image = new Image();
-  image.alt = "";
-  image.width = 62;
-  image.height = 75;
-  image.decoding = "async";
-  image.src = thumbnail(plant);
-  drawing.append(image);
-  const name = document.createElement("span");
-  name.className = "plant-name";
-  name.textContent = plant.name;
-  button.append(drawing, name);
-  button.addEventListener("click", () => update({ source: "plants", plant: plant.id }, true));
-  plantButtons.set(plant.id, button);
-  thumbnailImages.set(plant.id, image);
-  return button;
-}
-
-function loadMorePlants(): void {
-  if (othersLoaded) return;
-  othersLoaded = true;
-  element("other-plants").append(...PLANTS.slice(6).map(plantButton));
-}
-
-function makePaletteButtons(): void {
+  root.style.colorScheme = state.reading;
+  document.querySelector('meta[name="theme-color"]')!.setAttribute("content", inks.paper);
   for (const palette of PALETTES) {
-    const label = PALETTE_LABELS[palette.id]!;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "palette-choice";
-    button.dataset.palette = palette.id;
-    button.setAttribute("aria-label", label.name);
-    button.title = `${label.name}: ${label.description}`;
-    const sample = document.createElement("span");
-    sample.className = "palette-sample";
-    sample.setAttribute("aria-hidden", "true");
-    sample.append(document.createElement("i"), document.createElement("i"), document.createElement("i"));
-    const name = document.createElement("span");
-    name.className = "palette-name";
-    name.textContent = label.name;
-    button.append(sample, name);
-    button.addEventListener("click", () => update({ palette: palette.id }, true));
-    paletteButtons.set(palette.id, button);
-    element("palettes").append(button);
+    const swatch = paletteInputs.get(palette.id)!.nextElementSibling as HTMLElement;
+    for (const [key, value] of Object.entries(palette[state.reading])) swatch.style.setProperty(`--swatch-${key}`, value);
   }
+}
+
+function showText(): void {
+  const selection = resolveSelection(state);
+  element("dateline").textContent = selection.dateline;
+  element("dateline").hidden = selection.dateline === "";
+  const title = element("title");
+  title.textContent = selection.title;
+  title.lang = state.source === "calendar" ? "fr" : "en";
+  const gloss = element("gloss");
+  gloss.textContent = selection.gloss;
+  gloss.lang = state.source === "calendar" ? "en" : "fr";
+  element("about").textContent = selection.about;
+  document.title = `${selection.title} · Églantine`;
 }
 
 function syncControls(): void {
-  for (const input of document.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
-    const key = input.name as "source" | "manner" | "reading" | "side";
-    input.checked = state[key] === input.value;
+  for (const input of document.querySelectorAll<HTMLInputElement>('.words input[type="radio"]')) {
+    input.checked = state[input.name as "manner" | "reading" | "mode" | "side"] === input.value;
   }
+  for (const [id, input] of paletteInputs) input.checked = state.palette === id;
+  const palette = PALETTES.find(candidate => candidate.id === state.palette)!;
+  const note = element("palette-note");
+  note.textContent = `${palette.name}, ${palette.period}`;
+  note.title = palette.note;
+  element("mode-note").textContent = MODE_NOTES[state.mode];
+  element("day-setting").hidden = state.source !== "calendar";
+  element("plant-setting").hidden = state.source !== "plants";
+  element("plant-name").textContent = PLANTS.find(plant => plant.id === state.plant)!.name;
   dateInput.value = state.date;
   timeInput.value = String(state.t);
   fullnessInput.value = String(state.fullness);
-  marginInput.value = String(state.margin);
-  element("time-value").textContent = state.t < 0.25 ? "Early morning" : state.t < 0.5 ? "Late morning" : state.t < 0.8 ? "Afternoon" : "Evening";
-  element("fullness-value").textContent = `${Math.round(state.fullness * 100)}%`;
-  element("margin-value").textContent = `${state.margin}%`;
-  element("plant-panel").hidden = state.source !== "plants";
-  element("calendar-panel").hidden = state.source !== "calendar";
-  for (const [id, button] of plantButtons) button.setAttribute("aria-pressed", String(state.source === "plants" && state.plant === id));
-  if (state.source === "plants" && PLANTS.findIndex(plant => plant.id === state.plant) >= 6) {
-    loadMorePlants();
-    morePlants.open = true;
-  }
-  for (const palette of PALETTES) {
-    const button = paletteButtons.get(palette.id)!;
-    button.setAttribute("aria-pressed", String(state.palette === palette.id));
-    for (const [key, value] of Object.entries(palette[state.reading])) button.style.setProperty(`--swatch-${key}`, value);
-  }
-  const chosenPalette = PALETTES.find(palette => palette.id === state.palette)!;
-  element("palette-story").textContent = `${chosenPalette.name}. ${PALETTE_LABELS[state.palette]!.description}`;
-  if (thumbnailReading !== state.reading) {
-    thumbnailReading = state.reading;
-    for (const plant of PLANTS) {
-      const image = thumbnailImages.get(plant.id);
-      if (image) image.src = thumbnail(plant);
-    }
-  }
+  timeInput.setAttribute("aria-valuetext", state.t < 0.3 ? "morning" : state.t < 0.6 ? "midday" : state.t < 0.85 ? "afternoon" : "evening");
+  fullnessInput.setAttribute("aria-valuetext", `${Math.round(state.fullness * 100)}% full`);
+  element("seed").textContent = String(state.seed);
+  sheet.dataset.side = state.side;
+  sheet.dataset.mode = state.mode;
 }
 
-function render(): void {
-  const key = JSON.stringify([state.source, state.plant, state.date, state.seed]);
-  if (!grown || grownKey !== key) {
-    grown = createGarden(state);
-    grownKey = key;
+// ---------------------------------------------------------------- measuring the page and growing its garden
+
+const half = (value: number): number => Math.round(value * 2) / 2;
+
+/** Lays the page out for the window, then measures it, in the garden's centimetres. */
+function measure(): void {
+  const onPhone = phone.matches;
+  const home = onPhone ? element("phone-slot") : text;
+  if (body.parentElement !== home) home.append(body);
+  const top = onPhone ? 0 : element("masthead").offsetHeight;
+  const sheetHeight = onPhone ? clamp(innerHeight * 0.46, 250, 430) : Math.max(480, innerHeight - top);
+  cm = onPhone ? sheetHeight / 22 : clamp(Math.round(sheetHeight / 25), 22, 36);
+  sheet.style.setProperty("--cm", `${cm}px`);
+  sheet.style.setProperty("--sheet-height", `${sheetHeight}px`);
+  const page = sheet.getBoundingClientRect(), column = text.getBoundingClientRect();
+  const height = half(Math.min(page.height / cm, TALLEST));
+  const end = Math.max(...[...text.children].map(child => child.getBoundingClientRect().bottom));
+  geometry = {
+    column: 6,
+    height,
+    text: half((column.width + cm) / cm),
+    below: clamp(half((page.bottom - end) / cm), 0, height),
+  };
+}
+
+/** Places the drawing on the page: under the text and its margin, in the margin, or hanging from its top. */
+function place(svgWidth: number, svgHeight: number): void {
+  const page = sheet.getBoundingClientRect(), column = text.getBoundingClientRect();
+  const columnPx = 6 * cm;
+  const marginLeft = state.side === "right" ? column.right - page.left + cm : column.left - page.left - cm - columnPx;
+  const left = state.mode === "page" && state.side === "right" ? marginLeft + columnPx - svgWidth : marginLeft;
+  Object.assign(gardenElement.style, {
+    left: `${left}px`, width: `${svgWidth}px`, height: `${svgHeight}px`,
+    top: state.mode === "hanging" ? "0" : "auto", bottom: state.mode === "hanging" ? "auto" : "0",
+  });
+}
+
+function drawGarden(): void {
+  if (!geometry) return;
+  const key = JSON.stringify([state.source, state.plant, state.date, state.seed, state.mode, state.side, geometry]);
+  if (!grown || grown.key !== key) grown = { key, preview: createGarden(state, geometry) };
+  const { selection, garden } = grown.preview;
+  download.disabled = !garden || exporting;
+  element<HTMLButtonElement>("new-seed").disabled = !garden;
+  playButton.disabled = !garden;
+  if (!garden) {
+    gardenElement.replaceChildren();
+    drawnKey = "";
+    return;
   }
-  const { selection, garden } = grown;
-  document.documentElement.dataset.reading = state.reading;
-  const inks = paletteInks(state.palette, state.reading);
-  for (const name of Object.keys(INK_PROPERTIES) as (keyof typeof INK_PROPERTIES)[]) page.style.setProperty(INK_PROPERTIES[name], inks[name]);
-  page.style.setProperty("--margin-room", `${state.margin}%`);
-  page.dataset.side = state.side;
-  element("preview-name").textContent = selection.name;
-  element("preview-manner").textContent = state.manner === "lavis" ? "Ink wash" : "Engraving";
-  element("page-plant").textContent = selection.subtitle;
-  element("plant-description").textContent = selection.description;
-  element("calendar-dateline").textContent = selection.dateline;
-  document.title = `${selection.name} — Églantine`;
-  const drawKey = JSON.stringify([key, state.manner, state.t, state.fullness]);
-  if (drawnKey !== drawKey) {
-    if (garden) {
-      const svg = renderGarden(garden, { t: state.t, fullness: state.fullness }, {
-        manner: state.manner, id: `playground-${state.seed}`, scale: 32,
-        ...(selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {}),
-      });
-      gardenElement.innerHTML = svg;
-      gardenElement.querySelector("svg")!.setAttribute("aria-label", `${selection.name}, ${state.manner === "lavis" ? "ink wash" : "engraving"}`);
-    } else gardenElement.replaceChildren();
+  const drawKey = JSON.stringify([key, state.manner, state.t, state.fullness, cm]);
+  if (drawKey !== drawnKey) {
+    const guestFigure = garden.guest && selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {};
+    let svg = renderGarden(garden, { t: state.t, fullness: state.fullness }, { manner: state.manner, id: "garden", scale: cm, ...guestFigure });
+    if (state.mode === "hanging") svg = hangingSvg(svg, garden, cm);
+    gardenElement.innerHTML = svg;
+    const drawing = gardenElement.querySelector("svg")!;
+    drawing.setAttribute("aria-label", `${selection.title}, ${state.manner === "lavis" ? "in wash" : "engraved"}, in the page's margin`);
     drawnKey = drawKey;
   }
-  gardenElement.setAttribute("aria-busy", "false");
-  const empty = element("empty-garden");
-  empty.hidden = garden !== null;
-  empty.textContent = "A complementary day. A little space, with no plant.";
-  download.disabled = !garden || exporting || !dateError.hidden;
-  element<HTMLButtonElement>("new-seed").disabled = !garden;
-  syncControls();
-  if (codeDetails.open) element("usage-code").textContent = usageCode(state);
+  const height = state.mode === "hanging" ? garden.height - hangingSink(garden) : garden.height;
+  place(garden.width * cm, height * cm);
 }
 
-function safeRender(): void {
-  try { render(); } catch (error) {
-    gardenElement.setAttribute("aria-busy", "false");
-    download.disabled = true;
+/** Everything the settings show: the inks, the text, the controls, then the page measured and its garden. */
+function refresh(): void {
+  try {
+    applyInks();
+    showText();
+    syncControls();
+    measure();
+    drawGarden();
+  } catch (error) {
     announce(`The garden could not be drawn. ${error instanceof Error ? error.message : String(error)}`, true);
     console.error(error);
   }
+}
+
+function schedule(): void {
+  cancelAnimationFrame(pendingFrame);
+  pendingFrame = requestAnimationFrame(refresh);
 }
 
 function update(patch: Partial<PlaygroundState>, remember = false): void {
@@ -200,80 +221,174 @@ function update(patch: Partial<PlaygroundState>, remember = false): void {
   const hash = stateHash(next);
   if (hash === stateHash(state)) return;
   state = next;
-  dateError.hidden = true;
-  dateInput.removeAttribute("aria-invalid");
-  copyFallback.hidden = true;
   announce("");
   if (remember) history.pushState(null, "", hash);
   else history.replaceState(null, "", hash);
-  cancelAnimationFrame(pendingFrame);
-  pendingFrame = requestAnimationFrame(safeRender);
+  schedule();
 }
 
-async function copy(text: string, success: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
-    copyFallback.hidden = true;
-    announce(success);
-  } catch {
-    copyValue.value = text;
-    copyFallback.hidden = false;
-    copyValue.focus();
-    copyValue.select();
-    announce("Clipboard access is unavailable. Select and copy the text below.");
+// ---------------------------------------------------------------- the day passing
+
+function stopDay(): void {
+  cancelAnimationFrame(animation);
+  animation = 0;
+  playButton.setAttribute("aria-pressed", "false");
+}
+
+/** Runs the time of day from `from` to `to` over `duration` milliseconds, drawing as it goes, and keeps the end in the URL if `record`. */
+function passDay(from: number, to: number, duration: number, record = true): void {
+  stopDay();
+  playButton.setAttribute("aria-pressed", "true");
+  const start = performance.now();
+  const step = (now: number): void => {
+    const u = Math.min(1, (now - start) / duration);
+    state = { ...state, t: Math.round((from + (to - from) * u) * 1000) / 1000 };
+    timeInput.value = String(state.t);
+    drawGarden();
+    if (u < 1) animation = requestAnimationFrame(step);
+    else {
+      stopDay();
+      if (record) history.replaceState(null, "", stateHash(state));
+    }
+  };
+  animation = requestAnimationFrame(step);
+}
+
+// ---------------------------------------------------------------- the plant chooser, copying and saving
+
+function buildPlants(): void {
+  const list = element("plants");
+  if (list.childElementCount > 0) return;
+  for (const plant of PLANTS) {
+    const form = plantForm(plant.form, plant.variant);
+    const shapes = plant.part === "foot" && form.foot ? form.foot.draw(createRng(3), { width: 6, height: 22 }, 1, 1)
+      : plant.part === "leaf" ? form.leaf(createRng(11), 2.2, 0.1)
+      : form.terminal.draw(createRng(7), 1.4, "bloom");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "plant";
+    button.dataset.plant = plant.id;
+    button.innerHTML = shapesSvg(shapes, "taille-douce", `plant-${plant.id}`, 40);
+    button.querySelector("svg")?.setAttribute("aria-hidden", "true");
+    const name = document.createElement("span");
+    name.textContent = plant.name;
+    const french = document.createElement("span");
+    french.className = "french";
+    french.lang = "fr";
+    french.textContent = plant.french;
+    button.append(name, french);
+    button.addEventListener("click", () => {
+      plantDialog.close();
+      update({ source: "plants", plant: plant.id }, true);
+    });
+    list.append(button);
   }
 }
+
+function openPlants(): void {
+  buildPlants();
+  for (const button of element("plants").querySelectorAll<HTMLButtonElement>(".plant")) {
+    button.setAttribute("aria-pressed", String(state.source === "plants" && state.plant === button.dataset.plant));
+  }
+  plantDialog.showModal();
+}
+
+async function copy(value: string, success: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(value);
+    announce(success);
+  } catch {
+    const field = element<HTMLTextAreaElement>("copy-value");
+    field.value = value;
+    copyDialog.showModal();
+    field.focus();
+    field.select();
+  }
+}
+
+function shiftDay(days: number): void {
+  const [year, month, day] = state.date.split("-").map(Number) as [number, number, number];
+  const next = new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+  if (next >= dateInput.min) update({ source: "calendar", date: next }, true);
+}
+
+function makePalettes(): void {
+  const list = element("palettes");
+  for (const palette of PALETTES) {
+    const label = document.createElement("label");
+    label.title = `${palette.name}, ${palette.period}`;
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "palette";
+    input.value = palette.id;
+    input.setAttribute("aria-label", palette.name);
+    input.addEventListener("change", () => { if (input.checked) update({ palette: palette.id }, true); });
+    const swatch = document.createElement("span");
+    swatch.className = "swatch";
+    label.append(input, swatch);
+    list.append(label);
+    paletteInputs.set(palette.id, input);
+  }
+}
+
+// ---------------------------------------------------------------- wiring
 
 document.querySelector<HTMLAnchorElement>(".skip-link")!.addEventListener("click", event => {
   event.preventDefault();
-  const controls = element("controls");
-  controls.focus({ preventScroll: true });
-  controls.scrollIntoView({ block: "start" });
+  element("settings").focus({ preventScroll: true });
+  element("settings").scrollIntoView({ block: "start" });
 });
-
-for (const input of document.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
-  input.addEventListener("change", () => {
-    if (input.checked) update({ [input.name]: input.value }, true);
+for (const input of document.querySelectorAll<HTMLInputElement>('.words input[type="radio"]')) {
+  input.addEventListener("change", () => { if (input.checked) update({ [input.name]: input.value }, true); });
+}
+timeInput.addEventListener("input", () => { stopDay(); update({ t: timeInput.valueAsNumber }); });
+fullnessInput.addEventListener("input", () => update({ fullness: fullnessInput.valueAsNumber }));
+dateInput.addEventListener("change", () => {
+  if (dateInput.validity.valid && dateInput.value) update({ source: "calendar", date: dateInput.value }, true);
+  else announce("Choose a date on or after 22 September 1792.", true);
+});
+element("day-before").addEventListener("click", () => shiftDay(-1));
+element("day-after").addEventListener("click", () => shiftDay(1));
+element("today").addEventListener("click", () => update({ source: "calendar", date: today() }, true));
+element("calendar-plant").addEventListener("click", () => update({ source: "calendar", date: today() }, true));
+element("choose-plant").addEventListener("click", openPlants);
+element("another-plant").addEventListener("click", openPlants);
+for (const button of document.querySelectorAll<HTMLButtonElement>(".random-plant")) {
+  button.addEventListener("click", () => update({ source: "calendar", date: randomDay("plant", today(), Math.random, state.date) }, true));
+}
+for (const button of document.querySelectorAll<HTMLButtonElement>(".random-visitor")) {
+  button.addEventListener("click", () => {
+    const hanging = state.mode === "hanging";
+    update({ source: "calendar", date: randomDay("visitor", today(), Math.random, state.date), mode: hanging ? "page" : state.mode }, true);
+    if (hanging) announce("A hanging garden leaves its visitor out, so this one grows round the text.");
   });
 }
-timeInput.addEventListener("input", () => update({ t: timeInput.valueAsNumber }));
-fullnessInput.addEventListener("input", () => update({ fullness: fullnessInput.valueAsNumber }));
-marginInput.addEventListener("input", () => update({ margin: marginInput.valueAsNumber }));
-dateInput.addEventListener("change", () => {
-  try {
-    republicanDate(dateInput.value);
-    dateError.hidden = true;
-    dateInput.removeAttribute("aria-invalid");
-    update({ date: dateInput.value }, true);
-    if (grown?.garden && !exporting) download.disabled = false;
-  } catch {
-    dateError.hidden = false;
-    dateInput.setAttribute("aria-invalid", "true");
-    download.disabled = true;
-  }
-});
-element("today").addEventListener("click", () => {
-  dateInput.value = defaultState().date;
-  dateInput.dispatchEvent(new Event("change"));
-});
 element("new-seed").addEventListener("click", () => update({ seed: crypto.getRandomValues(new Uint32Array(1))[0]! }, true));
-morePlants.addEventListener("toggle", () => { if (morePlants.open) loadMorePlants(); });
-codeDetails.addEventListener("toggle", () => { if (codeDetails.open) element("usage-code").textContent = usageCode(state); });
+playButton.addEventListener("click", () => {
+  if (animation) stopDay();
+  else passDay(0, 1, reducedMotion.matches ? 1 : 9000);
+});
 element("share").addEventListener("click", () => {
   const url = new URL(location.href);
   url.hash = stateHash(state);
-  void copy(url.href, "Garden link copied.");
+  void copy(url.href, "A link to this garden is copied.");
 });
-element("copy-code").addEventListener("click", () => { void copy(usageCode(state), "Garden code copied."); });
-element("close-copy").addEventListener("click", () => { copyFallback.hidden = true; element("share").focus(); });
+element("show-code").addEventListener("click", () => {
+  if (!geometry) return;
+  element("usage-code").textContent = usageCode(state, geometry);
+  codeDialog.showModal();
+});
+element("copy-code").addEventListener("click", () => {
+  if (geometry) void copy(usageCode(state, geometry), "The code is copied.");
+});
 download.addEventListener("click", async () => {
-  if (exporting) return;
+  if (exporting || !geometry) return;
   exporting = true;
   download.disabled = true;
-  const snapshot = { ...state };
-  announce("Preparing the SVG…");
+  const snapshot = { ...state }, measured = { ...geometry };
+  announce("Drawing the SVG…");
   try {
-    const svg = await exportSvg(snapshot);
+    const svg = await exportSvg(snapshot, measured);
     const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
@@ -282,27 +397,37 @@ download.addEventListener("click", async () => {
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
-    announce("SVG saved with its inks and any guest engraving included.");
+    announce("The SVG is saved, with its inks and any engraving in it.");
   } catch (error) {
-    announce(`The SVG could not be saved. ${error instanceof Error ? error.message : String(error)} Try again.`, true);
+    announce(`The SVG could not be saved. ${error instanceof Error ? error.message : String(error)}`, true);
   } finally {
     exporting = false;
-    download.disabled = !grown?.garden || !dateError.hidden;
+    drawGarden();
   }
 });
 
 function restoreLocation(): void {
-  state = readState(location.hash);
-  dateError.hidden = true;
-  dateInput.removeAttribute("aria-invalid");
-  copyFallback.hidden = true;
+  stopDay();
+  state = readState(location.hash, startingState());
   announce("");
-  cancelAnimationFrame(pendingFrame);
-  safeRender();
+  schedule();
 }
 window.addEventListener("popstate", restoreLocation);
 window.addEventListener("hashchange", restoreLocation);
-makePaletteButtons();
-element("featured-plants").append(...PLANTS.slice(0, 6).map(plantButton));
-element("plant-count").textContent = `(${PLANTS.length - 6})`;
-safeRender();
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(schedule, 120);
+});
+phone.addEventListener("change", schedule);
+
+makePalettes();
+// A first visit opens on the plant growing from the morning to the hour of the visit, and keeps the URL bare.
+const opening = firstVisit && !reducedMotion.matches ? state.t : null;
+if (opening !== null) state = { ...state, t: 0.05 };
+refresh();
+// The fonts change the text's length, and so the room under it.
+void document.fonts.ready.then(() => {
+  refresh();
+  if (opening !== null && grown?.preview.garden) passDay(0.05, opening, 2600, false);
+  else if (opening !== null) state = { ...state, t: opening };
+});

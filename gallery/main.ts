@@ -5,14 +5,13 @@
 // `&palette=<id>-light` or `-dark` draws everything in one of the library's palettes.
 import { calendarDay, figureURL, localDate } from "../src/calendar/index.js";
 import type { FormModule, Variant } from "../src/form.js";
-import { num, type Pt } from "../src/geometry.js";
 import { growGarden } from "../src/grow.js";
-import { type Manner, paintShapes, Sheet } from "../src/paint.js";
+import type { Manner } from "../src/paint.js";
 import { createRng, seedFromText } from "../src/random.js";
 import { PALETTES, palettesCss } from "../src/palettes.js";
 import { FORM_MODULES, plantForm } from "../src/registry.js";
 import { renderGarden } from "../src/render.js";
-import type { Shape } from "../src/shapes.js";
+import { shapesSvg } from "./drawing.js";
 
 interface Route { form: string | null; all: boolean; today: boolean; date: string | null; manner: Manner; paper: "cream" | "night"; palette: string | null }
 
@@ -32,28 +31,6 @@ document.head.append(palettes);
 const READINGS = PALETTES.flatMap(palette => (["light", "dark"] as const).map(reading => ({ value: `${palette.id}-${reading}`, palette, reading })));
 
 const escape = (text: string): string => text.replace(/[&<>"]/gu, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]!);
-
-function points(shape: Shape): Pt[] {
-  switch (shape.type) {
-    case "body": return shape.outline;
-    case "solid": return shape.outline;
-    case "line": return shape.points;
-    case "dots": return shape.points;
-  }
-}
-
-/** Shapes drawn alone, framed to their own bounds, at `scale` pixels per centimetre. */
-function shapesSvg(shapes: Shape[], manner: Manner, id: string, scale: number): string {
-  const all = shapes.flatMap(points);
-  if (all.length === 0) return "";
-  const pad = 0.1;
-  const x0 = Math.min(...all.map(p => p[0])) - pad, x1 = Math.max(...all.map(p => p[0])) + pad;
-  const y0 = Math.min(...all.map(p => p[1])) - pad, y1 = Math.max(...all.map(p => p[1])) + pad;
-  const sheet = new Sheet(id);
-  const body = paintShapes(shapes, manner, sheet);
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="eglantine" viewBox="${num(x0)} ${num(-y1)} ${num(x1 - x0)} ${num(y1 - y0)}" width="${num((x1 - x0) * scale)}" height="${num((y1 - y0) * scale)}">`
-    + `<defs>${sheet.defs.join("")}</defs><g transform="scale(1 -1)">${body}</g></svg>`;
-}
 
 const garden = (module: FormModule, variant: Variant, t: number, manner: Manner, id: string, scale: number): string =>
   renderGarden(growGarden({ seed: 20261031, form: module.id, variant }), { t, fullness: 0.75 }, { manner, id, scale });

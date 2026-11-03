@@ -1,14 +1,21 @@
-import { calendarDay, figureURL, republicanDate, type CalendarGuest } from "../src/calendar/index.js";
+// The playground's settings, as the URL keeps them, and the garden they grow on the measured page: its
+// selection and text, its SVG for saving, and the code that grows it on another website.
+import { calendarDay, type CalendarGuest, figureURL, republicanDate } from "../src/calendar/index.js";
 import type { Variant } from "../src/form.js";
-import { growGarden, type Garden } from "../src/grow.js";
+import { num } from "../src/geometry.js";
+import { type Garden, growGarden } from "../src/grow.js";
 import { withInks } from "../src/inks.js";
 import type { Manner } from "../src/paint.js";
 import { PALETTES, paletteInks } from "../src/palettes.js";
 import { renderGarden } from "../src/render.js";
-import { FORM_LABELS, PLANTS } from "./catalog.js";
+import { FORM_PHRASES, PLANTS } from "./catalog.js";
+import { ENGLISH_COMPLEMENTARY, ENGLISH_DAYS } from "./english.js";
+
+/** How the garden sits on the page: up its margin, round the text, or hanging from the top of the margin. */
+export type Mode = "margin" | "page" | "hanging";
 
 export interface PlaygroundState {
-  source: "plants" | "calendar";
+  source: "calendar" | "plants";
   plant: string;
   date: string;
   seed: number;
@@ -17,15 +24,29 @@ export interface PlaygroundState {
   reading: "light" | "dark";
   t: number;
   fullness: number;
+  mode: Mode;
   side: "left" | "right";
-  margin: number;
+}
+
+/** The page the garden grows on, measured from the playground's layout, in centimetres. */
+export interface Geometry {
+  /** The margin column's width and height. */
+  column: number;
+  height: number;
+  /** The text's width beside the column, and the room under its last line. */
+  text: number;
+  below: number;
 }
 
 export interface Selection {
-  name: string;
-  subtitle: string;
-  description: string;
+  /** The heading: a chosen plant's English name, or the calendar day's own name. */
+  title: string;
+  /** The heading's other language: a chosen plant's French name, a calendar day's English one. */
+  gloss: string;
+  /** The calendar's date for the day, or nothing for a chosen plant. */
   dateline: string;
+  /** What the garden draws. */
+  about: string;
   form: string | null;
   variant: Variant;
   guest: CalendarGuest | null;
@@ -38,6 +59,8 @@ export interface GardenPreview {
 
 type StateInput = { [Key in keyof PlaygroundState]?: unknown };
 
+/** Pixels per centimetre of a saved SVG. */
+const SAVED_SCALE = 32;
 const PROVENANCE_URL = "https://github.com/cadaeix/eglantine-marginalia/blob/main/figures/PROVENANCE.md";
 const BIU_FIGURES: Readonly<Record<string, true>> = {
   chevreuil: true, lapin: true, chat: true, lievre: true, chamois: true, loutre: true,
@@ -53,17 +76,9 @@ function validDate(value: unknown): value is string {
   }
 }
 
-function today(): string {
+export function today(): string {
   const now = new Date();
   return `${String(now.getFullYear()).padStart(4, "0")}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-
-export function defaultState(date = today()): PlaygroundState {
-  return {
-    source: "plants", plant: "rose", date: validDate(date) ? date : today(), seed: 1793,
-    manner: "lavis", palette: "iron-gall", reading: "light", t: 0.68, fullness: 0.65,
-    side: "right", margin: 32,
-  };
 }
 
 function numeric(value: unknown, fallback: number, min: number, max: number, integer = false): number {
@@ -83,63 +98,100 @@ function normalize(input: StateInput, fallback: PlaygroundState): PlaygroundStat
     reading: input.reading === "light" || input.reading === "dark" ? input.reading : fallback.reading,
     t: numeric(input.t, fallback.t, 0, 1),
     fullness: numeric(input.fullness, fallback.fullness, 0, 1),
+    mode: input.mode === "margin" || input.mode === "page" || input.mode === "hanging" ? input.mode : fallback.mode,
     side: input.side === "left" || input.side === "right" ? input.side : fallback.side,
-    margin: numeric(input.margin, fallback.margin, 22, 42, true),
   };
+}
+
+/** The settings a visitor first sees: today's plant from the calendar, growing round the text. */
+export function defaultState(overrides: Partial<PlaygroundState> = {}): PlaygroundState {
+  return normalize(overrides, {
+    source: "calendar", plant: "rose", date: today(), seed: 1793, manner: "lavis", palette: "iron-gall", reading: "light",
+    t: 0.7, fullness: 0.65, mode: "page", side: "right",
+  });
 }
 
 export function readState(hash: string, fallback = defaultState()): PlaygroundState {
   const params = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
-  return normalize({
-    source: params.get("source"), plant: params.get("plant"), date: params.get("date"), seed: params.get("seed"),
-    manner: params.get("manner"), palette: params.get("palette"), reading: params.get("reading"),
-    t: params.get("t"), fullness: params.get("fullness"), side: params.get("side"), margin: params.get("margin"),
-  }, normalize(fallback, defaultState()));
+  const input: StateInput = {};
+  for (const key of Object.keys(fallback) as (keyof PlaygroundState)[]) input[key] = params.get(key);
+  return normalize(input, normalize(fallback, defaultState()));
 }
 
 export function stateHash(state: PlaygroundState): string {
   const value = normalize(state, defaultState());
-  return `#${new URLSearchParams({
-    source: value.source, plant: value.plant, date: value.date, seed: String(value.seed),
-    manner: value.manner, palette: value.palette, reading: value.reading,
-    t: String(value.t), fullness: String(value.fullness), side: value.side, margin: String(value.margin),
-  })}`;
+  return `#${new URLSearchParams(Object.entries(value).map(([key, setting]) => [key, String(setting)]))}`;
+}
+
+/** A calendar day's place in the year, from 0 on 1er vendémiaire. */
+const dayIndex = (date: { month: number; day: number }): number => (date.month - 1) * 30 + date.day - 1;
+const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
+ * A day of the year starting at `from`, which holds every day of the calendar, chosen with `random`: one named
+ * for a plant, or one whose animal or tool has an engraving to visit the garden. `except` is never chosen.
+ */
+export function randomDay(kind: "plant" | "visitor", from: string, random: () => number, except = ""): string {
+  const [year, month, day] = from.split("-").map(Number) as [number, number, number];
+  const days: string[] = [];
+  for (let offset = 0; offset < 366; offset += 1) {
+    const date = new Date(Date.UTC(year, month - 1, day + offset)).toISOString().slice(0, 10);
+    const entry = calendarDay(date);
+    if (date !== except && (kind === "plant" ? entry.kind === "plant" : entry.guest !== null)) days.push(date);
+  }
+  return days[Math.floor(random() * days.length)]!;
 }
 
 export function resolveSelection(state: PlaygroundState): Selection {
   const value = normalize(state, defaultState());
   if (value.source === "plants") {
     const plant = PLANTS.find(candidate => candidate.id === value.plant)!;
-    return {
-      name: plant.name, subtitle: plant.french, description: plant.description, dateline: "Curated plant",
-      form: plant.form, variant: plant.variant, guest: null,
-    };
+    return { title: plant.name, gloss: plant.french, dateline: "", about: plant.description, form: plant.form, variant: plant.variant, guest: null };
   }
   const day = calendarDay(value.date);
-  if (!day.plant) return {
-    name: "A day without a plant", subtitle: day.name,
-    description: "The complementary days fall outside the calendar's twelve months. These days have no named plant or garden.",
-    dateline: day.dateline, form: null, variant: {}, guest: null,
+  if (day.date.complementary || !day.plant) return {
+    title: capital(day.name), gloss: `the day of ${ENGLISH_COMPLEMENTARY[day.date.day - 1]!}`, dateline: day.dateline,
+    about: "The complementary days fall at the end of the year, outside its twelve months, and have no plant.",
+    form: null, variant: {}, guest: null,
   };
-  const name = Object.hasOwn(FORM_LABELS, day.plant.form) ? FORM_LABELS[day.plant.form]! : day.plant.form;
-  const description = day.kind === "plant"
-    ? `The calendar names this day ${day.name}. The garden uses the ${name.toLowerCase()} form.`
-    : `The calendar names this day ${day.name}. The garden uses the preceding day's plant, ${day.plant.name}. `
-      + (day.guest ? "A historical engraving supplies the day's guest." : "The library has no engraving for this day's guest.");
-  return {
-    name, subtitle: day.name, description, dateline: day.dateline,
-    form: day.plant.form, variant: day.plant.variant, guest: day.guest,
-  };
+  const index = dayIndex(day.date);
+  const english = ENGLISH_DAYS[index]!;
+  const drawn = `The garden draws it as ${FORM_PHRASES[day.plant.form] ?? day.plant.form}.`;
+  let about: string;
+  if (day.kind === "plant") about = `The calendar gives this day to ${day.name}, ${english}. ${drawn}`;
+  else {
+    const plant = `${day.plant.name}, ${ENGLISH_DAYS[index - 1]!}`;
+    const guest = !day.guest ? `The library has no engraving of the ${english} yet.`
+      : day.kind === "animal" ? `The ${english} visits it, cut from an engraving of the period.`
+      : `The ${english} lies at its foot, cut from an engraving of the period.`;
+    about = `The calendar gives this day to ${day.name}, ${english}, so the garden grows the day before's plant, ${plant}. ${guest}`;
+  }
+  return { title: capital(day.name), gloss: english, dateline: day.dateline, about, form: day.plant.form, variant: day.plant.variant, guest: day.guest };
 }
 
-export function createGarden(state: PlaygroundState): GardenPreview {
+/** The garden the settings grow on the page; a hanging garden leaves the day's animal or tool out, as it would hang upside down. */
+export function createGarden(state: PlaygroundState, geometry: Geometry): GardenPreview {
   const value = normalize(state, defaultState());
   const selection = resolveSelection(value);
-  const garden = selection.form === null ? null : growGarden({
-    seed: value.seed, form: selection.form, variant: selection.variant,
-    ...(selection.guest ? { guest: selection.guest } : {}),
+  if (selection.form === null) return { selection, garden: null };
+  const garden = growGarden({
+    seed: value.seed, form: selection.form, variant: selection.variant, width: geometry.column, height: geometry.height,
+    ...(selection.guest && value.mode !== "hanging" ? { guest: selection.guest } : {}),
+    ...(value.mode === "page" ? { page: { side: value.side, text: geometry.text, below: geometry.below } } : {}),
   });
   return { selection, garden };
+}
+
+/** How much of a hanging garden's top is cropped away: its root, and any foot it stands on. */
+export const hangingSink = (garden: Garden): number =>
+  garden.mains.length > 0 ? Math.min(...garden.mains.map(points => points[0]![1])) + 0.5 : 0;
+
+/** A rendered column garden turned to hang from the top of its margin, with its root cropped away above. */
+export function hangingSvg(svg: string, garden: Garden, scale: number): string {
+  const sink = hangingSink(garden), height = garden.height - sink;
+  const inner = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="eglantine" viewBox="0 ${num(sink)} ${num(garden.width)} ${num(height)}" width="${num(garden.width * scale)}" height="${num(height * scale)}" role="img">`
+    + `<g transform="translate(0 ${num(garden.height)}) scale(1 -1)">${inner}</g></svg>`;
 }
 
 function escapeXml(text: string): string {
@@ -165,27 +217,31 @@ async function figureDataUri(guest: CalendarGuest): Promise<string> {
   return `data:image/png;base64,${btoa(chunks.join(""))}`;
 }
 
-export async function exportSvg(state: PlaygroundState): Promise<string> {
+/** The garden on the page as a standalone SVG: its inks written in, its guest's engraving embedded and credited. */
+export async function exportSvg(state: PlaygroundState, geometry: Geometry): Promise<string> {
   const value = normalize(state, defaultState());
-  const { selection, garden } = createGarden(value);
-  if (!garden) throw new Error("Complementary days have no plant to export.");
-  const guestFigure = selection.guest ? await figureDataUri(selection.guest) : null;
-  const id = `playground-${value.seed}`;
+  const { selection, garden } = createGarden(value, geometry);
+  if (!garden) throw new Error("Complementary days have no plant to save.");
+  const guest = garden.guest && selection.guest ? selection.guest : null;
+  const guestFigure = guest ? await figureDataUri(guest) : null;
+  const id = `eglantine-${value.seed}`;
   const inks = paletteInks(value.palette, value.reading);
-  const svg = withInks(renderGarden(garden, { t: value.t, fullness: value.fullness }, {
-    manner: value.manner, id, scale: 32, ...(guestFigure ? { guestFigure } : {}),
+  let svg = withInks(renderGarden(garden, { t: value.t, fullness: value.fullness }, {
+    manner: value.manner, id, scale: SAVED_SCALE, ...(guestFigure ? { guestFigure } : {}),
   }), inks);
-  const attribution = selection.guest ? guestCredit(selection.guest) : "";
-  const description = [selection.subtitle, selection.dateline, selection.description, attribution].filter(Boolean).join(" ");
-  const metadata = JSON.stringify({ generator: "Églantine", state: value, attribution });
+  if (value.mode === "hanging") svg = hangingSvg(svg, garden, SAVED_SCALE);
+  const attribution = guest ? guestCredit(guest) : "";
+  const description = [selection.gloss, selection.dateline, selection.about, attribution].filter(Boolean).join(" ");
+  const metadata = JSON.stringify({ generator: "Églantine", state: value, geometry, attribution });
   return svg.replace(/>/u, () => ` aria-labelledby="${id}-title ${id}-description">`
-    + `<title id="${id}-title">${escapeXml(selection.name)}</title>`
+    + `<title id="${id}-title">${escapeXml(selection.title)}</title>`
     + `<desc id="${id}-description">${escapeXml(description)}</desc>`
     + `<metadata>${escapeXml(metadata)}</metadata>`
-    + `<rect width="100%" height="100%" fill="${inks.paper}"/>`);
+    + `<rect width="${num(garden.width)}" height="${num(garden.height)}" fill="${inks.paper}"/>`);
 }
 
-export function usageCode(state: PlaygroundState): string {
+/** Browser code that grows and draws the garden the settings show, on another website. */
+export function usageCode(state: PlaygroundState, geometry: Geometry): string {
   const value = normalize(state, defaultState());
   const selection = resolveSelection(value);
   const quote = JSON.stringify;
@@ -194,32 +250,46 @@ export function usageCode(state: PlaygroundState): string {
     "", `const day = calendarDay(${quote(value.date)});`,
     'document.body.textContent = `${day.dateline}: no plant on a complementary day.`;',
   ].join("\n");
-  const lines = [
-    'import { growGarden, renderGarden, paletteInks, withInks } from "eglantine-marginalia";',
-  ];
+  const guest = selection.guest !== null && value.mode !== "hanging";
+  const size = `width: ${geometry.column}, height: ${geometry.height}`;
+  const page = value.mode === "page"
+    ? `,\n  // The text beside the column and the room under its last line, in centimetres at 32 pixels each.\n  page: { side: ${quote(value.side)}, text: ${geometry.text}, below: ${geometry.below} },`
+    : ",";
+  const lines = ['import { growGarden, renderGarden, paletteInks, withInks } from "eglantine-marginalia";'];
   if (value.source === "calendar") lines.push(
-    `import { calendarDay${selection.guest ? ", figureURL" : ""} } from "eglantine-marginalia/calendar";`,
+    `import { calendarDay${guest ? ", figureURL" : ""} } from "eglantine-marginalia/calendar";`,
     "", `const day = calendarDay(${quote(value.date)});`,
     'if (!day.plant) throw new Error("No plant on a complementary day.");',
-    `const garden = growGarden({ seed: ${value.seed}, ...day.plant,`,
-    "  ...(day.guest ? { guest: day.guest } : {}) });",
+    "const garden = growGarden({",
+    `  seed: ${value.seed}, form: day.plant.form, variant: day.plant.variant, ${size}${page}`,
+    ...(guest ? ["  ...(day.guest ? { guest: day.guest } : {}),"] : []),
+    "});",
   );
-  else lines.push("", "const garden = growGarden({", `  seed: ${value.seed}, form: ${quote(selection.form)},`,
-    `  variant: ${quote(selection.variant)},`, "});");
+  else lines.push("", "const garden = growGarden({",
+    `  seed: ${value.seed}, form: ${quote(selection.form)},`,
+    `  variant: ${quote(selection.variant)},`,
+    `  ${size}${page}`, "});");
   lines.push(
     `const inks = paletteInks(${quote(value.palette)}, ${quote(value.reading)});`,
     `const svg = withInks(renderGarden(garden, { t: ${value.t}, fullness: ${value.fullness} }, {`,
-    `  manner: ${quote(value.manner)}, id: ${quote(`playground-${value.seed}`)}, scale: 32,`,
+    `  manner: ${quote(value.manner)}, id: "margin", scale: 32,`,
+    ...(guest ? ["  ...(day.guest ? { guestFigure: figureURL(day.guest.figure).href } : {}),"] : []),
+    "}), inks);", "",
   );
-  if (selection.guest) lines.push(
-    "  ...(day.guest ? { guestFigure: figureURL(day.guest.figure).href } : {}),",
+  if (value.mode === "page") lines.push(
+    "// The drawing covers the column and the text beside it: lay it under the text, at the foot of the page.",
+    'const layer = document.createElement("div");',
+    'Object.assign(layer.style, { position: "absolute", left: "0", bottom: "0", zIndex: "-1", pointerEvents: "none" });',
+    "layer.innerHTML = svg;",
+    'document.querySelector("article").append(layer);',
   );
-  lines.push(
-    "}), inks);", "", 'const margin = document.createElement("aside");',
-    `Object.assign(margin.style, { float: ${quote(value.side)}, width: ${quote(`${value.margin}%`)}, background: inks.paper });`,
-    "margin.innerHTML = svg;", "document.body.append(margin);",
+  else lines.push(
+    'const margin = document.createElement("aside");',
+    `Object.assign(margin.style, { float: ${quote(value.side)}, background: inks.paper${value.mode === "hanging" ? ', transform: "scaleY(-1)"' : ""} });`,
+    ...(value.mode === "hanging" ? ["// Turned upside down, the garden hangs from the top of the margin; tuck its root under your header."] : []),
+    "margin.innerHTML = svg;", "document.body.prepend(margin);",
   );
-  if (selection.guest) lines.push("", "// Inline SVG can use the figure URL; downloaded SVG needs a PNG data URI.",
+  if (guest && selection.guest) lines.push("", "// Inline SVG can use the figure URL; a downloaded SVG needs a PNG data URI.",
     `// Figure attribution: ${guestCredit(selection.guest)}`);
   return lines.join("\n");
 }

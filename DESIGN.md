@@ -1,140 +1,97 @@
 ---
 name: Églantine playground
-description: Generated botanical gardens beside a reading sample.
+description: A page with a generated garden in its own margin.
 colors:
-  surface: "#eeeee5"
-  ink: "#2d4033"
-  muted: "#5b6559"
-  line: "#b9bfb0"
-  soft: "#e0e4d8"
-  selected: "#d3ddcb"
-  accent: "#35513c"
-  on-accent: "#faf9ef"
-  error: "#9b332a"
-  dark-surface: "#1d2620"
-  dark-ink: "#e4e7d8"
-  dark-muted: "#b9c1af"
-  dark-line: "#586451"
-  dark-soft: "#27332b"
-  dark-selected: "#374831"
-  dark-accent: "#d3dfc1"
-  dark-on-accent: "#1d2c20"
-  dark-error: "#ffb2a7"
+  paper: "{palette.paper}"
+  ink: "{palette.ink}"
+  wash: "{palette.wash}"
+  accent: "{palette.accent}"
+  muted: "color-mix(in oklab, {colors.ink} 68%, {colors.paper})"
+  rule: "color-mix(in oklab, {colors.ink} 22%, {colors.paper})"
+  default-paper: "#f4ecdd"
+  default-ink: "#23201d"
+  default-wash: "#603a1a"
+  default-accent: "#b12e23"
 typography:
-  display:
+  heading:
     fontFamily: "Baskervville, Georgia, serif"
-    fontSize: "clamp(2.7rem, 3.7vw, 4.1rem)"
+    fontSize: "3rem"
     fontWeight: 400
-    lineHeight: 0.99
-    letterSpacing: "-0.035em"
-  wordmark:
+    lineHeight: 1.05
+    letterSpacing: "-0.02em"
+  gloss:
     fontFamily: "Baskervville, Georgia, serif"
-    fontSize: "2.65rem"
-    lineHeight: 1
-    letterSpacing: "-0.035em"
+    fontSize: "1.3rem"
+    fontStyle: italic
   body:
     fontFamily: "Baskervville, Georgia, serif"
-    fontSize: "1.02rem"
+    fontSize: "1.0625rem"
     lineHeight: 1.55
-  button:
-    fontFamily: '"Segoe UI", "Helvetica Neue", sans-serif'
-    fontSize: "0.85rem"
-  palette-label:
-    fontFamily: '"Segoe UI", "Helvetica Neue", sans-serif'
-    fontSize: "0.8rem"
-    lineHeight: 1.2
-rounded:
-  control: "3px"
-  choice: "2px"
+  label:
+    fontFamily: "Baskervville, Georgia, serif"
+    fontVariantCaps: all-small-caps
+    letterSpacing: "0.08em"
 spacing:
-  button-block: "0.5rem"
-  button-inline: "0.85rem"
-  frame: "1.4rem"
-  outer: "3rem"
+  cm: "set from the window: about 1/25 of the page's height, 22 to 36 px"
+  column: "6cm"
+  gutter: "1cm"
+  measure: "36rem"
 components:
-  button-primary:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.on-accent}"
-    typography: "{typography.button}"
-    rounded: "{rounded.control}"
-    padding: "0.5rem 0.85rem"
-  button-primary-hover:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.surface}"
-  button-secondary:
-    backgroundColor: "transparent"
+  setting:
+    label: "{typography.label}"
+    rule: "1px {colors.rule} below each line"
+  words:
+    unchosen: "{colors.muted}"
+    chosen: "{colors.ink}, underlined"
+    separator: "a middle dot in {colors.muted}"
+  word-button:
     textColor: "{colors.ink}"
-    typography: "{typography.button}"
-    rounded: "{rounded.control}"
-    padding: "0.5rem 0.85rem"
-  palette-choice:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.choice}"
-    padding: "0.15rem"
+    underline: "{colors.rule}, {colors.ink} on hover"
+  swatch:
+    background: "the palette's paper, with a block of its wash and a point of its accent"
+    chosen: "1px {colors.ink} outline"
+  plate:
+    background: "{colors.paper}"
+    border: "1px {colors.rule}"
 ---
 
 # Design System: Églantine playground
 
 ## Overview
 
-The playground follows the approved interactive botanical plate direction. Generated engraving and wash drawings provide its illustration. Fine rules and restrained controls surround a page preview that pairs a garden with text.
+The playground is a page with Églantine growing in its own margin, as it would on a visitor's website. The text column holds the day's plant and the garden's settings. The garden is grown for the page as the window lays it out: in its margin column, round the text into the room under its last line, or hanging from the top of the margin.
 
-English names identify the public choices. Historical French names remain secondary information. Plant thumbnails and named palette swatches let visitors inspect choices before selecting them.
+The page is restrained, so that the botany can be as full as its form makes it.
 
 ## Colors
 
-The interface uses subdued green surfaces and ink. The selected garden uses the library's palette-specific paper, ink, wash, and accent independently of the surrounding interface. Light and dark readings change both sets of colours.
-
-The accent marks selected controls and the primary export action. Muted ink distinguishes supporting text. Error ink identifies failed actions and invalid dates. The colours and their roles are implemented in [the playground stylesheet](gallery/playground.css).
+The whole page takes the chosen palette's four inks: its paper is the page's background, its ink the text, its accent the sliders' points and the focus ring. Muted text and rules are mixes of ink into paper. Changing the palette or its light (daylight or candlelight) recolours the page and the garden together, and never regrows the garden.
 
 ## Typography
 
-Self-hosted Baskervville supplies the wordmark, specimen prose, plant names, and section titles. Its normal and italic variable fonts are bundled under the SIL Open Font License in [the font licence](gallery/fonts/OFL.txt). Functional controls use Segoe UI with Helvetica Neue and sans-serif fallbacks.
-
-The root font size is 15px. Palette labels use 0.8rem, equivalent to 12px, and wrap within their buttons. The specimen prose has a maximum width of 38ch. Phone layouts retain the heading, introductory passage, and plant caption while hiding the longer sample prose.
+Self-hosted Baskervville sets everything, under the SIL Open Font License in [the font licence](gallery/fonts/OFL.txt). The heading is the day's French name, or a chosen plant's English one, with the other language beside it in italic. Labels are small capitals. Paragraphs keep to a 36rem measure.
 
 ## Layout
 
-The desktop layout reserves a narrow column for controls beside a flexible preview. The layout has a maximum width of 1560px.
+The page is a grid of the text column, a gutter one garden-centimetre wide and a margin column six wide. A garden-centimetre (`--cm`) is set from the window so that the page holds a column about 25 cm tall, between 22 and 36 pixels. The garden's drawing lies under the text, positioned by the script: the margin column alone, the margin and the text together at the page's foot, or the margin hanging from its top.
 
-| Viewport width | Control column width |
-|---|---|
-| Above 760px through 1100px | 315px |
-| Above 1100px and below 1600px | 345px |
-| 1600px and wider | 370px |
+The garden is grown again whenever the page changes shape: a new plant, side or mode, or a window that rewraps the text. Its measurements are rounded to half a centimetre so that small shifts do not regrow it.
 
-At widths up to 760px, the preview stays above the controls during scrolling. The page preview height follows 40svh within limits of 200px and 340px. Scroll padding places focused controls below the preview. The preview stops sticking when the viewport height is at most 500px within this phone layout.
-
-The garden retains its SVG aspect ratio when the page margin changes. Moving the garden to the left swaps the text and garden columns. Page placement does not change the library's botanical composition.
-
-## Elevation & Depth
-
-The page preview uses a soft surrounding frame and the shadow `0 8px 22px #18241b0d`. Controls remain flat. A selected plant button adds an inset accent border to distinguish selection without relying on colour alone.
-
-## Shapes
-
-Controls use restrained rectangular shapes with 2px or 3px corner radii. Thin rules divide functional groups. Icons use inline stroked SVG, and disclosure arrows use two border strokes.
+At 720px and narrower, the page shows the dateline, the heading and the garden, and stays at the top of the screen at 46% of its height. The paragraphs and settings follow beneath it.
 
 ## Components
 
-Plant buttons show generated botanical thumbnails and English names. Selection uses an accent border and a tinted background. Additional plants appear in a disclosure below the initial selection.
+Each setting is a line: a small-capital label, then words to choose among, separated by middle dots. The chosen word is inked and underlined; the others are muted. Actions are underlined words. Sliders are ruled lines with a point in the accent.
 
-Palette buttons show paper behind separate ink, wash, and accent samples. Names remain visible beneath the samples. The selected palette receives an accent border, and its historical name appears in supporting text.
+Palette swatches show each palette's paper with its wash and accent. The note beneath gives the palette's historical name and period, with its note as a title.
 
-The primary button exports an SVG. The adjacent secondary button copies a shareable link. Clipboard denial reveals a selectable text field, and action status text reports success or failure. Disabled controls reduce opacity and do not accept input.
-
-Native radio groups control mutually exclusive settings. Native details elements hide page placement, growth, and code controls until requested. The calendar uses a labelled date field and an inline error message.
-
-Keyboard focus uses a 2px accent outline. Colour transitions run for 120ms or 160ms with ease-out timing when reduced motion is not requested. The skip link focuses the controls without changing the shared garden settings.
+The plant chooser and the code are plates: native dialogs over the page, closed with their close word or Escape. The plant chooser draws each plant by its telling part, its bloom, a leaf or the foot it stands on.
 
 ## Do's and Don'ts
 
-- Do use generated gardens as the primary artwork.
-- Do show English names alongside visual choices.
-- Do show palette names and swatches together.
-- Do preserve the SVG aspect ratio when adjusting page margins.
-- Do leave advanced controls inside their disclosures.
-- Don't replace the botanical artwork with generic decorative illustrations.
-- Don't use historical French terminology as the sole label for a public control.
-- Don't rely on colour alone to distinguish selected controls.
+- Do show the garden on a page with real text, in a real margin.
+- Do keep the settings typeset as part of the page.
+- Do give each calendar day its French name and its English one.
+- Don't give the interface colours of its own; the palette colours the page.
+- Don't regrow the garden for a change of colour or moment.
+- Don't rely on colour alone to show a choice: chosen words are underlined, the chosen swatch is outlined.

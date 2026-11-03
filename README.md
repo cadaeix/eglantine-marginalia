@@ -12,15 +12,15 @@ The library is TypeScript with no runtime dependencies. It grows each garden pro
 
 ## Playground
 
-`npm run gallery` serves the public playground at `http://localhost:5210` after dependency installation. The preview places a generated garden beside a text sample. Plant choices use English names and thumbnails, and palette choices show named colour swatches. The calendar supplies gardens for dates beyond the curated selection. Time and fullness controls reveal the garden's growth.
+`npm run gallery` serves the playground at `http://localhost:5210`. It is a page with Églantine in its own margin. It opens on the day's plant from the calendar, with the day's French name and its English one, and grows from the morning to the hour of the visit. The garden keeps to the margin, reaches round the text, or hangs from the top of the margin. It is grown for the page as the window lays it out, so a narrower or shorter window gives it another room to fill. The page takes the chosen palette's paper and inks.
 
-The page controls adjust the garden's side and its share of the preview width without stretching the artwork. The bundled forms remain composed for a 6 × 22 cm column, so a wider preview margin does not generate broader plants.
+The settings choose another day or one of eighteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page and the seed. "random plant" picks a day named for a plant, and "random visitor" a day whose animal visits the garden or whose tool lies at its foot. Three settings keep the result:
 
-The playground provides export and sharing actions:
+- "save as SVG" writes the garden with its inks, and embeds and credits any engraving.
+- "copy a link" keeps the settings in the URL's fragment.
+- "use it on a website" shows the code that grows the same garden.
 
-- "Save SVG" exports the current garden with resolved colours and embedded guest engravings. The SVG includes figure credits when required.
-- "Copy link" shares the current settings and seed through the URL fragment.
-- "Use it on a website" shows a rendering example for the selected garden.
+The English day names come from the tables in Wikipedia's article on the French Republican calendar.
 
 ## Usage
 
