@@ -57,6 +57,18 @@ The SVG covers the column and the text together, with the column at `garden.colu
 
 A plant with a foot stands on its root study, rock section or bed of earth in the column and sends out no runner, since the room beside its foot lies underground. Its arcs leave the stems above the foot.
 
+## In a browser, lightly
+
+```ts
+import { growGarden, loadForm, renderGarden } from "eglantine-marginalia/lite";
+
+const form = await loadForm("ombelle-corymbe");
+const garden = growGarden({ seed: 1793, form, variant: { leaf: "pinnate" } });
+const svg = renderGarden(garden, { t: 0.6, fullness: 0 }, { manner: "taille-douce", id: "margin", scale: 36 });
+```
+
+The plant forms are most of the library's weight. The `eglantine-marginalia/lite` entry is the main entry without them: `loadForm` loads one form on its own, and `growGarden` grows from the form it is given rather than from an id. A bundler splits each form into its own chunk, so a page fetches about 8 KB of engine, the shared drawing kit and the one form it draws, from 0.2 to 21 KB gzipped, instead of 117 KB for every form.
+
 ## Forms
 
 A form describes what a plant is made of and how it stands: its stems, leaves, bloom and what the bloom becomes. A variant tunes a form to a particular plant, such as a pear rather than a fig. Each form documents its variant keys, and `resolveVariant` rejects unknown keys and values out of range.

@@ -1,6 +1,6 @@
 // A garden at one moment of the day, as one SVG.
 import { num, prefix, type Pt, ribbon, smoothstep } from "./geometry.js";
-import { type Garden, type MotifItem, stageAt, stemShown } from "./grow.js";
+import { type Garden, type MotifItem, stageAt, stemShown } from "./garden.js";
 import { inkRef } from "./inks.js";
 import { type Manner, paintShapes, Sheet, washFilter } from "./paint.js";
 import { createRng } from "./random.js";
