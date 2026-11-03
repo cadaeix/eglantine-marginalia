@@ -18,7 +18,7 @@ Visitors discover Églantine through shared gardens and personal websites. The p
 
 The playground is a page with a garden in its own margin. It opens on the day's plant from the French Republican calendar, at the visitor's hour, and offers eighteen familiar plants beside the calendar. The garden keeps to its margin, grows round the text, or hangs from the top of the margin.
 
-The TypeScript library has no runtime dependencies and does not require a DOM; the playground measures its page and hands the library the geometry in centimetres. The playground uses Vite. Its static build must support a subdirectory on GitHub Pages and hosting on a personal website.
+The TypeScript library has no runtime dependencies and does not require a DOM; the playground measures its page and hands the library the geometry in centimetres. The playground uses Vite. Its static build must support a subdirectory, as it is hosted at cadaeic.space/eglantine/.
 
 ## Brand Commitments
 

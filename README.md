@@ -12,7 +12,7 @@ The library is TypeScript with no runtime dependencies. It grows each garden pro
 
 ## Playground
 
-`npm run gallery` serves the playground at `http://localhost:5210`. It is a page with Églantine in its own margin. It opens on the day's plant from the calendar, with the day's French name and its English one, and grows from the morning to the hour of the visit. The garden keeps to the margin, reaches round the text, or hangs from the top of the margin. It is grown for the page as the window lays it out, so a narrower or shorter window gives it another room to fill. The page takes the chosen palette's paper and inks.
+The playground is online at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/), and `npm run gallery` serves it at `http://localhost:5210`. It is a page with Églantine in its own margin. It opens on the day's plant from the calendar, with the day's French name and its English one, and grows from the morning to the hour of the visit. The garden keeps to the margin, reaches round the text, or hangs from the top of the margin. It is grown for the page as the window lays it out, so a narrower or shorter window gives it another room to fill. The page takes the chosen palette's paper and inks.
 
 The settings choose another day or one of eighteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page and the seed. "random plant" picks a day named for a plant, and "random visitor" a day whose animal visits the garden or whose tool lies at its foot. Three settings keep the result:
 
@@ -158,7 +158,7 @@ npm run gallery:preview  # serve the built website at http://localhost:5210
 
 Upload the contents of `site-dist/` to a static host after `npm run gallery:build`. Relative asset URLs support a site root or a subdirectory on a personal website. The build includes the playground, the specimen gallery, fonts and their licence, and guest figures.
 
-The [Pages workflow](.github/workflows/pages.yml) builds and deploys the static site on pushes to `main` or a manual workflow run. In the repository's Settings > Pages, select GitHub Actions as the build and deployment source before running the workflow. Local builds do not publish the site.
+The playground at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/) is such a build, copied into that site.
 
 ## History
 
