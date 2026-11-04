@@ -77,15 +77,15 @@ The page is a grid of the text column, a gutter one garden-centimetre wide and a
 
 The garden is grown again whenever the page changes shape: a new plant, side or mode, or a window that rewraps the text. Its measurements are rounded to half a centimetre so that small shifts do not regrow it.
 
-At 720px and narrower, the page shows the dateline, the heading and the garden, and stays at the top of the screen at 46% of its height. The paragraphs and settings follow beneath it.
+At 960px and narrower, or on touch devices up to 1100px wide, the heading and garden stay in view above the paragraphs and settings. The preview height is 46% of the viewport height with the browser controls expanded, bounded between 180px and 430px. The playback button appears below the heading.
 
 ## Components
 
-Each setting is a line: a small-capital label, then words to choose among, separated by middle dots. The chosen word is inked and underlined; the others are muted. Actions are underlined words. Sliders are ruled lines with a point in the accent.
+Each setting pairs a small-capital label with choices separated by middle dots. Choices wrap between labels rather than within them. The chosen word is inked and underlined; the others are muted. Actions are underlined words. Sliders are ruled lines with a point in the accent. On touch devices, controls have hit areas at least 44px high and sliders occupy a separate row.
 
 Palette swatches show each palette's paper with its wash and accent. The note beneath gives the palette's historical name and period, with its note as a title.
 
-The plant chooser and the code are plates: native dialogs over the page, closed with their close word or Escape. The plant chooser draws each plant by its telling part, its bloom, a leaf or the foot it stands on.
+The plant chooser and the code are plates: native dialogs over the page, closed with their close word or Escape. Their headers stay visible while their contents scroll. The plant chooser draws each plant by its telling part, its bloom, a leaf or the foot it stands on.
 
 ## Do's and Don'ts
 

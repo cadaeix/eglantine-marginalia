@@ -15,22 +15,33 @@
       nav { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; }
       nav a { color: inherit; }
       nav a[aria-current] { font-weight: 700; }
-      .switch { margin-left: auto; display: flex; gap: 0.75rem; }
+      .switch { margin-left: auto; display: flex; flex-wrap: wrap; gap: 0.75rem; min-width: 0; max-width: 100%; }
       h1 { font-size: 1.25rem; margin: 0; }
       h2 { font-size: 0.95rem; margin: 1.25rem 0 0.4rem; }
+      h1, h2, p, figcaption, nav a { overflow-wrap: anywhere; }
       code { font-size: 0.75rem; color: var(--muted); }
       table { font-size: 0.8rem; border-collapse: collapse; margin: 0.5rem 0; }
       th, td { text-align: left; padding: 0.15rem 0.6rem 0.15rem 0; vertical-align: top; }
+      .variant-table { max-width: 100%; overflow-x: auto; }
       .row { display: flex; gap: 1.5rem; align-items: flex-end; flex-wrap: wrap; }
       .all { display: flex; flex-wrap: wrap; gap: 1.25rem; }
-      figure { margin: 0; }
+      figure { margin: 0; min-width: 0; max-width: 100%; }
       figcaption { font-size: 0.75rem; color: var(--muted); text-align: center; }
-      svg.eglantine { display: block; overflow: hidden; }
+      svg.eglantine { display: block; max-width: 100%; height: auto; overflow: hidden; }
       /* A chosen palette sets the page's paper and ink as well as the garden's. */
       :root[data-eglantine-palette] { --muted: color-mix(in oklab, var(--eglantine-ink) 62%, var(--eglantine-paper)); }
       :root[data-eglantine-palette] body { background: var(--eglantine-paper); color: var(--eglantine-ink); }
       .palette-note { font-size: 0.85rem; color: var(--muted); margin: -0.5rem 0 1rem; }
-      nav select { font: inherit; }
+      nav select { font: inherit; min-width: 0; max-width: 100%; }
+      @media (max-width: 35rem), (any-pointer: coarse) {
+        nav { gap: 0.25rem 0.75rem; }
+        nav a { display: inline-flex; align-items: center; min-height: 2.75rem; }
+        nav select { min-height: 2.75rem; font-size: 1rem; }
+        .switch { align-items: center; }
+      }
+      @media (max-width: 35rem) {
+        main { padding-inline: 1rem; }
+      }
     </style>
   </head>
   <body>

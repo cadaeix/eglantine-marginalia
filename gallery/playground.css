@@ -100,10 +100,12 @@ h1 { margin: 0 0 0.9rem; font-size: 3rem; font-weight: 400; line-height: 1.05; l
 .status[data-error="true"] { color: var(--accent); }
 
 /* Words to choose among, separated by points; the chosen one is inked and underlined. */
-.words { display: inline; }
-.words.block { display: block; margin-top: 0.1rem; }
+.words { display: inline-flex; flex-wrap: wrap; align-items: baseline; max-width: 100%; }
+.words.block { display: flex; margin-top: 0.1rem; }
 .line { display: flex; flex-wrap: wrap; column-gap: 1.8rem; }
 .words > * + *::before { content: "·"; display: inline-block; margin: 0 0.55em; color: var(--muted); text-decoration: none; }
+.words > * { min-width: 0; }
+.words > label, .words > .word { display: inline-flex; align-items: baseline; white-space: nowrap; }
 .words label { cursor: pointer; }
 .words input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .words input[type="radio"] + span { color: var(--muted); }
@@ -172,13 +174,15 @@ output { font-variant-numeric: tabular-nums; }
 .plate {
   width: min(46rem, calc(100vw - 2rem));
   max-height: calc(100svh - 3rem);
+  max-height: calc(100dvh - 3rem);
+  overflow: auto;
   padding: 1.2rem 1.5rem 1.5rem;
   border: 1px solid var(--rule);
   background: var(--paper);
   color: var(--ink);
 }
 .plate::backdrop { background: color-mix(in oklab, var(--paper) 72%, transparent); }
-.plate-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.8rem; border-bottom: 1px solid var(--rule); }
+.plate-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.8rem; padding-block: 0.3rem; border-bottom: 1px solid var(--rule); background: var(--paper); }
 .plate-head h2 { margin: 0 0 0.4rem; font-size: 1.5rem; font-weight: 400; }
 .plants { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: 0.4rem; }
 .plant {
@@ -206,6 +210,7 @@ pre {
   font: 0.78rem/1.55 Consolas, "Liberation Mono", monospace;
 }
 textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--rule); background: transparent; resize: vertical; }
+.plate p { overflow-wrap: anywhere; }
 
 .foot {
   padding: 1.1rem 2rem 1.4rem;
@@ -216,9 +221,9 @@ textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--rule); backgrou
 .foot p { max-width: 48rem; margin: 0; }
 .noscript { padding: 2rem; }
 
-/* On a phone, the page above shows the day and its garden and stays in view; the rest follows beneath. */
-@media (max-width: 720px) {
-  html { scroll-padding-top: calc(var(--sheet-height, 46svh) + 1rem); }
+/* Compact layouts show the garden above the settings. */
+@media (max-width: 960px), (max-width: 1100px) and (any-pointer: coarse) {
+  html { --preview-height: clamp(180px, 46svh, 430px); scroll-padding-top: calc(var(--preview-height) + 1rem); }
   .masthead { padding: 0.8rem 1rem 0.6rem; }
   .wordmark { font-size: 1.35rem; }
   .masthead nav { gap: 1rem; font-size: 0.85rem; }
@@ -226,7 +231,7 @@ textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--rule); backgrou
     position: sticky;
     top: 0;
     z-index: 2;
-    height: var(--sheet-height, 46svh);
+    height: var(--preview-height);
     min-height: 0;
     padding: 0.9rem 1rem 0;
     justify-content: stretch;
@@ -237,12 +242,41 @@ textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--rule); backgrou
   }
   .sheet[data-side="left"] { grid-template-columns: var(--column) var(--gutter) minmax(0, 1fr); }
   .text { padding-bottom: 0.5rem; }
+  .entry > .word { display: inline-flex; align-items: center; min-height: 2.75rem; margin-top: 0.4rem; }
   h1 { font-size: 2rem; margin-bottom: 0; }
   .gloss { display: block; margin-top: 0.2rem; font-size: 1.05rem; }
   .phone-slot { padding: 1rem 1rem 0.5rem; }
   .setting { grid-template-columns: 4.8rem minmax(0, 1fr); gap: 0 0.7rem; }
   .note, .status { white-space: normal; }
   .foot { padding-inline: 1rem; }
+}
+@media (max-width: 720px), (any-pointer: coarse) {
+  .setting { padding-block: 0.5rem; }
+  .words { row-gap: 0.15rem; }
+  .words > label, .words > .word, .plate .word {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    align-items: center;
+  }
+  .words > .word, .plate .word { display: inline-flex; }
+  .words > label, .words > .word { padding-inline: 0.2rem; }
+  .line { row-gap: 0.3rem; }
+  .date-controls { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem; align-items: center; max-width: 19rem; }
+  .date-controls .step { min-width: 2.75rem; min-height: 2.75rem; }
+  .date-controls input { width: 100%; min-width: 0; min-height: 2.75rem; font-size: 1rem; }
+  .value.range { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 0.6rem; }
+  .value.range .end { white-space: nowrap; }
+  .value.range .end:nth-of-type(2) { justify-self: end; text-align: right; }
+  .value.range input { grid-column: 1 / -1; grid-row: 2; width: 100%; min-width: 0; height: 2.75rem; }
+  .value.range .word { grid-column: 1 / -1; justify-self: start; min-height: 2.75rem; margin-left: 0; }
+  input[type="range"]::-webkit-slider-thumb { width: 1.1rem; height: 1.1rem; margin-top: calc(-0.55rem + 0.5px); }
+  input[type="range"]::-moz-range-thumb { width: 1.1rem; height: 1.1rem; }
+  .swatches { gap: 0.25rem; }
+  .swatches label { display: grid; place-items: center; min-width: 2.75rem; min-height: 2.75rem; }
+  .plate { padding: 0.8rem 1rem 1rem; }
+}
+@media (max-width: 400px) {
+  .setting { grid-template-columns: minmax(0, 1fr); row-gap: 0.15rem; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .swatch, .plant { transition: border-color 120ms ease-out, outline-color 120ms ease-out; }

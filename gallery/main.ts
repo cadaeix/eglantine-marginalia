@@ -87,9 +87,9 @@ function draw(): void {
     html += `<div class="all">${modules.flatMap(module => module.examples.map(item =>
       figure(garden(module, item.variant, 0.7, route.manner, slug(`all-${module.id}-${item.name}`), 11), `${escape(item.name)}<br><small>${escape(module.name)}</small>`))).join("")}</div>`;
   } else if (selected) {
-    html += `<header><h1>${escape(selected.name)} <code>${selected.id}</code></h1><p>${escape(selected.doc)}</p><table><tbody>`
+    html += `<header><h1>${escape(selected.name)} <code>${selected.id}</code></h1><p>${escape(selected.doc)}</p><div class="variant-table" role="region" aria-label="Variants" tabindex="0"><table><tbody>`
       + Object.entries(selected.variants).map(([key, spec]) => `<tr><th>${key}</th><td>${escape(spec.doc)}</td><td><code>${escape(spec.values ? spec.values.map(String).join(" | ") : spec.range?.join("..") ?? "")}</code> (default <code>${escape(String(spec.default))}</code>)</td></tr>`).join("")
-      + "</tbody></table></header>"
+      + "</tbody></table></div></header>"
       + selected.examples.map(item => example(selected, item.name, item.variant, route.manner)).join("");
   } else html += `<p>Choose a form above, or <a href="${link({ all: "" })}">all</a>, or <a href="${link({ today: "" })}">today</a>.</p>`;
   document.getElementById("gallery")!.innerHTML = html;

@@ -23,18 +23,20 @@ function element<T extends HTMLElement>(id: string): T {
 
 const sheet = element("sheet");
 const text = element("text");
+const entry = element("entry");
 const body = element("body");
 const gardenElement = element("garden");
 const status = element("status");
 const dateInput = element<HTMLInputElement>("date");
 const timeInput = element<HTMLInputElement>("time");
+const timeControls = timeInput.parentElement!;
 const fullnessInput = element<HTMLInputElement>("fullness");
 const playButton = element<HTMLButtonElement>("play");
 const download = element<HTMLButtonElement>("download");
 const plantDialog = element<HTMLDialogElement>("plant-dialog");
 const codeDialog = element<HTMLDialogElement>("code-dialog");
 const copyDialog = element<HTMLDialogElement>("copy-dialog");
-const phone = matchMedia("(max-width: 720px)");
+const compact = matchMedia("(max-width: 960px), (max-width: 1100px) and (any-pointer: coarse)");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 const MODE_NOTES: Readonly<Record<Mode, string>> = {
@@ -110,6 +112,16 @@ function showText(): void {
   document.title = `${selection.title} · Églantine`;
 }
 
+function showTime(): void {
+  timeInput.value = String(state.t);
+  timeInput.setAttribute("aria-valuetext", state.t < 0.3 ? "morning" : state.t < 0.6 ? "midday" : state.t < 0.85 ? "afternoon" : "evening");
+}
+
+function syncPlayback(playing: boolean): void {
+  playButton.setAttribute("aria-pressed", String(playing));
+  playButton.textContent = playing ? "pause the day" : reducedMotion.matches ? "show the evening" : "watch the day";
+}
+
 function syncControls(): void {
   for (const input of document.querySelectorAll<HTMLInputElement>('.words input[type="radio"]')) {
     input.checked = state[input.name as "manner" | "reading" | "mode" | "side"] === input.value;
@@ -124,10 +136,10 @@ function syncControls(): void {
   element("plant-setting").hidden = state.source !== "plants";
   element("plant-name").textContent = PLANTS.find(plant => plant.id === state.plant)!.name;
   dateInput.value = state.date;
-  timeInput.value = String(state.t);
+  showTime();
   fullnessInput.value = String(state.fullness);
-  timeInput.setAttribute("aria-valuetext", state.t < 0.3 ? "morning" : state.t < 0.6 ? "midday" : state.t < 0.85 ? "afternoon" : "evening");
   fullnessInput.setAttribute("aria-valuetext", `${Math.round(state.fullness * 100)}% full`);
+  syncPlayback(animation !== 0);
   element("seed").textContent = String(state.seed);
   sheet.dataset.side = state.side;
   sheet.dataset.mode = state.mode;
@@ -139,12 +151,14 @@ const half = (value: number): number => Math.round(value * 2) / 2;
 
 /** Lays the page out for the window, then measures it, in the garden's centimetres. */
 function measure(): void {
-  const onPhone = phone.matches;
-  const home = onPhone ? element("phone-slot") : text;
+  const onCompact = compact.matches;
+  const home = onCompact ? element("phone-slot") : text;
   if (body.parentElement !== home) home.append(body);
-  const top = onPhone ? 0 : element("masthead").offsetHeight;
-  const sheetHeight = onPhone ? clamp(innerHeight * 0.46, 250, 430) : Math.max(480, innerHeight - top);
-  cm = onPhone ? sheetHeight / 22 : clamp(Math.round(sheetHeight / 25), 22, 36);
+  const playbackHome = onCompact ? entry : timeControls;
+  if (playButton.parentElement !== playbackHome) playbackHome.append(playButton);
+  const top = onCompact ? 0 : element("masthead").offsetHeight;
+  const sheetHeight = onCompact ? sheet.getBoundingClientRect().height : Math.max(480, innerHeight - top);
+  cm = onCompact ? sheetHeight / 22 : clamp(Math.round(sheetHeight / 25), 22, 36);
   sheet.style.setProperty("--cm", `${cm}px`);
   sheet.style.setProperty("--sheet-height", `${sheetHeight}px`);
   const page = sheet.getBoundingClientRect(), column = text.getBoundingClientRect();
@@ -232,18 +246,18 @@ function update(patch: Partial<PlaygroundState>, remember = false): void {
 function stopDay(): void {
   cancelAnimationFrame(animation);
   animation = 0;
-  playButton.setAttribute("aria-pressed", "false");
+  syncPlayback(false);
 }
 
 /** Runs the time of day from `from` to `to` over `duration` milliseconds, drawing as it goes, and keeps the end in the URL if `record`. */
 function passDay(from: number, to: number, duration: number, record = true): void {
   stopDay();
-  playButton.setAttribute("aria-pressed", "true");
+  syncPlayback(true);
   const start = performance.now();
   const step = (now: number): void => {
     const u = Math.min(1, (now - start) / duration);
     state = { ...state, t: Math.round((from + (to - from) * u) * 1000) / 1000 };
-    timeInput.value = String(state.t);
+    showTime();
     drawGarden();
     if (u < 1) animation = requestAnimationFrame(step);
     else {
@@ -418,7 +432,11 @@ window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
   resizeTimer = window.setTimeout(schedule, 120);
 });
-phone.addEventListener("change", schedule);
+compact.addEventListener("change", schedule);
+reducedMotion.addEventListener("change", () => {
+  stopDay();
+  schedule();
+});
 
 makePalettes();
 // A first visit opens on the plant growing from the morning to the hour of the visit, and keeps the URL bare.

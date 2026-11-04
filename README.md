@@ -14,6 +14,8 @@ The library is TypeScript with no runtime dependencies. It grows each garden pro
 
 The playground is online at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/), and `npm run gallery` serves it at `http://localhost:5210`. It is a page with Églantine in its own margin. It opens on the day's plant from the calendar, with the day's French name and its English one, and grows from the morning to the hour of the visit. The garden keeps to the margin, reaches round the text, or hangs from the top of the margin. It is grown for the page as the window lays it out, so a narrower or shorter window gives it another room to fill. The page takes the chosen palette's paper and inks.
 
+On phones and narrower tablets, the garden and its playback button stay in view above the settings. Touch controls have hit areas at least 44px high. With reduced motion enabled, the page skips the opening animation and offers "show the evening" instead of "watch the day".
+
 The settings choose another day or one of eighteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page and the seed. "random plant" picks a day named for a plant, and "random visitor" a day whose animal visits the garden or whose tool lies at its foot. Three settings keep the result:
 
 - "save as SVG" writes the garden with its inks, and embeds and credits any engraving.
@@ -92,6 +94,8 @@ A form describes what a plant is made of and how it stands: its stems, leaves, b
 The forms carry French names, like the calendar's days, and plain lowercase ASCII ids.
 
 The playground's Specimens link opens the technical gallery at `specimens.html#all`. It shows every form's examples at bloom and at seed, with their flowers and leaves drawn large, the calendar's garden for any date, and every palette.
+
+On narrow screens, figures scale to fit and variant tables scroll horizontally.
 
 ## Manners
 
