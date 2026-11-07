@@ -59,6 +59,15 @@ The SVG covers the column and the text together, with the column at `garden.colu
 
 A plant with a foot stands on its root study, rock section or bed of earth in the column and sends out no runner, since the room beside its foot lies underground. Its arcs leave the stems above the foot.
 
+## Hanging
+
+```ts
+const garden = growGarden({ seed: 1793, form: "grimpante", variant: { woody: true } });
+const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "taille-douce", id: "header", scale: 36, hanging: true });
+```
+
+With `hanging`, the garden hangs upside down from the top of its column, for a margin that begins under a page's header. The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by that much and needs no transform or clipping from the page. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and its leaves fill the room the guest would take. A garden grown round a page cannot hang, since its runner and arcs would turn over onto the text.
+
 ## In a browser, lightly
 
 ```ts

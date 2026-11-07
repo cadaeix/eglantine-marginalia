@@ -97,4 +97,20 @@ describe("rendering", () => {
     expect(quoted).toMatch(/^[a-z0-9_-]+$/iu);
     expect(quoted).not.toBe(literal);
   });
+
+  it("hangs a garden from the top of its column with its root cropped away and no guest, and refuses a page garden", () => {
+    // A long carrot root fills the foot of the column, and its stems leave the root's crown.
+    const carrot = growGarden({ seed: 1793, form: "racine-tubercule", variant: { habit: "long" }, guest: { kind: "visitor", aspect: 1, size: 1.4 } });
+    const options = { manner: "taille-douce", id: "hanging", scale: 10, guestFigure: "figures/oie.png" } as const;
+    expect(renderGarden(carrot, moment, options)).toContain("figures/oie.png");
+    const svg = renderGarden(carrot, moment, { ...options, hanging: true });
+    const [x, y, width, height] = /viewBox="([^"]+)"/u.exec(svg)![1]!.split(" ").map(Number) as [number, number, number, number];
+    expect([x, width]).toEqual([0, carrot.width]);
+    for (const stem of carrot.mains) expect(y).toBeGreaterThan(stem[0]![1]);
+    expect(y + height).toBeCloseTo(carrot.height, 2);
+    expect(Number(/ height="([^"]+)"/u.exec(svg)![1])).toBeCloseTo(height * 10, 1);
+    expect(svg).not.toContain("figures/oie.png");
+    const page = growGarden({ seed: 1793, form: "capitule", page: { side: "left", text: 14, below: 9 } });
+    expect(() => renderGarden(page, moment, { manner: "lavis", id: "page", scale: 10, hanging: true })).toThrow(RangeError);
+  });
 });

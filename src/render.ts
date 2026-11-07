@@ -45,6 +45,14 @@ export interface RenderOptions {
    * drawn facing +x. It is used as a mask, so it takes the manner's ink. A garden shown as an image needs a data URI.
    */
   guestFigure?: string;
+  /**
+   * Hangs the garden upside down from the top of its column, for a margin that begins under a page's header.
+   * The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by
+   * that much. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and
+   * its leaves fill the guest's room. A garden grown round a page cannot hang, since its runner and arcs would
+   * turn over onto the text.
+   */
+  hanging?: boolean;
   /** Marks to lay on the garden at this moment. */
   decorate?: (garden: Garden, sheet: Sheet) => Decorations;
 }
@@ -52,6 +60,8 @@ export interface RenderOptions {
 /** The foot lies under the stems. */
 const FOOT_LAYER = 1.8;
 const REST_LAYER = 2.6, VISITOR_LAYER = 6;
+/** A hanging garden is cropped this far up its main stems from where they begin, so they enter cut at its top edge. */
+const HANGING_ROOT = 0.5;
 
 function motifShapes(item: MotifItem, moment: Moment): Shape[] | null {
   const stage = stageAt(item, moment.t, moment.fullness);
@@ -66,6 +76,8 @@ const group = (at: Pt, angle: number, mirrored: boolean, body: string): string =
   `<g transform="translate(${num(at[0])} ${num(at[1])}) rotate(${num(angle - 90)})${mirrored ? " scale(-1 1)" : ""}">${body}</g>`;
 
 export function renderGarden(garden: Garden, moment: Moment, options: RenderOptions): string {
+  const hanging = options.hanging === true;
+  if (hanging && garden.column[2] - garden.column[0] < garden.width) throw new RangeError("a garden grown round a page cannot hang");
   const sheet = new Sheet(options.id);
   const layers = new Map<number, string>();
   const add = (layer: number, body: string): void => { layers.set(layer, (layers.get(layer) ?? "") + body); };
@@ -94,7 +106,7 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
     if (shapes) add(item.layer, group(item.at, item.angle, garden.mirrored, paintShapes(shapes, options.manner, sheet)));
   }
   const guest = garden.guest;
-  if (guest && options.guestFigure && moment.t >= guest.born) {
+  if (guest && options.guestFigure && !hanging && moment.t >= guest.born) {
     const mask = sheet.id("guest");
     const figure = options.guestFigure.replace(/[&<>"']/gu, character => ATTRIBUTE_ENTITIES[character]!);
     const box = `x="${num(-guest.width / 2)}" y="${num(-guest.height / 2)}" width="${num(guest.width)}" height="${num(guest.height)}"`;
@@ -110,7 +122,12 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
   let body = [...layers.entries()].sort(([a], [b]) => a - b).map(([, text]) => text).join("");
   if (options.manner === "lavis") body = `<g filter="url(#${washFilter(sheet, garden.seed)})">${body}</g>`;
   body = (marks.under ?? "") + body + (marks.over ?? "");
-  const w = num(garden.width), h = num(garden.height);
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="eglantine" viewBox="0 0 ${w} ${h}" width="${num(garden.width * options.scale)}" height="${num(garden.height * options.scale)}" role="img">`
-    + `<defs>${sheet.defs.join("")}</defs><g transform="translate(0 ${h}) scale(1 -1)">${body}</g></svg>`;
+  const w = num(garden.width);
+  // The garden is laid out with y up. Standing, it is turned over into the SVG's y down; hanging, it is left
+  // as it is, upside down, and the root above where its main stems begin is cropped away.
+  const crop = hanging && garden.mains.length > 0 ? Math.min(...garden.mains.map(points => points[0]![1])) + HANGING_ROOT : 0;
+  const height = garden.height - crop;
+  const drawing = hanging ? body : `<g transform="translate(0 ${num(garden.height)}) scale(1 -1)">${body}</g>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="eglantine" viewBox="0 ${num(crop)} ${w} ${num(height)}" width="${num(garden.width * options.scale)}" height="${num(height * options.scale)}" role="img">`
+    + `<defs>${sheet.defs.join("")}</defs>${drawing}</svg>`;
 }

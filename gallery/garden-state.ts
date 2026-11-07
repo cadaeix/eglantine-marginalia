@@ -182,18 +182,6 @@ export function createGarden(state: PlaygroundState, geometry: Geometry): Garden
   return { selection, garden };
 }
 
-/** How much of a hanging garden's top is cropped away: its root, and any foot it stands on. */
-export const hangingSink = (garden: Garden): number =>
-  garden.mains.length > 0 ? Math.min(...garden.mains.map(points => points[0]![1])) + 0.5 : 0;
-
-/** A rendered column garden turned to hang from the top of its margin, with its root cropped away above. */
-export function hangingSvg(svg: string, garden: Garden, scale: number): string {
-  const sink = hangingSink(garden), height = garden.height - sink;
-  const inner = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>"));
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="eglantine" viewBox="0 ${num(sink)} ${num(garden.width)} ${num(height)}" width="${num(garden.width * scale)}" height="${num(height * scale)}" role="img">`
-    + `<g transform="translate(0 ${num(garden.height)}) scale(1 -1)">${inner}</g></svg>`;
-}
-
 function escapeXml(text: string): string {
   return text.replace(/&/gu, "&amp;").replace(/</gu, "&lt;").replace(/>/gu, "&gt;")
     .replace(/"/gu, "&quot;").replace(/'/gu, "&apos;");
@@ -226,10 +214,9 @@ export async function exportSvg(state: PlaygroundState, geometry: Geometry): Pro
   const guestFigure = guest ? await figureDataUri(guest) : null;
   const id = `eglantine-${value.seed}`;
   const inks = paletteInks(value.palette, value.reading);
-  let svg = withInks(renderGarden(garden, { t: value.t, fullness: value.fullness }, {
-    manner: value.manner, id, scale: SAVED_SCALE, ...(guestFigure ? { guestFigure } : {}),
+  const svg = withInks(renderGarden(garden, { t: value.t, fullness: value.fullness }, {
+    manner: value.manner, id, scale: SAVED_SCALE, hanging: value.mode === "hanging", ...(guestFigure ? { guestFigure } : {}),
   }), inks);
-  if (value.mode === "hanging") svg = hangingSvg(svg, garden, SAVED_SCALE);
   const attribution = guest ? guestCredit(guest) : "";
   const description = [selection.gloss, selection.dateline, selection.about, attribution].filter(Boolean).join(" ");
   const metadata = JSON.stringify({ generator: "Églantine", state: value, geometry, attribution });
@@ -272,7 +259,7 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
   lines.push(
     `const inks = paletteInks(${quote(value.palette)}, ${quote(value.reading)});`,
     `const svg = withInks(renderGarden(garden, { t: ${value.t}, fullness: ${value.fullness} }, {`,
-    `  manner: ${quote(value.manner)}, id: "margin", scale: 32,`,
+    `  manner: ${quote(value.manner)}, id: "margin", scale: 32,${value.mode === "hanging" ? " hanging: true," : ""}`,
     ...(guest ? ["  ...(day.guest ? { guestFigure: figureURL(day.guest.figure).href } : {}),"] : []),
     "}), inks);", "",
   );
@@ -285,8 +272,7 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
   );
   else lines.push(
     'const margin = document.createElement("aside");',
-    `Object.assign(margin.style, { float: ${quote(value.side)}, background: inks.paper${value.mode === "hanging" ? ', transform: "scaleY(-1)"' : ""} });`,
-    ...(value.mode === "hanging" ? ["// Turned upside down, the garden hangs from the top of the margin; tuck its root under your header."] : []),
+    `Object.assign(margin.style, { float: ${quote(value.side)}, background: inks.paper });`,
     "margin.innerHTML = svg;", "document.body.prepend(margin);",
   );
   if (guest && selection.guest) lines.push("", "// Inline SVG can use the figure URL; a downloaded SVG needs a PNG data URI.",

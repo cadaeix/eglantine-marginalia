@@ -11,7 +11,7 @@ import { renderGarden } from "../src/render.js";
 import { PLANTS } from "./catalog.js";
 import { shapesSvg } from "./drawing.js";
 import {
-  createGarden, defaultState, exportSvg, type GardenPreview, type Geometry, hangingSink, hangingSvg, type Mode,
+  createGarden, defaultState, exportSvg, type GardenPreview, type Geometry, type Mode,
   type PlaygroundState, randomDay, readState, resolveSelection, stateHash, today, usageCode,
 } from "./garden-state.js";
 
@@ -200,15 +200,13 @@ function drawGarden(): void {
   const drawKey = JSON.stringify([key, state.manner, state.t, state.fullness, cm]);
   if (drawKey !== drawnKey) {
     const guestFigure = garden.guest && selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {};
-    let svg = renderGarden(garden, { t: state.t, fullness: state.fullness }, { manner: state.manner, id: "garden", scale: cm, ...guestFigure });
-    if (state.mode === "hanging") svg = hangingSvg(svg, garden, cm);
-    gardenElement.innerHTML = svg;
-    const drawing = gardenElement.querySelector("svg")!;
-    drawing.setAttribute("aria-label", `${selection.title}, ${state.manner === "lavis" ? "in wash" : "engraved"}, in the page's margin`);
+    gardenElement.innerHTML = renderGarden(garden, { t: state.t, fullness: state.fullness }, { manner: state.manner, id: "garden", scale: cm, hanging: state.mode === "hanging", ...guestFigure });
+    gardenElement.querySelector("svg")!.setAttribute("aria-label", `${selection.title}, ${state.manner === "lavis" ? "in wash" : "engraved"}, in the page's margin`);
     drawnKey = drawKey;
   }
-  const height = state.mode === "hanging" ? garden.height - hangingSink(garden) : garden.height;
-  place(garden.width * cm, height * cm);
+  // A hanging garden's drawing is shorter than the garden by the root it crops away; the SVG gives its size.
+  const drawing = gardenElement.querySelector("svg")!;
+  place(Number(drawing.getAttribute("width")), Number(drawing.getAttribute("height")));
 }
 
 /** Everything the settings show: the inks, the text, the controls, then the page measured and its garden. */
