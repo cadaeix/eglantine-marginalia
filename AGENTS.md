@@ -30,6 +30,7 @@ npm run gallery:preview  # the built site on the same port; stop the dev server 
 | `src/render.ts`, `src/paint.ts` | a garden at one moment as SVG, in `taille-douce` or `lavis` |
 | `src/form.ts`, `src/kit.ts`, `src/toolkit.ts` | what a form is, and the shared kit forms are built with |
 | `src/forms/<id>.form.ts` | the thirteen plant forms |
+| `src/festival.ts`, `src/festivals/<id>.ts` | the six festivals of the complementary days, each done to a plant |
 | `src/calendar/` | Republican dates, day names, the plant table and the figure table |
 | `src/palettes.ts`, `src/inks.ts` | the eight palettes and the four CSS inks |
 | `gallery/` | the playground and the specimen gallery (Vite); the only code that touches a DOM |
@@ -60,7 +61,16 @@ The tests hold most of these. Keep them holding rather than loosening a test.
 - `src/calendar/names.ts` keeps Fabre d'Églantine's 360 day names with their articles as he printed them, then the complementary days. `gallery/english.ts` holds the English names in the same order, from Wikipedia's tables.
 - `PLANTS` has one row for each of the 288 plant days and none for animal or tool days, which grow the day before's plant.
 - Year XV and every fourth year after are sextile, with no exception for centuries. The README explains this rule.
-- **Complementary days have no plant.** `calendarDay` returns `plant: null` for all six, and the README, the tests, the playground and its code snippets rely on that. What these days should grow is an open question that Cad is discussing with Camille. Do not change this contract without Cad.
+- **Complementary days hold festivals.** `calendarDay` gives each of them the year's last plant, le marron (the plant 30 fructidor grows), and `festival`, the day's festival. Every day has a plant.
+
+## Festivals
+
+A festival does something to a plant: `growGarden({ …, festival })`, for any plant. Each lives in `src/festivals/<id>.ts` and exports `festival: FestivalModule`. Like the forms, festivals are listed by hand twice: in `registry.ts` for the main entry, which takes their ids, and in `load-festival.ts` for the light entry, which takes their modules, so a light page carries no festival it does not hold. Their ideas came from Camille. A festival builds its garden through the context it is given, never by importing the growth loop:
+
+- `context.grow()` grows the plant's ordinary garden. It can grow it in the column alone (`page: false`), from another form, or with main stems laid by `mains`.
+- `context.compose(items)` makes a garden from items laid out in the column. It numbers them, ripens them as the loop does, and sets the column on the page.
+
+`test/festivals.test.ts` holds every festival to the garden invariants, on a grain, a flower, a climber, a footed plant and a stemless one. Only Opinion's marks (layer 7 and up) may write over a page's text. A form can offer the festivals its `husk` and `kernel`, which only `arbre-fruitier`'s chestnut draws so far. Code shared by a form and a festival but not by most forms, such as the oak leaf in `src/leaves.ts`, stays out of `kit.ts`, which every form loads and the toolkit exports.
 
 ## Guest figures
 

@@ -45,9 +45,14 @@ describe("a plant for every day", () => {
     expect(calendarDay("2026-09-24").dateline).toBe("1er vendémiaire an CCXXXV");
   });
 
-  it("gives the complementary days no plant, five of them in a common year", () => {
-    expect(calendarDay("2026-09-19")).toMatchObject({ dateline: "jour de la vertu, an CCXXXIV", kind: "complementary", plant: null, guest: null });
-    expect(calendarDay("2026-09-23").name).toBe("jour des récompenses");
+  it("gives each complementary day its festival and the year's last plant, five days in a common year and six in a sextile one", () => {
+    const marron = { name: "le marron", form: "arbre-fruitier", variant: PLANTS.find(row => row.name === "du marron")!.variant };
+    expect(calendarDay("2026-09-19")).toMatchObject({ dateline: "jour de la vertu, an CCXXXIV", kind: "complementary", plant: marron, guest: null, festival: "vertu" });
+    expect(calendarDay("2026-09-23")).toMatchObject({ name: "jour des récompenses", festival: "recompenses" });
+    expect(calendarDay("2026-09-24").festival).toBeNull();
+    const sextile = ["2027-09-19", "2027-09-20", "2027-09-21", "2027-09-22", "2027-09-23", "2027-09-24"].map(date => calendarDay(date));
+    expect(sextile.map(day => day.festival)).toEqual(["vertu", "genie", "travail", "opinion", "recompenses", "revolution"]);
+    expect(sextile.every(day => day.plant.name === "le marron" && day.guest === null)).toBe(true);
   });
 
   it("names a form and variant the library knows for every plant day of the year", () => {

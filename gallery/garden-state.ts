@@ -1,6 +1,7 @@
 // The playground's settings, as the URL keeps them, and the garden they grow on the measured page: its
 // selection and text, its SVG for saving, and the code that grows it on another website.
-import { calendarDay, type CalendarGuest, figureURL, republicanDate } from "../src/calendar/index.js";
+import { calendarDay, type CalendarGuest, DAYS, figureURL, nameFromArticle, republicanDate } from "../src/calendar/index.js";
+import type { Festival } from "../src/festival.js";
 import type { Variant } from "../src/form.js";
 import { num } from "../src/geometry.js";
 import { type Garden, growGarden } from "../src/grow.js";
@@ -47,14 +48,16 @@ export interface Selection {
   dateline: string;
   /** What the garden draws. */
   about: string;
-  form: string | null;
+  form: string;
   variant: Variant;
   guest: CalendarGuest | null;
+  /** A complementary day's festival, done to the year's last plant. */
+  festival: Festival | null;
 }
 
 export interface GardenPreview {
   selection: Selection;
-  garden: Garden | null;
+  garden: Garden;
 }
 
 type StateInput = { [Key in keyof PlaygroundState]?: unknown };
@@ -126,6 +129,15 @@ export function stateHash(state: PlaygroundState): string {
 /** A calendar day's place in the year, from 0 on 1er vendémiaire. */
 const dayIndex = (date: { month: number; day: number }): number => (date.month - 1) * 30 + date.day - 1;
 const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+/** What each festival does to the year's last plant, le marron, after "and" in a day's description. */
+const FESTIVAL_PHRASES: Readonly<Record<Festival, string>> = {
+  vertu: "the festival of Virtue strips it to its stem, without flower or leaf, and leaves its burrs empty.",
+  genie: "the festival of Genius plants a quill in its empty burr, and the chestnut twines up the pen.",
+  travail: "the festival of Labour cuts it and binds it in a sheaf: the year's harvest, with no tool beside it.",
+  opinion: "the festival of Opinion lets the margin say what it likes about it, in caricatures, moustaches and scrawl, the more as the day fills.",
+  recompenses: "the festival of Rewards braids it with oak into a civic crown, tied with a ribbon.",
+  revolution: "the festival of the Revolution, which falls only in a sextile year, leaves a single chestnut in the middle of the page, and towards evening its root comes out.",
+};
 
 /**
  * A day of the year starting at `from`, which holds every day of the calendar, chosen with `random`: one named
@@ -146,14 +158,19 @@ export function resolveSelection(state: PlaygroundState): Selection {
   const value = normalize(state, defaultState());
   if (value.source === "plants") {
     const plant = PLANTS.find(candidate => candidate.id === value.plant)!;
-    return { title: plant.name, gloss: plant.french, dateline: "", about: plant.description, form: plant.form, variant: plant.variant, guest: null };
+    return { title: plant.name, gloss: plant.french, dateline: "", about: plant.description, form: plant.form, variant: plant.variant, guest: null, festival: null };
   }
   const day = calendarDay(value.date);
-  if (day.date.complementary || !day.plant) return {
-    title: capital(day.name), gloss: `the day of ${ENGLISH_COMPLEMENTARY[day.date.day - 1]!}`, dateline: day.dateline,
-    about: "The complementary days fall at the end of the year, outside its twelve months, and have no plant.",
-    form: null, variant: {}, guest: null,
-  };
+  if (day.date.complementary) {
+    // The calendar gives every complementary day its festival.
+    const festival = day.festival!;
+    const english = ENGLISH_DAYS[DAYS.findIndex(article => nameFromArticle(article) === day.plant.name)]!;
+    return {
+      title: capital(day.name), gloss: `the day of ${ENGLISH_COMPLEMENTARY[day.date.day - 1]!}`, dateline: day.dateline,
+      about: `The complementary days fall at the end of the year, outside its twelve months, and are named for festivals rather than plants. The garden grows the year's last plant, ${day.plant.name}, ${english}, and ${FESTIVAL_PHRASES[festival]}`,
+      form: day.plant.form, variant: day.plant.variant, guest: null, festival,
+    };
+  }
   const index = dayIndex(day.date);
   const english = ENGLISH_DAYS[index]!;
   const drawn = `The garden draws it as ${FORM_PHRASES[day.plant.form] ?? day.plant.form}.`;
@@ -166,17 +183,17 @@ export function resolveSelection(state: PlaygroundState): Selection {
       : `The ${english} lies at its foot, cut from an engraving of the period.`;
     about = `The calendar gives this day to ${day.name}, ${english}, so the garden grows the day before's plant, ${plant}. ${guest}`;
   }
-  return { title: capital(day.name), gloss: english, dateline: day.dateline, about, form: day.plant.form, variant: day.plant.variant, guest: day.guest };
+  return { title: capital(day.name), gloss: english, dateline: day.dateline, about, form: day.plant.form, variant: day.plant.variant, guest: day.guest, festival: null };
 }
 
 /** The garden the settings grow on the page; a hanging garden leaves the day's animal or tool out, as it would hang upside down. */
 export function createGarden(state: PlaygroundState, geometry: Geometry): GardenPreview {
   const value = normalize(state, defaultState());
   const selection = resolveSelection(value);
-  if (selection.form === null) return { selection, garden: null };
   const garden = growGarden({
     seed: value.seed, form: selection.form, variant: selection.variant, width: geometry.column, height: geometry.height,
     ...(selection.guest && value.mode !== "hanging" ? { guest: selection.guest } : {}),
+    ...(selection.festival ? { festival: selection.festival } : {}),
     ...(value.mode === "page" ? { page: { side: value.side, text: geometry.text, below: geometry.below } } : {}),
   });
   return { selection, garden };
@@ -209,7 +226,6 @@ async function figureDataUri(guest: CalendarGuest): Promise<string> {
 export async function exportSvg(state: PlaygroundState, geometry: Geometry): Promise<string> {
   const value = normalize(state, defaultState());
   const { selection, garden } = createGarden(value, geometry);
-  if (!garden) throw new Error("Complementary days have no plant to save.");
   const guest = garden.guest && selection.guest ? selection.guest : null;
   const guestFigure = guest ? await figureDataUri(guest) : null;
   const id = `eglantine-${value.seed}`;
@@ -232,11 +248,7 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
   const value = normalize(state, defaultState());
   const selection = resolveSelection(value);
   const quote = JSON.stringify;
-  if (selection.form === null) return [
-    'import { calendarDay } from "eglantine-marginalia/calendar";',
-    "", `const day = calendarDay(${quote(value.date)});`,
-    'document.body.textContent = `${day.dateline}: no plant on a complementary day.`;',
-  ].join("\n");
+  const festival = selection.festival !== null;
   const guest = selection.guest !== null && value.mode !== "hanging";
   const size = `width: ${geometry.column}, height: ${geometry.height}`;
   const page = value.mode === "page"
@@ -246,10 +258,10 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
   if (value.source === "calendar") lines.push(
     `import { calendarDay${guest ? ", figureURL" : ""} } from "eglantine-marginalia/calendar";`,
     "", `const day = calendarDay(${quote(value.date)});`,
-    'if (!day.plant) throw new Error("No plant on a complementary day.");',
     "const garden = growGarden({",
     `  seed: ${value.seed}, form: day.plant.form, variant: day.plant.variant, ${size}${page}`,
     ...(guest ? ["  ...(day.guest ? { guest: day.guest } : {}),"] : []),
+    ...(festival ? ["  // A complementary day's festival does something to the year's last plant.", "  ...(day.festival ? { festival: day.festival } : {}),"] : []),
     "});",
   );
   else lines.push("", "const garden = growGarden({",

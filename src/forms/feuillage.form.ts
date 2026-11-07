@@ -8,8 +8,9 @@
 // panicle, a raceme of crosses, small heads, umbels, cymes, a curd or a broccoli head, asparagus spears
 // and berries, glasswort joints or knotgrass's axillary flowers.
 import { type FormModule, LAYER, flagOf, numberOf, type PlantForm, type Stage, textOf, type Variant } from "../form.js";
-import { bezier3, lerp, type Pt, sample, smoothstep, unit } from "../geometry.js";
+import { bezier3, lerp, type Pt, sample, smoothstep } from "../geometry.js";
 import { HATCH, circle, line, turnShape } from "../kit.js";
+import { type LeafSpec, LEAF_OUTLINES, acorn, add, dots, nut, outlineLeaf, oval, profile, rot, tangent } from "../leaves.js";
 import type { Rng } from "../random.js";
 import { bladeBody, type Body, roundBody, type Shape } from "../shapes.js";
 
@@ -17,112 +18,15 @@ type Curve = (v: number) => Pt;
 type Draw = (rng: Rng, s: number, stage: Stage) => Shape[];
 type LeafDraw = (rng: Rng, length: number, bend: number) => Shape[];
 const DEG = Math.PI / 180;
-const rot = (d: Pt, a: number): Pt => [d[0] * Math.cos(a) - d[1] * Math.sin(a), d[0] * Math.sin(a) + d[1] * Math.cos(a)];
-const add = (p: Pt, d: Pt, k = 1): Pt => [p[0] + d[0] * k, p[1] + d[1] * k];
 const dirOf = (a: number): Pt => [Math.sin(a), Math.cos(a)];
-function tangent(c: Curve, v: number): Pt {
-  const a = c(Math.max(0, v - 0.01)), b = c(Math.min(1, v + 0.01));
-  return unit(b[0] - a[0], b[1] - a[1]);
-}
-/** A closed outline symmetric about the axis, from its half-width along the length. */
-function profile(len: number, hw: (v: number) => number, base = 0, n = 24): Pt[] {
-  const right: Pt[] = sample(v => [hw(v), base + len * v], n);
-  const left: Pt[] = right.slice().reverse().map(([x, y]) => [-x, y]);
-  return [...right, ...left].filter((p, i, all) => i === 0 || Math.hypot(p[0] - all[i - 1]![0], p[1] - all[i - 1]![1]) > 1e-4);
-}
-/** An ellipse turned by `angle` (radians, from +y), for nuts, seeds and berries. */
-const oval = (at: Pt, rx: number, ry: number, angle = 0, n = 14): Pt[] => circle([0, 0], rx, ry, n).map(p => add(at, rot(p, -angle)));
 /** A dark ripe fruit: cut all over but for a small highlight. */
 function darkBody(outline: Pt[], at: Pt, r: number): Body {
   const body = roundBody(outline, at, r, HATCH * 0.42, 0.95);
   body.shadow = [body.shadow[0]!, circle([at[0] - r * 0.35, at[1] + r * 0.35], r * 0.2, r * 0.15, 10)];
   return body;
 }
-const nut = (at: Pt, rx: number, ry: number, angle: number, weight: number): Body => roundBody(oval(at, rx, ry, angle), at, Math.max(rx, ry), HATCH * 0.55, weight);
-const dots = (points: Pt[], radius: number): Shape => ({ type: "dots", points, radius });
 
 // ---------------------------------------------------------------- leaves
-
-interface LeafSpec { leaf: string; width: number; margin: string; asymmetric: boolean }
-
-/** The margin as a perturbation of the half-width: teeth lean toward the tip. */
-function marginEdge(margin: string, length: number, asymmetric: boolean, width: number): (v: number, side: 1 | -1) => number {
-  const n = Math.max(7, Math.round(length / 0.075));
-  const d = length * 0.022;
-  const tooth = (v: number): number => {
-    const f = (v * n) % 1;
-    switch (margin) {
-      case "serrate": return -d * f;
-      case "double": return -d * 1.2 * f - d * 0.5 * ((v * n * 3) % 1);
-      case "crenate": return -d * (1 - Math.sin(Math.PI * f));
-      case "wavy": return d * 0.7 * Math.sin(Math.PI * 2 * v * n / 2);
-      default: return 0;
-    }
-  };
-  return (v, side) => {
-    const fade = Math.min(1, v / 0.1) * Math.min(1, (1 - v) / 0.06);
-    // An elm's leaf is lopsided at the base: one side starts lower and wider.
-    const lop = asymmetric ? side * length * width * 0.12 * (1 - v) ** 4 : 0;
-    return tooth(v) * fade + lop;
-  };
-}
-
-/** The half-width envelopes of the simple leaf outlines, roughly 1 at their widest; `drop` lets the base reach below the petiole. */
-const OUTLINES: Record<string, { o: (v: number) => number; drop: number; petiole: number }> = {
-  ovate: { o: v => Math.sin(Math.PI * v ** 0.75) ** 0.85, drop: 0, petiole: 0.12 },
-  elliptic: { o: v => Math.sin(Math.PI * v) ** 0.85, drop: 0, petiole: 0.1 },
-  round: { o: v => v ** 0.35 * (1 - v ** 4) ** 0.5, drop: 0, petiole: 0.14 },
-  heart: { o: v => v < 0.16 ? 0.12 + 0.83 * Math.sqrt(v / 0.16) : 0.95 * Math.sin(Math.PI * (0.5 + 0.5 * (v - 0.16) / 0.84)) ** 0.75 * (1 - 0.2 * smoothstep(0.8, 1, v)) + 0.05 * (1 - v), drop: 0.2, petiole: 0.2 },
-  triangle: { o: v => Math.sin(Math.PI / 2 * Math.min(1, v / 0.24)) ** 0.8 * (1 - v) ** 1.1 * 1.15, drop: 0.03, petiole: 0.22 },
-  spoon: { o: v => Math.max(0.12, Math.sqrt(Math.max(0, 1 - ((v - 0.7) / 0.3) ** 2))), drop: 0, petiole: 0.05 },
-  arrow: { o: v => v < 0.2 ? Math.min(1, v / 0.03) * 0.85 * (1 - 0.35 * (0.2 - v) / 0.2) : 0.85 * ((1 - v) / 0.8) ** 0.8, drop: 0.2, petiole: 0.3 },
-  lanceolate: { o: v => Math.sin(Math.PI * v ** 0.9), drop: 0, petiole: 0.06 },
-  oblong: { o: v => (1 - (2 * v - 1) ** 8) ** 0.35 * Math.min(1, v / 0.12) ** 0.5, drop: 0, petiole: 0.02 },
-  lettuce: { o: v => v ** 0.4 * (1 - v ** 3) ** 0.5, drop: 0, petiole: 0.02 },
-  chard: { o: v => Math.sin(Math.PI * v ** 0.8) ** 0.7, drop: 0.02, petiole: 0.28 },
-  rhubarb: { o: v => Math.sin(Math.PI * (0.12 + 0.88 * v) ** 0.85) ** 0.55, drop: 0.14, petiole: 0.34 },
-  brassica: { o: v => (0.3 + 0.7 * v ** 0.7) * (1 - v ** 4) ** 0.5 * (v < 0.45 ? 0.45 + 0.55 * Math.abs(Math.sin(Math.PI * v * 5)) ** 0.7 : 1), drop: 0, petiole: 0.12 },
-  oak: { o: v => Math.sin(Math.PI * v ** 0.8) ** 0.7 * (0.52 + 0.48 * Math.abs(Math.sin(Math.PI * (v * 5 + 0.15))) ** 0.6) * (v < 0.07 ? 1.6 : 1), drop: 0.02, petiole: 0.05 },
-  cut: { o: v => (0.3 + 0.9 * v ** 1.5) * (1 - v) ** 0.35 * (v < 0.72 ? 0.22 + 0.78 * (1 - (v * 5) % 1) ** 1.6 : 1), drop: 0, petiole: 0.04 },
-};
-
-/** A simple leaf: an outlined blade on its petiole, with midrib and straight secondary veins; a `light` leaflet keeps only its midrib. */
-function bladeLeaf(rng: Rng, length: number, bend: number, spec: LeafSpec, weight = 0.5, light = false): Shape[] {
-  const shape = OUTLINES[spec.leaf] ?? OUTLINES.ovate!;
-  const petiole = length * shape.petiole;
-  const L = length - petiole;
-  const y0 = petiole - shape.drop * L;
-  const spine = (v: number): Pt => [bend * L * v * v, y0 + L * v];
-  const halfWidth = (v: number): number => Math.max(0.004, shape.o(v) * spec.width * 0.5 * L);
-  const edge = marginEdge(spec.margin, L, spec.asymmetric, spec.width);
-  const veins: Pt[][] = [];
-  // Small leaflets keep only their midrib, so a compound leaf stays light.
-  const crinkled = ["lettuce", "brassica", "rhubarb", "chard"].includes(spec.leaf);
-  const count = light || L < 0.6 ? 0 : Math.max(3, Math.round(L / (crinkled ? 0.28 : 0.2)));
-  for (let k = 1; k < count; k += 1) {
-    const v = k / count * 0.88 + 0.04;
-    const reach = Math.min(0.98, v + 0.09);
-    const t = tangent(spine, reach);
-    for (const side of [1, -1] as const) {
-      const end = add(spine(reach), [-t[1] * side, t[0] * side], (halfWidth(reach) + Math.min(0, edge(reach, side))) * 0.85);
-      veins.push(crinkled
-        ? sample(bezier3(spine(v), add(spine(v), [-t[1] * side, t[0] * side], halfWidth(v) * 0.4), add(end, [0, -L * 0.04]), end), 3)
-        : [spine(v), end]);
-    }
-  }
-  const body = bladeBody({ spine, halfWidth, edge, shade: bend >= 0 ? 1 : -1, spacing: HATCH * (L < 0.6 ? 1.4 : 1), grain: "across", weight, midrib: true, veins,
-    samples: Math.round(Math.min(48, Math.max(light ? 10 : 14, L * 26))) }, rng);
-  // A leaflet of a compound leaf is too small to be worth cutting in shade.
-  if (light) { body.grain = []; body.shadow = []; }
-  const shapes: Shape[] = [line([[0, 0], [0, Math.max(petiole, y0 + L * 0.05)]], Math.max(0.012, length * 0.016))];
-  if (spec.leaf === "chard" || spec.leaf === "rhubarb" || spec.leaf === "brassica") {
-    // The thick pale midrib and stalk the crop is grown for.
-    const rib = bladeBody({ spine: v => [bend * L * (v * 0.7) ** 2, (y0 + L * 0.7) * v], halfWidth: v => length * 0.03 * (1 - 0.6 * v), shade: 1, spacing: HATCH, grain: "along", reach: [0.2, 0.5], weight: 0.25, samples: 14 }, rng);
-    return [shapes[0]!, body, rib];
-  }
-  shapes.push(body);
-  return shapes;
-}
 
 /** A palmate leaf by its outline in polar terms: pointed lobes (maple) or deep toothed lobes (plane). */
 function palmLeaf(rng: Rng, length: number, deep: boolean, toothed: boolean): Shape[] {
@@ -251,7 +155,7 @@ function joints(rng: Rng, length: number, bendBy: number, marks = 0): Shape[] {
 
 /** The leaf a variant names, and the part of it used for small fillers (a leaflet of a compound leaf). */
 function leafOf(spec: LeafSpec): { leaf: LeafDraw; part: LeafDraw } {
-  const simple = (over: Partial<LeafSpec>, weight = 0.5, light = false): LeafDraw => (rng, length, b) => bladeLeaf(rng, length, b, { ...spec, ...over }, weight, light);
+  const simple = (over: Partial<LeafSpec>, weight = 0.5, light = false): LeafDraw => (rng, length, b) => outlineLeaf(rng, length, b, { ...spec, ...over }, weight, light);
   const compound = (leaf: LeafDraw, part: LeafDraw): { leaf: LeafDraw; part: LeafDraw } => ({ leaf, part });
   switch (spec.leaf) {
     case "maple": return compound((rng, length) => palmLeaf(rng, length, false, spec.margin !== "entire"), (rng, length) => palmLeaf(rng, length, false, false));
@@ -326,22 +230,6 @@ function wingSeed(rng: Rng, at: Pt, angle: number, len: number, wide: number, we
   if (!round) wing.veins = [-0.5, 0, 0.5].map(q => sample(v => [wide * q * v * 0.8, len * (0.2 + 0.75 * v)], 4));
   const seedAt: Pt = round ? [0, len * 0.5] : [0, len * 0.14];
   return [turnShape(wing, -angle, at), turnShape(nut(seedAt, len * (round ? 0.14 : 0.1), len * (round ? 0.16 : 0.16), 0, Math.min(0.9, weight + 0.25)), -angle, at)];
-}
-
-/** A cup of overlapping scales with a nut seated in it (chêne, liège). */
-function acorn(rng: Rng, at: Pt, angle: number, r: number, stage: Stage, shaggy: boolean, fallen = false): Shape[] {
-  const ripe = stage === "seed";
-  const shapes: Shape[] = [];
-  const nutLen = r * (ripe ? 1.5 : 1.25);
-  if (!fallen) {
-    const cup = roundBody(profile(r * 0.75, v => r * 0.62 * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, v * 0.7 + 0.3))), 0, 12), [0, r * 0.4], r * 0.6, HATCH * 0.5, 0.75);
-    cup.veins = [0.25, 0.5, 0.75].map(f => sample(u => [(u * 2 - 1) * r * 0.58, r * 0.75 * f + Math.abs(Math.sin(u * Math.PI * 4)) * r * 0.08], 12));
-    if (shaggy) shapes.push(...[-1, -0.5, 0, 0.5, 1].map(q => line([[q * r * 0.6, r * 0.7], [q * r * 0.95, r * 0.95]], r * 0.06)));
-    shapes.push(turnShape(cup, -angle, at));
-  }
-  const body = nut([0, r * 0.55 + nutLen * 0.45], r * 0.5, nutLen * 0.5, 0, ripe ? 0.75 : 0.4);
-  shapes.unshift(turnShape(body, -angle, at), turnShape(dots([[0, r * 0.55 + nutLen * 0.95]], r * 0.07), -angle, at));
-  return shapes;
 }
 
 /** A spiny husk: green and bristling, then split to show its fruit (hêtre's nuts, marronnier's conker). */
@@ -509,7 +397,7 @@ function curd(rng: Rng, s: number, stage: Stage): Shape[] {
   const r = s * (stage === "bud" ? 0.24 : 0.4);
   const c: Pt = [0, s * 0.3 + r * 0.4];
   const shapes: Shape[] = [];
-  const wrapper = (sd: number): Shape[] => bladeLeaf(rng, s * (stage === "bud" ? 0.8 : 0.95), sd * 0.2, { leaf: "brassica", width: 0.55, margin: "wavy", asymmetric: false }, 0.45)
+  const wrapper = (sd: number): Shape[] => outlineLeaf(rng, s * (stage === "bud" ? 0.8 : 0.95), sd * 0.2, { leaf: "brassica", width: 0.55, margin: "wavy", asymmetric: false }, 0.45)
     .map(shape => turnShape(shape, sd * -0.75, [0, 0]));
   shapes.push(...wrapper(-1), ...wrapper(1));
   if (stage === "seed") {
@@ -785,7 +673,7 @@ function fruitOf(name: string, catkinKind: string): Fruiting {
       for (let k = 0; k < 4; k += 1) {
         const v = 0.2 + 0.2 * k, p = stem(v), sd = k % 2 ? 1 : -1;
         shapes.push(line([add(p, [-s * 0.025, 0]), add(p, [s * 0.025, s * 0.02])], s * 0.01));
-        shapes.push(...bladeLeaf(rng, s * 0.22, sd * 0.1, { leaf: "elliptic", width: 0.35, margin: "entire", asymmetric: false }).map(shape => turnShape(shape, sd * -0.9, p)));
+        shapes.push(...outlineLeaf(rng, s * 0.22, sd * 0.1, { leaf: "elliptic", width: 0.35, margin: "entire", asymmetric: false }).map(shape => turnShape(shape, sd * -0.9, p)));
         const at = add(p, [-sd * s * 0.04, s * 0.02]);
         if (stage === "seed") shapes.push(...[0, 1].map(j => roundBody([add(at, [j * s * 0.03, s * 0.03]), add(at, [j * s * 0.03 + s * 0.02, -s * 0.01]), add(at, [j * s * 0.03 - s * 0.02, -s * 0.01])], at, s * 0.025, HATCH * 0.4, 0.85)));
         else shapes.push(dots(clusterAt(rng, at, s * 0.03, stage === "bud" ? 2 : 4), s * (stage === "bud" ? 0.01 : 0.015)));
@@ -842,7 +730,7 @@ export const form: FormModule = {
   variants: {
     habit: { doc: "How the plant stands: tree, shrub, leafy herb, basal rosette, creeping stems, or jointed fleshy stems", default: "tree", values: Object.keys(HABITS) },
     leaf: { doc: "Leaf outline or division", default: "ovate",
-      values: [...Object.keys(OUTLINES), "maple", "plane", "pinnate", "cress", "celery", "digitate", "hemp", "cladode", "jointed"] },
+      values: [...Object.keys(LEAF_OUTLINES), "maple", "plane", "pinnate", "cress", "celery", "digitate", "hemp", "cladode", "jointed"] },
     width: { doc: "Breadth of a simple leaf or leaflet as a share of its length", default: 0.55, range: [0.15, 1.1] },
     margin: { doc: "Leaf margin", default: "serrate", values: ["entire", "wavy", "crenate", "serrate", "double"] },
     asymmetric: { doc: "Leaf base lopsided, one side starting lower (orme)", default: false, values: [true, false] },

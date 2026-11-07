@@ -1,7 +1,8 @@
 // The gallery: every plant form's examples as gardens at bloom and at seed, with their bloom at bud,
 // bloom and seed and their leaf drawn large, so a form's author can judge it by eye; and today's garden
 // from the calendar through the day. `#form=<id>` opens one form, `#all` shows every example small,
-// `#today` shows the calendar's day (`&date=YYYY-MM-DD` another day's); `&manner=lavis` and `&paper=night` change the plate.
+// `#today` shows the calendar's day (`&date=YYYY-MM-DD` another day's), and `#festivals` the six complementary
+// days of a sextile year through the day; `&manner=lavis` and `&paper=night` change the plate.
 // `&palette=<id>-light` or `-dark` draws everything in one of the library's palettes.
 import { calendarDay, figureURL, localDate } from "../src/calendar/index.js";
 import type { FormModule, Variant } from "../src/form.js";
@@ -13,12 +14,12 @@ import { FORM_MODULES, plantForm } from "../src/registry.js";
 import { renderGarden } from "../src/render.js";
 import { shapesSvg } from "./drawing.js";
 
-interface Route { form: string | null; all: boolean; today: boolean; date: string | null; manner: Manner; paper: "cream" | "night"; palette: string | null }
+interface Route { form: string | null; all: boolean; today: boolean; festivals: boolean; date: string | null; manner: Manner; paper: "cream" | "night"; palette: string | null }
 
 function readRoute(): Route {
   const params = new URLSearchParams(location.hash.slice(1));
   return {
-    form: params.get("form"), all: params.has("all"), today: params.has("today"), date: params.get("date"),
+    form: params.get("form"), all: params.has("all"), today: params.has("today"), festivals: params.has("festivals"), date: params.get("date"),
     manner: params.get("manner") === "lavis" ? "lavis" : "taille-douce", paper: params.get("paper") === "night" ? "night" : "cream",
     palette: params.get("palette"),
   };
@@ -50,17 +51,23 @@ function example(module: FormModule, name: string, variant: Variant, manner: Man
     + "</div></section>";
 }
 
-function today(manner: Manner, asked: string | null): string {
-  const date = asked ?? localDate(Date.now(), Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const day = calendarDay(date);
-  if (!day.plant) return `<h1>${escape(day.dateline)}</h1><p>A complementary day: no plant grows.</p>`;
-  const grown = growGarden({ seed: seedFromText(date), form: day.plant.form, variant: day.plant.variant, ...(day.guest ? { guest: day.guest } : {}) });
-  const guestFigure = day.guest ? figureURL(day.guest.figure).href : undefined;
+/** A calendar day's garden at four moments, from morning on a quiet start to the end of a full day, under a heading of the level given. */
+function day(date: string, manner: Manner, id: string, heading: "h1" | "h2"): string {
+  const entry = calendarDay(date);
+  const grown = growGarden({
+    seed: seedFromText(date), form: entry.plant.form, variant: entry.plant.variant,
+    ...(entry.guest ? { guest: entry.guest } : {}), ...(entry.festival ? { festival: entry.festival } : {}),
+  });
+  const guestFigure = entry.guest ? figureURL(entry.guest.figure).href : undefined;
   const moments = [[0.1, 0.1], [0.4, 0.4], [0.7, 0.7], [0.97, 1]] as const;
-  return `<h1>${escape(day.dateline)}: ${escape(day.name)}</h1><p>${escape(day.plant.name)}, drawn by <code>${day.plant.form}</code>${day.guest ? `, with ${escape(day.guest.name)}` : ""}.</p><div class="row">`
-    + moments.map(([t, fullness], k) => figure(renderGarden(grown, { t, fullness }, { manner, id: `today-${k}`, scale: 24, ...(guestFigure ? { guestFigure } : {}) }), `t ${t}, fullness ${fullness}`)).join("")
+  const about = entry.festival ? `the festival <code>${entry.festival}</code> done to ${escape(entry.plant.name)}` : `${escape(entry.plant.name)}, drawn by <code>${entry.plant.form}</code>${entry.guest ? `, with ${escape(entry.guest.name)}` : ""}`;
+  return `<${heading}>${escape(entry.dateline)}${entry.festival ? "" : `: ${escape(entry.name)}`}</${heading}><p>${about}.</p><div class="row">`
+    + moments.map(([t, fullness], k) => figure(renderGarden(grown, { t, fullness }, { manner, id: `${id}-${k}`, scale: 24, ...(guestFigure ? { guestFigure } : {}) }), `t ${t}, fullness ${fullness}`)).join("")
     + "</div>";
 }
+
+/** The complementary days of an CCXXXV, a sextile year, so the sixth, the Revolution's, falls too. */
+const FESTIVAL_DATES = ["2027-09-19", "2027-09-20", "2027-09-21", "2027-09-22", "2027-09-23", "2027-09-24"];
 
 function draw(): void {
   const route = readRoute();
@@ -73,16 +80,17 @@ function draw(): void {
     const next = { ...route, ...change };
     return `#${new URLSearchParams({ ...place, manner: next.manner, paper: next.paper, ...(next.palette ? { palette: next.palette } : {}) })}`;
   };
-  const here: Record<string, string> = route.form ? { form: route.form } : route.all ? { all: "" } : route.today ? { today: "", ...(route.date ? { date: route.date } : {}) } : {};
+  const here: Record<string, string> = route.form ? { form: route.form } : route.all ? { all: "" } : route.festivals ? { festivals: "" } : route.today ? { today: "", ...(route.date ? { date: route.date } : {}) } : {};
   const chooser = `<select id="palette" aria-label="Palette"><option value="">no palette</option>`
     + READINGS.map(({ value, palette, reading }) => `<option value="${value}"${value === chosen?.value ? " selected" : ""}>${escape(palette.name)}, ${reading === "light" ? "jour" : "chandelle"} (${value})</option>`).join("") + "</select>";
-  let html = `<nav><a href="./">Playground</a><a href="${link({ today: "" })}"${route.today ? " aria-current=\"page\"" : ""}>today</a><a href="${link({ all: "" })}"${route.all ? " aria-current=\"page\"" : ""}>all</a>`
+  let html = `<nav><a href="./">Playground</a><a href="${link({ today: "" })}"${route.today ? " aria-current=\"page\"" : ""}>today</a><a href="${link({ festivals: "" })}"${route.festivals ? " aria-current=\"page\"" : ""}>festivals</a><a href="${link({ all: "" })}"${route.all ? " aria-current=\"page\"" : ""}>all</a>`
     + modules.map(module => `<a href="${link({ form: module.id })}"${module === selected ? " aria-current=\"page\"" : ""}>${escape(module.name)}</a>`).join("")
     + `<span class="switch"><a href="${link(here, { manner: route.manner === "lavis" ? "taille-douce" : "lavis" })}">${route.manner === "lavis" ? "taille-douce" : "lavis"}</a>`
     + (chosen ? "" : `<a href="${link(here, { paper: route.paper === "night" ? "cream" : "night" })}">${route.paper === "night" ? "cream paper" : "night paper"}</a>`)
     + `${chooser}</span></nav>`
     + (chosen ? `<p class="palette-note"><i>${escape(chosen.palette.name)}</i>, ${escape(chosen.palette.period)}. ${escape(chosen.palette.note)}</p>` : "");
-  if (route.today) html += today(route.manner, route.date);
+  if (route.today) html += day(route.date ?? localDate(Date.now(), Intl.DateTimeFormat().resolvedOptions().timeZone), route.manner, "today", "h1");
+  else if (route.festivals) html += `<h1>The complementary days</h1>${FESTIVAL_DATES.map(date => day(date, route.manner, `festival-${date}`, "h2")).join("")}`;
   else if (route.all) {
     html += `<div class="all">${modules.flatMap(module => module.examples.map(item =>
       figure(garden(module, item.variant, 0.7, route.manner, slug(`all-${module.id}-${item.name}`), 11), `${escape(item.name)}<br><small>${escape(module.name)}</small>`))).join("")}</div>`;
@@ -91,7 +99,7 @@ function draw(): void {
       + Object.entries(selected.variants).map(([key, spec]) => `<tr><th>${key}</th><td>${escape(spec.doc)}</td><td><code>${escape(spec.values ? spec.values.map(String).join(" | ") : spec.range?.join("..") ?? "")}</code> (default <code>${escape(String(spec.default))}</code>)</td></tr>`).join("")
       + "</tbody></table></div></header>"
       + selected.examples.map(item => example(selected, item.name, item.variant, route.manner)).join("");
-  } else html += `<p>Choose a form above, or <a href="${link({ all: "" })}">all</a>, or <a href="${link({ today: "" })}">today</a>.</p>`;
+  } else html += `<p>Choose a form above, or <a href="${link({ all: "" })}">all</a>, <a href="${link({ today: "" })}">today</a> or <a href="${link({ festivals: "" })}">the festivals</a>.</p>`;
   document.getElementById("gallery")!.innerHTML = html;
   document.getElementById("palette")?.addEventListener("change", event => {
     location.hash = link(here, { palette: (event.target as HTMLSelectElement).value || null });

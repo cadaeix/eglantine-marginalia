@@ -76,6 +76,16 @@ export interface PlantForm {
   leaflet(rng: Rng, length: number, bend: number): Shape[];
   terminal: { size: [number, number]; r(s: number): number; off(s: number): number; draw(rng: Rng, s: number, stage: Stage): Shape[] };
   motifs: MotifRow[];
+  /**
+   * What the fruit leaves once its seed has fallen, such as the chestnut's empty burr, drawn in the motif's
+   * frame at size `s`. The festival of Virtue hangs it at the stem's end, where the bloom was.
+   */
+  husk?(rng: Rng, s: number): Shape[];
+  /**
+   * One seed alone, such as a chestnut out of its burr, drawn in the motif's frame with its base at the origin
+   * and the tip it germinates from at (0, s). The festival of the Revolution leaves it in the middle of the page.
+   */
+  kernel?(rng: Rng, s: number): Shape[];
 }
 
 export type VariantValue = string | number | boolean;

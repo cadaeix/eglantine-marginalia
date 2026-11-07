@@ -519,10 +519,10 @@ const nut: FruitMaker = f => (rng, s, stage) => {
   }
 };
 
-/** A chestnut: dark and glossy, with a pale scar at its base and a tuft at its point. */
-function chestnut(rng: Rng, at: Pt, r: number, s: number, squeeze: number): Shape[] {
+/** A chestnut: dark and glossy, with a pale scar at its base and a tuft at its point; `dark` shrinks its highlight. */
+function chestnut(rng: Rng, at: Pt, r: number, s: number, squeeze: number, dark = 0.62): Shape[] {
   const k = (phi: number): number => (1 + 0.32 * dip(phi, 0, 0.32)) * (1 - 0.14 * dip(phi, Math.PI, 0.7));
-  const body = modelled(polar(at, r * squeeze, r, k, 22), at, r * squeeze, r, 0.8, 0.62);
+  const body = modelled(polar(at, r * squeeze, r, k, 22), at, r * squeeze, r, 0.8, dark);
   const base = at[1] - r * 0.82;
   body.veins.push(sample(t => [at[0] + r * squeeze * 0.75 * (2 * t - 1), base + r * 0.16 * (1 - (2 * t - 1) ** 2) + r * 0.08] as Pt, 6));
   const tip: Pt = [at[0], at[1] + r * 1.3];
@@ -530,44 +530,73 @@ function chestnut(rng: Rng, at: Pt, r: number, s: number, squeeze: number): Shap
     dots(stipple(rng, [at[0], base + r * 0.06], r * squeeze * 0.6, r * 0.08, 10, 0), s * 0.004)];
 }
 
-function burr(rng: Rng, s: number, stage: Stage, f: Fruiting): Shape[] {
-  const r = s * 0.33 * f.size * grown(stage);
-  const stalk = s * 0.06 * f.stalk;
-  const centre: Pt = [0, stalk + r];
-  const shapes: Shape[] = [line([[0, 0], [0, stalk + r * 0.2]], s * 0.035)];
-  const spines = (outline: Pt[], from: Pt, length: number): Pt[][] => outline.map(p => {
+/**
+ * A chestnut out of its burr, drawn as large as a seed alone is: cut dark all over but for the light caught
+ * along its lit edge and its pale, matte scar. Its base is at the origin and its tip at (0, s).
+ */
+function looseChestnut(rng: Rng, s: number): Shape[] {
+  const r = s / 2.16, squeeze = 0.95;
+  const at: Pt = [0, r * 0.86];
+  const shapes = chestnut(rng, at, r, r * 5, squeeze, 0.9);
+  const body = shapes[0] as Body;
+  const [lx, ly] = unit(LIGHT[0], LIGHT[1]);
+  const base = at[1] - r * 0.82;
+  // The outline moved away from the light leaves a crescent of it bright; the scar, under its arc, stays bare.
+  body.shadow = [body.outline.map(([x, y]): Pt => [x - lx * r * 0.22, y - ly * r * 0.22]),
+    sample(v => [at[0] + Math.cos(v * TAU) * r * squeeze * 0.62, base + r * 0.1 + Math.sin(v * TAU) * r * 0.13] as Pt, 16)];
+  return shapes;
+}
+
+/** A spine standing out from every point of an outline, away from `from`. */
+function bristle(rng: Rng, outline: Pt[], from: Pt, length: number): Pt[][] {
+  return outline.map(p => {
     const [dx, dy] = unit(p[0] - from[0], p[1] - from[1]);
     const l = length * rng.range(0.7, 1.1);
     return [p, [p[0] + dx * l + rng.sym(0.3) * l, p[1] + dy * l + rng.sym(0.3) * l]] as Pt[];
   });
-  if (stage !== "seed") {
-    const outline = polar(centre, r, r, phi => 1 + 0.03 * Math.sin(5 * phi), 30);
-    const body = modelled(outline, centre, r, r, 0.5, 0.28);
-    body.veins.push(...spines(outline, centre, r * (stage === "bud" ? 0.22 : 0.34)));
-    for (let k = 0; k < 26; k += 1) {
-      const a = rng.range(0, TAU), q = Math.sqrt(rng.u()) * 0.8;
-      const p: Pt = [centre[0] + Math.cos(a) * q * r, centre[1] + Math.sin(a) * q * r];
-      body.veins.push([p, [p[0] + Math.cos(a) * r * 0.14, p[1] + Math.sin(a) * r * 0.14]], [p, [p[0] + Math.cos(a + 1.2) * r * 0.1, p[1] + Math.sin(a + 1.2) * r * 0.1]]);
-    }
-    shapes.push(body);
-    return shapes;
-  }
-  // Ripe, the burr splits in four spiny valves, splayed back, and shows its nuts.
+}
+
+/** The ripe burr on its stalk, split in four spiny valves splayed back about its centre, before its nuts are drawn in it. */
+function splitBurr(rng: Rng, s: number, f: Fruiting): { shapes: Shape[]; centre: Pt; r: number } {
+  const r = s * 0.33 * f.size * grown("seed");
+  const stalk = s * 0.06 * f.stalk;
+  const centre: Pt = [0, stalk + r];
+  const shapes: Shape[] = [line([[0, 0], [0, stalk + r * 0.2]], s * 0.035)];
   for (const a of [-2.2, 2.2, -1.1, 1.1]) {
     const length = r * 1.15, dir: Pt = [Math.sin(a), Math.cos(a)];
     const spine = (v: number): Pt => [centre[0] - dir[0] * r * 0.1 + dir[0] * length * v, centre[1] - dir[1] * r * 0.1 + dir[1] * length * v];
     const valve = bladeBody({ spine, halfWidth: v => r * 0.42 * Math.sin(Math.PI * v ** 0.8) ** 0.7, shade: a < 0 ? -1 : 1, spacing: HATCH * 0.7, grain: "across", weight: 0.55, samples: 12 }, rng);
-    valve.veins.push(...spines(valve.outline.filter((_, index) => index % 2 === 0), centre, r * 0.3));
+    valve.veins.push(...bristle(rng, valve.outline.filter((_, index) => index % 2 === 0), centre, r * 0.3));
     shapes.push(valve);
   }
-  const count = Math.round(f.nuts);
-  if (count === 1) shapes.push(...chestnut(rng, [0, centre[1] + r * 0.05], r * 0.62, s, 0.95));
-  else {
-    const flank = count >= 3 ? [-1, 1] : [-0.6, 0.6];
-    for (const q of flank) shapes.push(...chestnut(rng, [q * r * 0.42, centre[1] + r * 0.02], r * 0.46, s, 0.78).map(shape => turnShape(shape, q * -0.2, [0, 0])));
-    if (count >= 3) shapes.push(...chestnut(rng, [0, centre[1] + r * 0.12], r * 0.44, s, 0.62));
+  return { shapes, centre, r };
+}
+
+function burr(rng: Rng, s: number, stage: Stage, f: Fruiting): Shape[] {
+  if (stage === "seed") {
+    // Ripe, the burr splits and shows its nuts.
+    const { shapes, centre, r } = splitBurr(rng, s, f);
+    const count = Math.round(f.nuts);
+    if (count === 1) shapes.push(...chestnut(rng, [0, centre[1] + r * 0.05], r * 0.62, s, 0.95));
+    else {
+      const flank = count >= 3 ? [-1, 1] : [-0.6, 0.6];
+      for (const q of flank) shapes.push(...chestnut(rng, [q * r * 0.42, centre[1] + r * 0.02], r * 0.46, s, 0.78).map(shape => turnShape(shape, q * -0.2, [0, 0])));
+      if (count >= 3) shapes.push(...chestnut(rng, [0, centre[1] + r * 0.12], r * 0.44, s, 0.62));
+    }
+    return shapes;
   }
-  return shapes;
+  const r = s * 0.33 * f.size * grown(stage);
+  const stalk = s * 0.06 * f.stalk;
+  const centre: Pt = [0, stalk + r];
+  const outline = polar(centre, r, r, phi => 1 + 0.03 * Math.sin(5 * phi), 30);
+  const body = modelled(outline, centre, r, r, 0.5, 0.28);
+  body.veins.push(...bristle(rng, outline, centre, r * (stage === "bud" ? 0.22 : 0.34)));
+  for (let k = 0; k < 26; k += 1) {
+    const a = rng.range(0, TAU), q = Math.sqrt(rng.u()) * 0.8;
+    const p: Pt = [centre[0] + Math.cos(a) * q * r, centre[1] + Math.sin(a) * q * r];
+    body.veins.push([p, [p[0] + Math.cos(a) * r * 0.14, p[1] + Math.sin(a) * r * 0.14]], [p, [p[0] + Math.cos(a + 1.2) * r * 0.1, p[1] + Math.sin(a + 1.2) * r * 0.1]]);
+  }
+  return [line([[0, 0], [0, stalk + r * 0.2]], s * 0.035), body];
 }
 
 /** A hazelnut in its leafy cup (noisette), or wholly sheathed in a long fringed tube (aveline). */
@@ -1161,6 +1190,11 @@ export const form: FormModule = {
         { name: "leaf", w: 2.2, smin: 1.2, smax: 2.0, max: 8, layer: LAYER.leaf, upright: 0.3,
           r: s => (palmate ? 0.5 : 0.33) * s, off: s => (palmate ? 0.62 : 0.5) * s, draw: (rng, s) => leaf(rng, s, rng.sym(0.25)) },
       ],
+      // A chestnut's burr empties, and its nut, alone, is the seed: the chestnut's tip, where its root comes out, at the top.
+      ...(kind === "nut" && fruiting.husk === "burr" ? {
+        husk: (rng: Rng, s: number) => splitBurr(rng, s, fruiting).shapes,
+        kernel: looseChestnut,
+      } : {}),
     };
   },
 };

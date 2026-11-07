@@ -6,7 +6,7 @@
 
 A garden grows from one of thirteen plant forms, each tuned by a variant to a particular plant: carrots, pears, tulips and so on. A page can choose its own plants from these and never touch the calendar, or build new forms with the toolkit.
 
-The calendar, a separate entry point, can choose instead: a plant for each day of the year, after the [French Republican calendar](https://en.wikipedia.org/wiki/French_Republican_calendar#Gallery). On animal and tool days, the plant has company, cut from engravings of the period.
+The calendar, a separate entry point, can choose instead: a plant for each day of the year, after the [French Republican calendar](https://en.wikipedia.org/wiki/French_Republican_calendar#Gallery). On animal and tool days, the plant has company, cut from engravings of the period. The complementary days at the year's end are named for festivals, and on each of them the day's festival does something to the year's last plant.
 
 The library is TypeScript with no runtime dependencies. It grows each garden procedurally from a seed and a plant form, then draws it as an SVG string at any moment of the day. Growing and rendering use no DOM, so a garden can be drawn in a browser, a web worker or Node.
 
@@ -68,6 +68,25 @@ const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "taille-do
 
 With `hanging`, the garden hangs upside down from the top of its column, for a margin that begins under a page's header. The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by that much and needs no transform or clipping from the page. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and its leaves fill the room the guest would take. A garden grown round a page cannot hang, since its runner and arcs would turn over onto the text.
 
+## Festivals
+
+```ts
+const garden = growGarden({ seed: 1793, form: "capitule", variant: { rays: 21 }, festival: "opinion" });
+```
+
+The French Republican calendar names its complementary days for festivals rather than plants. With `festival`, a garden keeps one of them, and since a festival names no plant, it does something to the plant the garden grows: it strips it, stakes it, binds it, mocks it, crowns it or leaves one seed of it. The calendar gives each complementary day its festival and the year's last plant, le marron. A festival garden has no guest, and a page round it works as it does for any garden.
+
+| Festival | Day | What it does to the plant |
+|---|---|---|
+| `vertu` | jour de la vertu | leaves the stem alone, without flower or leaf; where a bloom was, the husk its seed has left hangs empty |
+| `genie` | jour du génie | plants a quill at its foot as a stake, in its empty husk if it has one, and twines the stems up the quill |
+| `travail` | jour du travail | cuts it and binds it in a sheaf, standing on its cut stalks |
+| `opinion` | jour de l'opinion | defaces it in the accent ink, with caricatures and moustaches on its blooms and scrawl in the sky above, and on a page under the text and over it |
+| `recompenses` | jour des récompenses | braids it with oak into a civic crown, tied with a ribbon |
+| `revolution` | jour de la révolution | leaves a single seed in the middle of the column, whose root comes out towards evening |
+
+Time and fullness bring a festival garden as they bring any other, and still never take back what they have shown. Virtue, which has no foliage, does not answer to fullness, and Opinion's marks come in with it: the more the page writes, the more the margin writes back. A form can draw two things for the festivals, `husk` and `kernel` (see `PlantForm` in `src/form.ts`); le marron's form draws its empty burr and its chestnut. A plant without them keeps its stems bare under Virtue, stakes its quill in a mound of earth under Genius, and leaves its bloom gone to seed under the Revolution.
+
 ## In a browser, lightly
 
 ```ts
@@ -78,7 +97,7 @@ const garden = growGarden({ seed: 1793, form, variant: { leaf: "pinnate" } });
 const svg = renderGarden(garden, { t: 0.6, fullness: 0 }, { manner: "taille-douce", id: "margin", scale: 36 });
 ```
 
-The plant forms are most of the library's weight. The `eglantine-marginalia/lite` entry is the main entry without them: `loadForm` loads one form on its own, and `growGarden` grows from the form it is given rather than from an id. A bundler splits each form into its own chunk, so a page fetches about 8 KB of engine, the shared drawing kit and the one form it draws, from 0.2 to 21 KB gzipped, instead of 117 KB for every form.
+The plant forms are most of the library's weight. The `eglantine-marginalia/lite` entry is the main entry without them or the festivals: `loadForm` loads one form on its own and `loadFestival` one festival, and `growGarden` grows from the form and festival it is given rather than from their ids. A bundler splits each form and festival into its own chunk, so a page fetches about 9 KB of engine, the shared drawing kit and the one form it draws, from 0.2 to 21 KB gzipped, instead of 117 KB for every form. A festival adds 0.2 to 4 KB.
 
 ## Forms
 
@@ -147,15 +166,16 @@ import { growGarden, renderGarden } from "eglantine-marginalia";
 
 const day = calendarDay("2026-10-31");
 // day.dateline: "8 brumaire an CCXXXV"; day.name: "la scorsonère"
-if (day.plant) {
-  const garden = growGarden({ seed: 1793, form: day.plant.form, variant: day.plant.variant, ...(day.guest ? { guest: day.guest } : {}) });
-  const svg = renderGarden(garden, { t: 0.5, fullness: 0.5 }, {
-    manner: "lavis", id: "today", scale: 36, ...(day.guest ? { guestFigure: figureURL(day.guest.figure).href } : {}),
-  });
-}
+const garden = growGarden({
+  seed: 1793, form: day.plant.form, variant: day.plant.variant,
+  ...(day.guest ? { guest: day.guest } : {}), ...(day.festival ? { festival: day.festival } : {}),
+});
+const svg = renderGarden(garden, { t: 0.5, fullness: 0.5 }, {
+  manner: "lavis", id: "today", scale: 36, ...(day.guest ? { guestFigure: figureURL(day.guest.figure).href } : {}),
+});
 ```
 
-`day.plant` is null on the complementary days at the year's end; [History](#history) explains the days and their guests.
+On a complementary day, `day.plant` is the year's last plant and `day.festival` names the day's festival; [History](#history) explains the days, their guests and their festivals.
 
 ## Extending
 
@@ -187,7 +207,9 @@ The playground at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/) is
 
 ## History
 
-The French Republican calendar was in use from 1793 to 1805. It divides the year into twelve months of thirty days, followed by five complementary days, or six in a sextile year. In his report to the National Convention in 1793, Fabre d'Églantine gave each day of a month a name: a plant for most days, an animal for every fifth day and a tool for every tenth. The library takes the names as they were printed and gives each of the 288 plant days a form and a variant (see `PLANTS`). On an animal or tool day the garden grows the previous day's plant, and an engraved figure of the animal visits it or the tool lies at rest at its foot. The complementary days have no plant.
+The French Republican calendar was in use from 1793 to 1805. It divides the year into twelve months of thirty days, followed by five complementary days, or six in a sextile year. In his report to the National Convention in 1793, Fabre d'Églantine gave each day of a month a name: a plant for most days, an animal for every fifth day and a tool for every tenth. The library takes the names as they were printed and gives each of the 288 plant days a form and a variant (see `PLANTS`). On an animal or tool day the garden grows the previous day's plant, and an engraved figure of the animal visits it or the tool lies at rest at its foot.
+
+Fabre named the complementary days for festivals instead: of Genius, Labour, good Actions, Rewards and Opinion, and in a sextile year a sixth day of national games. On the festival of Opinion, [his report](https://fr.wikisource.org/wiki/Rapport_sur_le_calendrier_r%C3%A9publicain) has it, anyone could say what they liked of a public official, in songs, caricatures and pasquinades: "on corrompt les tribunaux, on ne corrompt pas l'opinion". The Convention renamed the festival of Actions for Virtue and put it first, and moved Opinion to the fourth day; the library follows that order, and names the sixth day for the Revolution, as later calendars did. Fabre and the Convention left the festivals' ceremonies to be settled, and none of the days names a plant, so on each of them the garden grows the year's last plant, le marron, which the year's last day grows too, and the festival does something to it.
 
 The Republic declared years III, VII and XI sextile before it abolished the calendar, and later readings disagree on the years after. `republicanDate` keeps the four-year rhythm those years set: year XV and every fourth year after are sextile, with no exception for centuries. By this rule 31 October 2026 is 8 brumaire an CCXXXV, a day later than a reading that follows the autumn equinox.
 

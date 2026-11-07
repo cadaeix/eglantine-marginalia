@@ -16,6 +16,7 @@
 // This module loads no plant forms: it grows from a form passed in. grow.ts adds the registered forms by
 // their ids, and lite.ts loads them one at a time, so a page can carry only the form it draws.
 import { createField, type Rect } from "./field.js";
+import type { Festival, FestivalContext, FestivalModule, MainsShaping } from "./festival.js";
 import { type Foot, type FormModule, LAYER, type PlantForm, resolveVariant, type Stage, type StemInk, type Variant } from "./form.js";
 import { arcLength, bezier3, clamp, degrees, distance, lerp, type Pt, RAD, sample, smoothstep, unit } from "./geometry.js";
 import { createRng, fbm1, type Rng } from "./random.js";
@@ -137,6 +138,12 @@ export interface GrowSpec {
   /** The page beside the column; without it the garden keeps to its column. */
   page?: Page;
   guest?: Guest;
+  /**
+   * One of the festivals of the complementary days, done to the plant (see festival.ts): its stem alone, a
+   * quill it twines up, a sheaf, a caricature, a civic crown, or a single seed. The main entry's growGarden takes
+   * its id; the light entry takes the module loadFestival loads. A festival garden has no guest.
+   */
+  festival?: Festival | FestivalModule;
 }
 
 const REACH = 3.0;
@@ -157,24 +164,36 @@ const BASE_CELLS = createField([[0.15, 0.3, COLUMN.width - 0.15, COLUMN.height *
 
 interface StemPoint { x: number; y: number; tx: number; ty: number; w: number }
 
-/** Grows a garden from a form passed in; the main entry's growGarden (grow.ts) also takes a registered form's id. */
-export function growGarden(spec: GrowSpec & { form: FormModule }): Garden {
+/** Grows a garden from a form, and any festival, passed in; the main entry's growGarden (grow.ts) also takes registered ids. */
+export function growGarden(spec: GrowSpec & { form: FormModule; festival?: FestivalModule }): Garden {
   return growForm(spec.form.build(resolveVariant(spec.form, spec.variant)), spec.form.id, spec);
 }
 
 /** Grows a garden from a built plant form and the id it is known by. */
 export function growForm(form: PlantForm, formId: string, spec: GrowSpec): Garden {
-  const { width: W = COLUMN.width, height: H = COLUMN.height } = spec;
-  const page = spec.page ?? null;
+  if (spec.festival === undefined) return growPlain(form, formId, spec, null);
+  const { festival, guest: _guest, ...plain } = spec;
+  if (typeof festival === "string") throw new TypeError(`this growGarden holds a festival from its module, as loadFestival("${festival}") gives it`);
+  return festival.grow(festivalContext(form, formId, plain));
+}
+
+/** Refuses a page the garden cannot lay out round. */
+function checkPage(page: Page | null, H: number): void {
   if (page && (!(page.side === "left" || page.side === "right") || !(Number.isFinite(page.text) && page.text > 0) || !(page.below >= 0 && page.below <= H))) {
     throw new RangeError(`A page needs a side, left or right, text wider than 0 cm, and room below the text from 0 to the column's ${H} cm`);
   }
+}
+
+/** The garden a plant grows without a festival; `shaping`, when given, lays its main stems. */
+function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: MainsShaping | null): Garden {
+  const { width: W = COLUMN.width, height: H = COLUMN.height } = spec;
+  const page = spec.page ?? null;
+  checkPage(page, H);
   const mirrored = page?.side === "right";
   const canvas = W + (page?.text ?? 0);
   const G = H * (1 - SKY);
   const root = createRng(Math.imul(spec.seed, 7919) + 13);
   const layout = root.fork();
-  const season = createRng(Math.imul(spec.seed, 7919) + 211);
   const items: GardenItem[] = [];
   let order = 0;
   const column: Rect = [0.15, 0.3, W - 0.15, G];
@@ -243,8 +262,9 @@ export function growForm(form: PlantForm, formId: string, spec: GrowSpec): Garde
     const sway = fbm1(layout, 2);
     const phase = layout.range(0, 10), lambda = layout.range(...form.stems.lambda);
     const x0 = rootAt[0] + (k - 1) * 0.2;
-    const points: Pt[] = [];
-    for (let y = rootAt[1]; y <= tops[k]!; y += 0.25) {
+    // A festival may lay the stem itself; the sway's draws are made all the same, so the rest of the layout draws as it would.
+    const points: Pt[] = shaping ? shaping(k, rootAt, tops[k]!) : [];
+    if (!shaping) for (let y = rootAt[1]; y <= tops[k]!; y += 0.25) {
       let x = centre + amplitude * sway(y / lambda + phase) + (k - 1) * 0.4;
       x = lerp(x0, x, smoothstep(0, 4, y - rootAt[1]));
       points.push([clamp(x, 0.8, W - 0.8), y]);
@@ -528,16 +548,7 @@ export function growForm(form: PlantForm, formId: string, spec: GrowSpec): Garde
   }
   fillers.forEach((item, index) => { item.born = 0.84 + 0.1 * index / Math.max(1, fillers.length); });
 
-  // ---------------------------------------------------------------- 6. seasons: the oldest blooms go to seed first, near the end
-  const staged = items.filter((item): item is MotifItem => item.kind === "motif" && item.staged).sort((a, b) => a.born - b.born);
-  staged.forEach((item, rank) => {
-    const late = 0.8 + 0.17 * (rank / Math.max(1, staged.length - 1)) + season.sym(0.02);
-    item.seedAt = Math.max(item.born + BUD_SPAN * 1.5, late);
-  });
-  // ---------------------------------------------------------------- 7. foliage comes in as the day fills, lowest and oldest first
-  const foliage = items.filter((item): item is MotifItem => item.kind === "motif" && item.layer === LAYER.leaf)
-    .sort((a, b) => a.born - b.born || a.order - b.order);
-  foliage.forEach((item, rank) => { item.leafRank = rank / foliage.length; });
+  ripen(items, spec.seed);
   if (mirrored) {
     const mirror = (p: Pt): Pt => [canvas - p[0], p[1]];
     for (const item of items) {
@@ -551,6 +562,64 @@ export function growForm(form: PlantForm, formId: string, spec: GrowSpec): Garde
     form: formId, seed: spec.seed, width: canvas, height: H, column: mirrored ? [canvas - W, 0, canvas, H] : [0, 0, W, H], mirrored,
     items, mains: mirrored ? mainItems.map(item => item.points) : mains, crown, guest,
     foot: foot ? { seed: Math.imul(spec.seed, 7919) + 307, draw: foot.draw } : null,
+    stemInk: form.stemInk ?? null,
+  };
+}
+
+/**
+ * Seasons and foliage: the oldest staged motifs go to seed first, near the end of the day, and foliage
+ * comes in as the day fills, lowest and oldest first. A motif outside the leaf layer keeps any rank it has.
+ */
+function ripen(items: GardenItem[], seed: number): void {
+  const season = createRng(Math.imul(seed, 7919) + 211);
+  const staged = items.filter((item): item is MotifItem => item.kind === "motif" && item.staged).sort((a, b) => a.born - b.born);
+  staged.forEach((item, rank) => {
+    const late = 0.8 + 0.17 * (rank / Math.max(1, staged.length - 1)) + season.sym(0.02);
+    item.seedAt = Math.max(item.born + BUD_SPAN * 1.5, late);
+  });
+  const foliage = items.filter((item): item is MotifItem => item.kind === "motif" && item.layer === LAYER.leaf)
+    .sort((a, b) => a.born - b.born || a.order - b.order);
+  foliage.forEach((item, rank) => { item.leafRank = rank / foliage.length; });
+}
+
+/** What a festival grows from: the plant, and the two ways the growth loop lays out a garden for it. */
+function festivalContext(form: PlantForm, formId: string, spec: GrowSpec): FestivalContext {
+  const { width: W = COLUMN.width, height: H = COLUMN.height } = spec;
+  checkPage(spec.page ?? null, H);
+  const { page: _page, ...alone } = spec;
+  return {
+    form, spec, width: W, height: H, ground: H * (1 - SKY),
+    rng: createRng(Math.imul(spec.seed, 7919) + 503),
+    grow: (options = {}) => growPlain(options.form ?? form, formId, options.page === false ? alone : spec, options.mains ?? null),
+    compose: (items, options = {}) => compose(form, formId, spec, items, options),
+  };
+}
+
+/**
+ * A festival's items, laid out in the column, made into a garden: numbered in order, ripened, and set on the
+ * page beside the column when the spec has one. The column keeps its drawing on either side of the text, unmirrored.
+ */
+function compose(form: PlantForm, formId: string, spec: GrowSpec, items: GardenItem[], options: { mains?: Pt[][]; foot?: Foot["draw"] }): Garden {
+  const { width: W = COLUMN.width, height: H = COLUMN.height } = spec;
+  const page = spec.page ?? null;
+  items.forEach((item, index) => { item.order = index; });
+  ripen(items, spec.seed);
+  const canvas = W + (page?.text ?? 0);
+  const x0 = page?.side === "right" ? canvas - W : 0;
+  const shift = (p: Pt): Pt => [p[0] + x0, p[1]];
+  // The crown is the highest point reached: a stem's, or a motif's head along its axis.
+  const reached: Pt[] = [[x0 + W / 2, 0]];
+  for (const item of items) {
+    if (item.kind === "stem") { item.points = item.points.map(shift); reached.push(...item.points); continue; }
+    item.at = shift(item.at);
+    reached.push([item.at[0], item.at[1] + item.size * Math.max(0.3, Math.sin(item.angle * RAD))]);
+  }
+  const highest = reached.reduce((best, p) => p[1] > best[1] ? p : best);
+  const crown: Pt = [highest[0], Math.min(H, highest[1])];
+  return {
+    form: formId, seed: spec.seed, width: canvas, height: H, column: [x0, 0, x0 + W, H], mirrored: false,
+    items, mains: (options.mains ?? []).map(points => points.map(shift)), crown, guest: null,
+    foot: options.foot ? { seed: Math.imul(spec.seed, 7919) + 307, draw: options.foot } : null,
     stemInk: form.stemInk ?? null,
   };
 }

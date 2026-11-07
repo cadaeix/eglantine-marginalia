@@ -189,14 +189,7 @@ function drawGarden(): void {
   const key = JSON.stringify([state.source, state.plant, state.date, state.seed, state.mode, state.side, geometry]);
   if (!grown || grown.key !== key) grown = { key, preview: createGarden(state, geometry) };
   const { selection, garden } = grown.preview;
-  download.disabled = !garden || exporting;
-  element<HTMLButtonElement>("new-seed").disabled = !garden;
-  playButton.disabled = !garden;
-  if (!garden) {
-    gardenElement.replaceChildren();
-    drawnKey = "";
-    return;
-  }
+  download.disabled = exporting;
   const drawKey = JSON.stringify([key, state.manner, state.t, state.fullness, cm]);
   if (drawKey !== drawnKey) {
     const guestFigure = garden.guest && selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {};
