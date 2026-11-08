@@ -46,6 +46,13 @@ const MODE_NOTES: Readonly<Record<Mode, string>> = {
 };
 /** The garden's tallest column, in centimetres: a long page keeps its garden at its foot. */
 const TALLEST = 30;
+/**
+ * The room the page always leaves under the text's last line when the garden grows round the text, in
+ * centimetres. The text is as long in a short window as in a tall one, so a page fitted to the window alone
+ * would leave a short window no room at all; six centimetres holds the runner along the foot and the arcs
+ * above it. A taller window still leaves more.
+ */
+const ROOM = 6;
 
 /**
  * The visitor's hour as the garden's time of day: the day starts at six in the morning and ends at ten at
@@ -160,15 +167,18 @@ function measure(): void {
   const sheetHeight = onCompact ? sheet.getBoundingClientRect().height : Math.max(480, innerHeight - top);
   cm = onCompact ? sheetHeight / 22 : clamp(Math.round(sheetHeight / 25), 22, 36);
   sheet.style.setProperty("--cm", `${cm}px`);
-  sheet.style.setProperty("--sheet-height", `${sheetHeight}px`);
+  // The text's last line, from the top of the page. The centimetre comes from the window alone, so lengthening
+  // the page to leave room under the text never rewraps the text or moves its last line.
+  const end = Math.max(...[...text.children].map(child => child.getBoundingClientRect().bottom)) - sheet.getBoundingClientRect().top;
+  const room = onCompact || state.mode !== "page" ? 0 : end + ROOM * cm;
+  sheet.style.setProperty("--sheet-height", `${Math.max(sheetHeight, room)}px`);
   const page = sheet.getBoundingClientRect(), column = text.getBoundingClientRect();
   const height = half(Math.min(page.height / cm, TALLEST));
-  const end = Math.max(...[...text.children].map(child => child.getBoundingClientRect().bottom));
   geometry = {
     column: 6,
     height,
     text: half((column.width + cm) / cm),
-    below: clamp(half((page.bottom - end) / cm), 0, height),
+    below: clamp(half((page.height - end) / cm), 0, height),
   };
 }
 

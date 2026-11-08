@@ -73,7 +73,7 @@ Self-hosted Baskervville sets everything, under the SIL Open Font License in [th
 
 ## Layout
 
-The page is a grid of the text column, a gutter one garden-centimetre wide and a margin column six wide. A garden-centimetre (`--cm`) is set from the window so that the page holds a column about 25 cm tall, between 22 and 36 pixels. The garden's drawing lies under the text, positioned by the script: the margin column alone, the margin and the text together at the page's foot, or the margin hanging from its top.
+The page is a grid of the text column, a gutter one garden-centimetre wide and a margin column six wide. A garden-centimetre (`--cm`) is set from the window so that the page holds a column about 25 cm tall, between 22 and 36 pixels. The garden's drawing lies under the text, positioned by the script: the margin column alone, the margin and the text together at the page's foot, or the margin hanging from its top. Round the text, the page reaches at least six garden-centimetres below the text's last line, since the text is as long in a short window as in a tall one; a taller window leaves the garden more room.
 
 The garden is grown again whenever the page changes shape: a new plant, side or mode, or a window that rewraps the text. Its measurements are rounded to half a centimetre so that small shifts do not regrow it.
 

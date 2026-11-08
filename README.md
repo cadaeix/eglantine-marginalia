@@ -12,7 +12,7 @@ The library is TypeScript with no runtime dependencies. It grows each garden pro
 
 ## Playground
 
-The playground is online at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/), and `npm run gallery` serves it at `http://localhost:5210`. It is a page with Églantine in its own margin. It opens on the day's plant from the calendar, with the day's French name and its English one, and grows from the morning to the hour of the visit. The garden keeps to the margin, reaches round the text, or hangs from the top of the margin. It is grown for the page as the window lays it out, so a narrower or shorter window gives it another room to fill. The page takes the chosen palette's paper and inks.
+The playground is online at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/), and `npm run gallery` serves it at `http://localhost:5210`. It is a page with Églantine in its own margin. It opens on the day's plant from the calendar, with the day's French name and its English one, and grows from the morning to the hour of the visit. The garden keeps to the margin, reaches round the text, or hangs from the top of the margin. It is grown for the page as the window lays it out, so a narrower or shorter window gives it another room to fill. Round the text, the page always leaves at least six centimetres under the text's last line, since the text is as long in a short window as in a tall one; a taller window leaves more. The page takes the chosen palette's paper and inks.
 
 On phones and narrower tablets, the garden and its playback button stay in view above the settings. Touch controls have hit areas at least 44px high. With reduced motion enabled, the page skips the opening animation and offers "show the evening" instead of "watch the day".
 
