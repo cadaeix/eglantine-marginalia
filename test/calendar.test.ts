@@ -36,7 +36,7 @@ describe("a plant for every day", () => {
     const animal = calendarDay("2026-10-28");
     expect(animal).toMatchObject({ dateline: "5 brumaire an CCXXXV", name: "l'oie", kind: "animal" });
     expect(animal.plant?.name).toBe(nameFromArticle(DAYS[33]!));
-    expect(animal.guest).toMatchObject({ kind: "visitor", name: "l'oie", figure: "oie" });
+    expect(animal.guest).toMatchObject({ kind: "visitor", stance: "shoot", name: "l'oie", figure: "oie" });
     const tool = calendarDay("2026-11-02");
     expect(tool).toMatchObject({ dateline: "10 brumaire an CCXXXV", kind: "tool" });
     expect(tool.plant?.name).toBe(nameFromArticle(DAYS[38]!));

@@ -49,8 +49,8 @@ export interface RenderOptions {
    * Hangs the garden upside down from the top of its column, for a margin that begins under a page's header.
    * The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by
    * that much. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and
-   * its leaves fill the guest's room. A garden grown round a page cannot hang, since its runner and arcs would
-   * turn over onto the text.
+   * its leaves fill the guest's room, with no empty shoots left where animals would have stood. A garden grown
+   * round a page cannot hang, since its runner and arcs would turn over onto the text.
    */
   hanging?: boolean;
   /** Marks to lay on the garden at this moment. */
@@ -105,16 +105,20 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
     const shapes = motifShapes(item, moment);
     if (shapes) add(item.layer, group(item.at, item.angle, garden.mirrored, paintShapes(shapes, options.manner, sheet)));
   }
-  const guest = garden.guest;
-  if (guest && options.guestFigure && !hanging && moment.t >= guest.born) {
+  // Every copy of the guest that has arrived, from one mask: the copies are one figure at one size.
+  const arrived = options.guestFigure !== undefined && !hanging ? garden.guests.filter(guest => moment.t >= guest.born) : [];
+  const first = arrived[0];
+  if (first && options.guestFigure !== undefined) {
     const mask = sheet.id("guest");
     const figure = options.guestFigure.replace(/[&<>"']/gu, character => ATTRIBUTE_ENTITIES[character]!);
-    const box = `x="${num(-guest.width / 2)}" y="${num(-guest.height / 2)}" width="${num(guest.width)}" height="${num(guest.height)}"`;
+    const box = `x="${num(-first.width / 2)}" y="${num(-first.height / 2)}" width="${num(first.width)}" height="${num(first.height)}"`;
     // mask-type as a presentation attribute, not a style: pages with a strict content policy refuse inline styles.
     sheet.defs.push(`<mask id="${mask}" maskUnits="userSpaceOnUse" ${box} mask-type="alpha"><image href="${figure}" ${box} preserveAspectRatio="none"/></mask>`);
     const ink = options.manner === "taille-douce" ? `fill="${inkRef("ink")}"` : `fill="${inkRef("wash")}" fill-opacity="0.85"`;
     // The page is drawn with y up; the engraving is y down, so it is flipped back, and mirrored to face the plant.
-    add(guest.kind === "visitor" ? VISITOR_LAYER : REST_LAYER, `<g transform="translate(${num(guest.at[0])} ${num(guest.at[1])}) rotate(${num(guest.angle)}) scale(${guest.facing} -1)"><rect ${box} ${ink} mask="url(#${mask})"/></g>`);
+    for (const guest of arrived) {
+      add(guest.kind === "visitor" ? VISITOR_LAYER : REST_LAYER, `<g transform="translate(${num(guest.at[0])} ${num(guest.at[1])}) rotate(${num(guest.angle)}) scale(${guest.facing} -1)"><rect ${box} ${ink} mask="url(#${mask})"/></g>`);
+    }
   }
   const marks = options.decorate?.(garden, sheet) ?? {};
   for (const inlay of marks.inlays ?? []) add(inlay.layer, inlay.svg);

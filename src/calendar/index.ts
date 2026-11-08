@@ -5,6 +5,7 @@
 // garden grows the year's last plant, and the day's festival does something to it.
 import { type Festival, FESTIVALS } from "../festival.js";
 import type { Variant } from "../form.js";
+import type { GuestStance } from "../garden.js";
 import { FIGURES } from "./figures.js";
 import { COMPLEMENTARY, DAYS, MONTHS } from "./names.js";
 import { PLANTS } from "./plants.js";
@@ -21,6 +22,8 @@ export const FIGURE_SIZE = { visitor: 1.4, rest: 3.2 } as const;
 /** The day's animal or tool as a garden's guest; it can be passed to `growGarden` as it is. */
 export interface CalendarGuest {
   readonly kind: "visitor" | "rest";
+  /** Where an animal stands: on a shoot of its own, among the stems, or on the ground. A tool has none. */
+  readonly stance?: GuestStance;
   /** "l'âne", "la charrue". */
   readonly name: string;
   /** The figure's file name in figures/, without its extension. */
@@ -91,7 +94,7 @@ export function calendarDay(localDate: string): CalendarDay {
   if (kind !== "plant") {
     const figure = figureName(article);
     const found = FIGURES[figure];
-    if (found) guest = { kind: found.kind, name: nameFromArticle(article), figure, aspect: found.aspect, size: FIGURE_SIZE[found.kind] };
+    if (found) guest = { kind: found.kind, ...(found.stance ? { stance: found.stance } : {}), name: nameFromArticle(article), figure, aspect: found.aspect, size: FIGURE_SIZE[found.kind] };
   }
   return {
     date, dateline: `${date.day === 1 ? "1er" : date.day} ${MONTHS[date.month - 1]} an ${year}`, name: nameFromArticle(article), kind,

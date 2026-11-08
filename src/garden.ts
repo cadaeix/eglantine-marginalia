@@ -71,8 +71,8 @@ export interface Garden {
   mains: Pt[][];
   /** The head of the tallest bloom: the highest point the garden reaches. */
   crown: Pt;
-  /** Where the day's guest stands, if the day has one. */
-  guest: GuestPlace | null;
+  /** The day's guest wherever it stands, once for each copy; empty when the day has none. */
+  guests: GuestPlace[];
   /** What the plant grows out of, drawn at each moment, if not bare ground. */
   foot: { seed: number; draw: Foot["draw"] } | null;
   /** How the stems are inked, if not as plain ribbons. */
@@ -80,18 +80,32 @@ export interface Garden {
 }
 
 /**
- * A figure the day brings besides the plant. A visitor (an animal) comes into the garden among the
- * stems, facing the plant it grazes; a figure at rest (a tool) lies near the foot with no one holding it.
+ * A figure the day brings besides the plant. A visitor (an animal) comes into the garden facing the plant: on a
+ * shoot that coils out of a main stem for it, as creatures stand on the scrolls of eighteenth-century ornament;
+ * among the stems, as a bee flies or a fish swims; or on the ground at the plant's foot. On a shoot or among the
+ * stems it comes once for every 12 cm the plant grows in, where there is room for it: once in the 6 × 22 cm column,
+ * twice in one 30 cm tall.
+ * A figure at rest (a tool) lies near the foot with no one holding it, once.
  */
 export interface Guest {
   kind: "visitor" | "rest";
+  /** Where a visitor stands; among the stems unless it says otherwise. A figure at rest has none. */
+  stance?: GuestStance;
   /** The figure's width over its height. */
   aspect: number;
   /** Its height in centimetres for a visitor, its length for a figure at rest. */
   size: number;
 }
+/** Where a visitor stands: on a shoot of its own, among the stems, or on the ground. */
+export type GuestStance = "shoot" | "stems" | "ground";
 export interface GuestPlace {
   kind: Guest["kind"];
+  /**
+   * Where a visitor stands, which may not be where it asked to: one that finds no room for a shoot comes among the
+   * stems instead, though only its first copy does, and a plant without stems leaves only the ground. Null for a
+   * figure at rest.
+   */
+  stance: GuestStance | null;
   /** Centre of the figure. */
   at: Pt;
   width: number;
@@ -156,6 +170,14 @@ const STEM_PHASE = 0.3;
 const BUD_SPAN = 0.1;
 /** At fullness 0 a garden already shows this share of its leaves, so the plant is never bare. */
 const FOLIAGE_FLOOR = 0.3;
+/** A visitor arrives at this moment of the day; one on a shoot waits until its shoot has grown. */
+const VISIT = 0.2;
+/** A visitor's shoot grows over this much of the day, from the moment its main stem reaches the joint. */
+const SHOOT_PHASE = 0.07;
+/** The radius in centimetres of the volute a visitor's shoot ends in, and its turns. */
+const VOLUTE = 0.22, VOLUTE_TURNS = 1.35;
+/** A visitor on a shoot or among the stems comes once for every this many centimetres the plant grows in. */
+const COPY_HEIGHT = 12;
 /**
  * Lattice cells in the column the forms are drawn for. A garden on a page holds more of each motif as its
  * room grows; a column alone keeps its form's counts at any size, as it always has.
@@ -163,6 +185,11 @@ const FOLIAGE_FLOOR = 0.3;
 const BASE_CELLS = createField([[0.15, 0.3, COLUMN.width - 0.15, COLUMN.height * (1 - SKY)]]).x.length;
 
 interface StemPoint { x: number; y: number; tx: number; ty: number; w: number }
+/**
+ * A visitor's shoot as it is chosen: the centre of the figure standing on it, the main stem `k` and the point
+ * `index` it leaves from, the side it grows to, and its ledge from `x0` to `end` at height `y0`.
+ */
+interface Shoot { at: Pt; k: number; index: number; side: 1 | -1; x0: number; y0: number; end: number }
 
 /** Grows a garden from a form, and any festival, passed in; the main entry's growGarden (grow.ts) also takes registered ids. */
 export function growGarden(spec: GrowSpec & { form: FormModule; festival?: FestivalModule }): Garden {
@@ -304,11 +331,13 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   });
 
   // ---------------------------------------------------------------- 2b. the day's guest, before the leaves, so they grow around it
-  let guest: GuestPlace | null = null;
+  let guests: GuestPlace[] = [];
   if (spec.guest) {
     // Its own stream: the guest's choices never move the rest of the layout's draws.
     const visit = createRng(Math.imul(spec.seed, 7919) + 101);
     const { kind, aspect, size } = spec.guest;
+    // A plant without stems leaves a visitor only the ground to stand on.
+    const stance: GuestStance | null = kind === "rest" ? null : mains.length === 0 ? "ground" : spec.guest.stance ?? "stems";
     const wantedWidth = kind === "visitor" ? size * aspect : size, wantedHeight = kind === "visitor" ? size : size / aspect;
     const tilt = kind === "rest" ? 7 : 4;
     const fitAngle = Math.min(tilt * RAD, Math.atan2(wantedHeight, wantedWidth));
@@ -316,35 +345,100 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
     const fit = Math.min(1, (W - 0.3) / span);
     const width = wantedWidth * fit, height = wantedHeight * fit, halfSpan = span * fit / 2;
     const reach = Math.max(width, height) * 0.5;
-    let best = -Infinity;
     // A foot that spans the column, such as a bed of strata, is the ground the guest stands or lies on.
     const floor = foot ? Math.max(0, ...foot.room.filter(rect => rect[2] - rect[0] > 0.5).map(rect => rect[3])) : 0;
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      let at: Pt, facing: 1 | -1;
-      let stemX: number | null = null;
-      if (kind === "visitor" && mains.length > 0) {
-        const points = visit.pick(mains);
-        const p = points[Math.floor(points.length * visit.range(0.25, 0.7))]!;
-        const side = visit.chance(0.5) ? 1 : -1;
-        at = [p[0] + side * (width / 2 + 0.12), p[1] + height * 0.15];
-        facing = side > 0 ? -1 : 1;
-        stemX = p[0];
-      } else if (kind === "visitor") {
-        at = [visit.range(width / 2 + 0.3, W - width / 2 - 0.3), floor + height / 2 + visit.range(0.1, 0.6)];
-        facing = visit.chance(0.5) ? 1 : -1;
-      } else {
-        at = [visit.range(width / 2 + 0.3, W - width / 2 - 0.3), floor + visit.range(height / 2 + 0.45, 2.2)];
-        facing = visit.chance(0.5) ? 1 : -1;
+    const copies = stance === "shoot" || stance === "stems" ? Math.max(1, Math.floor(G / COPY_HEIGHT)) : 1;
+    /**
+     * The roomiest of `attempts` places that `candidate` offers, by the free room around the figure. A candidate
+     * may offer none, and no copy stands within its own height and a centimetre of another.
+     */
+    const roomiest = <T extends { at: Pt }>(attempts: number, candidate: () => T | null): T | null => {
+      let found: T | null = null, best = -Infinity;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        const offer = candidate();
+        if (!offer || guests.some(other => Math.abs(other.at[1] - offer.at[1]) < height + 1)) continue;
+        const [x, y] = offer.at;
+        const room = Math.min(field.freeAt(x, y), field.freeAt(x - width * 0.35, y), field.freeAt(x + width * 0.35, y));
+        if (room > best) { best = room; found = offer; }
       }
-      at[0] = clamp(at[0], halfSpan + 0.15, W - halfSpan - 0.15);
-      if (stemX !== null && at[0] !== stemX) facing = at[0] > stemX ? -1 : 1;
-      const room = Math.min(field.freeAt(at[0], at[1]), field.freeAt(at[0] - width * 0.35, at[1]), field.freeAt(at[0] + width * 0.35, at[1]));
-      if (room > best) {
-        best = room;
-        guest = { kind, at, width, height, angle: visit.sym(tilt), facing, born: kind === "rest" ? 0 : 0.2 };
+      return found;
+    };
+    /** The side the copy below grew its shoot to, so that the next grows across from it. */
+    let below: 1 | -1 | null = null;
+    for (let copy = 0; copy < copies; copy += 1) {
+      // Each copy keeps to its own band of the stems, the first lowest.
+      const band = (low: number, high: number): number => visit.range(low + (high - low) * copy / copies, low + (high - low) * (copy + 1) / copies);
+      let place: GuestPlace | null = null;
+      if (stance === "shoot") {
+        // The shoot leaves a main stem, flattens into a ledge as long as the figure, and curls into a volute at its
+        // end. It grows to either side where it fits in the column, or across from the copy below if it fits there.
+        const shootAt = (preferred: 1 | -1 | null): Shoot | null => {
+          const k = visit.int(0, mains.length - 1), index = Math.floor((mains[k]!.length - 1) * band(0.2, 0.75));
+          const p = mains[k]![index]!;
+          const side = preferred ?? (visit.chance(0.5) ? 1 : -1);
+          const x0 = p[0] + side * 0.3, y0 = p[1] + visit.range(0.35, 0.6), end = x0 + side * (width + 0.2);
+          const outer = end + side * (VOLUTE + 0.08);
+          if (outer < 0.15 || outer > W - 0.15) return null;
+          return { at: [(x0 + end) / 2, y0 + height / 2 + 0.03], k, index, side, x0, y0, end };
+        };
+        const across: 1 | -1 | null = below === null ? null : below === 1 ? -1 : 1;
+        const shoot: Shoot | null = (across === null ? null : roomiest(40, () => shootAt(across))) ?? roomiest(40, () => shootAt(null));
+        if (shoot) {
+          const { k, index, side, x0, y0, end }: Shoot = shoot;
+          const p = mains[k]![index]!;
+          const rise = sample(bezier3(p, [p[0] + side * 0.05, lerp(p[1], y0, 0.8)], [x0 - side * 0.2, y0], [x0, y0]), 10);
+          const ledge = sample((v): Pt => [lerp(x0, end, v), y0 + 0.05 * Math.sin(Math.PI * v)], 10);
+          const curl = sample((v): Pt => {
+            const a = Math.PI / 2 - side * v * VOLUTE_TURNS * 2 * Math.PI, r = VOLUTE * (1 - 0.82 * v) ** 1.3;
+            return [end + r * Math.cos(a), y0 - VOLUTE + r * Math.sin(a)];
+          }, 32);
+          // The shoot starts once the main stem, which grows by length, has reached the joint.
+          const along = arcLength(mains[k]!);
+          const born = along.at[index]! / along.total * mainItems[k]!.grown;
+          stem([...rise, ...ledge.slice(1), ...curl.slice(1)], form.stems.width * 0.75, 0.015, born, born + SHOOT_PHASE);
+          place = { kind, stance: "shoot", at: shoot.at, width, height, angle: 0, facing: side > 0 ? -1 : 1, born: Math.max(VISIT, born + SHOOT_PHASE) };
+          below = side;
+        }
       }
+      // A visitor that finds no shoot comes among the stems, but only once: a later copy without a shoot stays away.
+      if (!place && (stance === "stems" || (stance === "shoot" && copy === 0))) {
+        // Beside a main stem, a quarter to two thirds of the way up, facing it.
+        const found = roomiest(40, () => {
+          const points = visit.pick(mains);
+          const p = points[Math.floor(points.length * band(0.25, 0.7))]!;
+          const side = visit.chance(0.5) ? 1 : -1;
+          const at: Pt = [clamp(p[0] + side * (width / 2 + 0.12), halfSpan + 0.15, W - halfSpan - 0.15), p[1] + height * 0.15];
+          const facing: 1 | -1 = at[0] === p[0] ? (side > 0 ? -1 : 1) : at[0] > p[0] ? -1 : 1;
+          return { at, facing, angle: visit.sym(tilt) };
+        });
+        if (found) place = { kind, stance: "stems", ...found, width, height, born: VISIT };
+      }
+      if (!place && stance === "ground") {
+        // On the ground, facing the foot of the nearest main stem.
+        const feet = mains.map(points => points[0]![0]);
+        const found = roomiest(40, () => {
+          const x = clamp(visit.range(width / 2 + 0.3, W - width / 2 - 0.3), halfSpan + 0.15, W - halfSpan - 0.15);
+          const nearest = feet.reduce<number | null>((best, f) => best === null || Math.abs(f - x) < Math.abs(best - x) ? f : best, null);
+          const facing: 1 | -1 = nearest === null ? (visit.chance(0.5) ? 1 : -1) : x > nearest ? -1 : 1;
+          const at: Pt = [x, floor + height / 2 + 0.05];
+          return { at, facing, angle: 0 };
+        });
+        if (found) place = { kind, stance: "ground", ...found, width, height, born: VISIT };
+      }
+      if (!place && kind === "rest") {
+        // Near the foot, among the stems, from the start of the day.
+        const found = roomiest(40, () => {
+          const at: Pt = [clamp(visit.range(width / 2 + 0.3, W - width / 2 - 0.3), halfSpan + 0.15, W - halfSpan - 0.15), floor + visit.range(height / 2 + 0.45, 2.2)];
+          const facing: 1 | -1 = visit.chance(0.5) ? 1 : -1;
+          return { at, facing, angle: visit.sym(tilt) };
+        });
+        if (found) place = { kind, stance: null, ...found, width, height, born: 0 };
+      }
+      // A copy with no room apart from the others stays away, and so do any above it.
+      if (!place) break;
+      guests.push(place);
+      for (const f of [-0.3, 0, 0.3]) field.disc(place.at[0] + place.width * f, place.at[1], Math.max(place.height * 0.6, reach * 0.55), 1);
     }
-    if (guest) for (const f of [-0.3, 0, 0.3]) field.disc(guest.at[0] + guest.width * f, guest.at[1], Math.max(guest.height * 0.6, reach * 0.55), 1);
   }
 
   // ---------------------------------------------------------------- 2c. the page: a runner along its foot, arcs into the room under the text
@@ -556,11 +650,11 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
       else { item.at = mirror(item.at); item.angle = 180 - item.angle; }
     }
     crown = mirror(crown);
-    if (guest) guest = { ...guest, at: mirror(guest.at), angle: -guest.angle, facing: guest.facing === 1 ? -1 : 1 };
+    guests = guests.map((place): GuestPlace => ({ ...place, at: mirror(place.at), angle: -place.angle, facing: place.facing === 1 ? -1 : 1 }));
   }
   return {
     form: formId, seed: spec.seed, width: canvas, height: H, column: mirrored ? [canvas - W, 0, canvas, H] : [0, 0, W, H], mirrored,
-    items, mains: mirrored ? mainItems.map(item => item.points) : mains, crown, guest,
+    items, mains: mirrored ? mainItems.map(item => item.points) : mains, crown, guests,
     foot: foot ? { seed: Math.imul(spec.seed, 7919) + 307, draw: foot.draw } : null,
     stemInk: form.stemInk ?? null,
   };
@@ -618,7 +712,7 @@ function compose(form: PlantForm, formId: string, spec: GrowSpec, items: GardenI
   const crown: Pt = [highest[0], Math.min(H, highest[1])];
   return {
     form: formId, seed: spec.seed, width: canvas, height: H, column: [x0, 0, x0 + W, H], mirrored: false,
-    items, mains: (options.mains ?? []).map(points => points.map(shift)), crown, guest: null,
+    items, mains: (options.mains ?? []).map(points => points.map(shift)), crown, guests: [],
     foot: options.foot ? { seed: Math.imul(spec.seed, 7919) + 307, draw: options.foot } : null,
     stemInk: form.stemInk ?? null,
   };

@@ -4,7 +4,7 @@ import { resolveVariant } from "./form.js";
 import { type Garden, growForm, type GrowSpec } from "./garden.js";
 import { festivalModule, plantForm } from "./registry.js";
 
-export { COLUMN, foliageShown, type Garden, type GardenItem, type GrowSpec, type Guest, type GuestPlace, type MotifItem, type Page, stageAt, stemShown, type StemItem } from "./garden.js";
+export { COLUMN, foliageShown, type Garden, type GardenItem, type GrowSpec, type Guest, type GuestPlace, type GuestStance, type MotifItem, type Page, stageAt, stemShown, type StemItem } from "./garden.js";
 
 /** Grows a garden from a registered plant form's id (see registry.ts) or a form passed in, with any festival by its id or its module. */
 export function growGarden(spec: GrowSpec): Garden {

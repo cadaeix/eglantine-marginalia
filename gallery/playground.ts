@@ -134,7 +134,7 @@ function syncPlayback(playing: boolean): void {
 
 function syncControls(): void {
   for (const input of document.querySelectorAll<HTMLInputElement>('.words input[type="radio"]')) {
-    input.checked = state[input.name as "manner" | "reading" | "mode" | "side"] === input.value;
+    input.checked = state[input.name as "manner" | "reading" | "mode" | "side" | "visitors"] === input.value;
   }
   for (const [id, input] of paletteInputs) input.checked = state.palette === id;
   const palette = PALETTES.find(candidate => candidate.id === state.palette)!;
@@ -200,7 +200,7 @@ function place(svgWidth: number, svgHeight: number): void {
 function drawGarden(): void {
   if (!geometry) return;
   download.disabled = exporting;
-  const key = JSON.stringify([state.source, state.plant, state.date, state.seed, state.mode, state.side, geometry]);
+  const key = JSON.stringify([state.source, state.plant, state.date, state.seed, state.mode, state.side, state.visitors, geometry]);
   if (grown?.key !== key) {
     // The garden drawn so far stays on the page until this one's form has loaded and it has grown.
     if (growing?.key !== key) growing = { key, done: grow(key, state, geometry) };
@@ -211,7 +211,7 @@ function drawGarden(): void {
   const { selection, garden } = grown.preview;
   const drawKey = JSON.stringify([key, state.manner, state.t, state.fullness, cm]);
   if (drawKey !== drawnKey) {
-    const guestFigure = garden.guest && selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {};
+    const guestFigure = garden.guests.length > 0 && selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {};
     gardenElement.innerHTML = renderGarden(garden, { t: state.t, fullness: state.fullness }, { manner: state.manner, id: "garden", scale: cm, hanging: state.mode === "hanging", ...guestFigure });
     gardenElement.querySelector("svg")!.setAttribute("aria-label", `${selection.title}, ${state.manner === "lavis" ? "in wash" : "engraved"}, in the page's margin`);
     drawnKey = drawKey;

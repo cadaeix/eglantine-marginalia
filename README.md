@@ -18,7 +18,7 @@ On phones and narrower tablets, the garden and its playback button stay in view 
 
 The playground loads its plant forms one at a time, as the light entry does. A visit fetches the engine, the calendar and the one form the day's garden draws, a guest's engraving only on its own day, and the plant chooser loads the other forms when it opens.
 
-The settings choose another day or one of eighteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page and the seed. "random plant" picks a day named for a plant, and "random visitor" a day whose animal visits the garden or whose tool lies at its foot. Three settings keep the result:
+The settings choose another day or one of eighteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page, whether the animals stand on shoots or float among the stems, and the seed. "random plant" picks a day named for a plant, and "random visitor" a day whose animal visits the garden or whose tool lies at its foot. Three settings keep the result:
 
 - "save as SVG" writes the garden with its inks, and embeds and credits any engraving.
 - "copy a link" keeps the settings in the URL's fragment.
@@ -68,7 +68,7 @@ const garden = growGarden({ seed: 1793, form: "grimpante", variant: { woody: tru
 const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "taille-douce", id: "header", scale: 36, hanging: true });
 ```
 
-With `hanging`, the garden hangs upside down from the top of its column, for a margin that begins under a page's header. The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by that much and needs no transform or clipping from the page. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and its leaves fill the room the guest would take. A garden grown round a page cannot hang, since its runner and arcs would turn over onto the text.
+With `hanging`, the garden hangs upside down from the top of its column, for a margin that begins under a page's header. The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by that much and needs no transform or clipping from the page. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and its leaves fill the room the guest would take, with no empty shoots left where animals would have stood. A garden grown round a page cannot hang, since its runner and arcs would turn over onto the text.
 
 ## Festivals
 
@@ -177,7 +177,7 @@ const svg = renderGarden(garden, { t: 0.5, fullness: 0.5 }, {
 });
 ```
 
-On a complementary day, `day.plant` is the year's last plant and `day.festival` names the day's festival; [History](#history) explains the days, their guests and their festivals.
+On a complementary day, `day.plant` is the year's last plant and `day.festival` names the day's festival; [History](#history) explains the days, their guests and their festivals. An animal stands where its figure asks, most of them on a shoot of their own. To let it float among the stems instead, as every animal once did, grow the garden with `{ ...day.guest, stance: "stems" }` as its guest.
 
 ## Extending
 
@@ -209,7 +209,7 @@ The playground at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/) is
 
 ## History
 
-The French Republican calendar was in use from 1793 to 1805. It divides the year into twelve months of thirty days, followed by five complementary days, or six in a sextile year. In his report to the National Convention in 1793, Fabre d'Églantine gave each day of a month a name: a plant for most days, an animal for every fifth day and a tool for every tenth. The library takes the names as they were printed and gives each of the 288 plant days a form and a variant (see `PLANTS`). On an animal or tool day the garden grows the previous day's plant, and an engraved figure of the animal visits it or the tool lies at rest at its foot.
+The French Republican calendar was in use from 1793 to 1805. It divides the year into twelve months of thirty days, followed by five complementary days, or six in a sextile year. In his report to the National Convention in 1793, Fabre d'Églantine gave each day of a month a name: a plant for most days, an animal for every fifth day and a tool for every tenth. The library takes the names as they were printed and gives each of the 288 plant days a form and a variant (see `PLANTS`). On an animal or tool day the garden grows the previous day's plant, and an engraved figure of the animal visits it or the tool lies at rest at its foot. Most animals stand on a shoot that coils out of a stem for them, as creatures stand on the scrolls of eighteenth-century ornament; the bee, the fish and the silkworm keep among the stems, and the otter stands on the ground. In a margin taller than the standard column, an animal comes more than once.
 
 Fabre named the complementary days for festivals instead: of Genius, Labour, good Actions, Rewards and Opinion, and in a sextile year a sixth day of national games. On the festival of Opinion, [his report](https://fr.wikisource.org/wiki/Rapport_sur_le_calendrier_r%C3%A9publicain) has it, anyone could say what they liked of a public official, in songs, caricatures and pasquinades: "on corrompt les tribunaux, on ne corrompt pas l'opinion". The Convention renamed the festival of Actions for Virtue and put it first, and moved Opinion to the fourth day; the library follows that order, and names the sixth day for the Revolution, as later calendars did. Fabre and the Convention left the festivals' ceremonies to be settled, and none of the days names a plant, so on each of them the garden grows the year's last plant, le marron, which the year's last day grows too, and the festival does something to it.
 

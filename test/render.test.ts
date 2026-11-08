@@ -85,6 +85,18 @@ describe("rendering", () => {
     expect(svg).not.toContain("<text>");
   });
 
+  it("draws every copy of its guest once it has arrived, from one mask", () => {
+    const tall = growGarden({ seed: 1793, form: "capitule", height: 30, guest: { kind: "visitor", stance: "shoot", aspect: 1, size: 1.4 } });
+    expect(tall.guests).toHaveLength(2);
+    const drawn = (t: number): string => renderGarden(tall, { t, fullness: 0.6 }, { manner: "lavis", id: "copies", scale: 10, guestFigure: "figures/oie.png" });
+    const uses = (svg: string): number => svg.match(/mask="url\(#/gu)?.length ?? 0;
+    const first = Math.min(...tall.guests.map(guest => guest.born)), last = Math.max(...tall.guests.map(guest => guest.born));
+    expect(uses(drawn(first - 0.01))).toBe(0);
+    expect(uses(drawn(1))).toBe(2);
+    expect(drawn(1).match(/<mask /gu)).toHaveLength(1);
+    if (last > first) expect(uses(drawn((first + last) / 2))).toBe(1);
+  });
+
   it("keeps SVG ids and their references valid with punctuation in the prefix", () => {
     const svg = renderGarden(garden, moment, { manner: "lavis", id: `page "one" & <two> (#) Été K ſ`, scale: 10 });
     const ids = [...svg.matchAll(/\bid="([^"]*)"/gu)].map(match => match[1]!);

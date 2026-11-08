@@ -47,7 +47,7 @@ describe("festivals", () => {
           const spec = { seed, form: plant.form, variant: plant.variant, festival, guest: { kind: "visitor", aspect: 1.2, size: 1.4 } } as const;
           const garden = growGarden(spec);
           expect(layout(growGarden(spec)), `${plant.name}, seed ${seed}`).toBe(layout(garden));
-          expect(garden.guest, plant.name).toBeNull();
+          expect(garden.guests, plant.name).toEqual([]);
         }
       }, HEAVY);
 

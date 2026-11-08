@@ -29,6 +29,8 @@ export interface PlaygroundState {
   fullness: number;
   mode: Mode;
   side: "left" | "right";
+  /** Whether the day's animal stands where its figure asks, for most a shoot of its own, or floats among the stems as every animal once did. */
+  visitors: "shoots" | "floating";
 }
 
 /** The page the garden grows on, measured from the playground's layout, in centimetres. */
@@ -105,6 +107,7 @@ function normalize(input: StateInput, fallback: PlaygroundState): PlaygroundStat
     fullness: numeric(input.fullness, fallback.fullness, 0, 1),
     mode: input.mode === "margin" || input.mode === "page" || input.mode === "hanging" ? input.mode : fallback.mode,
     side: input.side === "left" || input.side === "right" ? input.side : fallback.side,
+    visitors: input.visitors === "shoots" || input.visitors === "floating" ? input.visitors : fallback.visitors,
   };
 }
 
@@ -112,7 +115,7 @@ function normalize(input: StateInput, fallback: PlaygroundState): PlaygroundStat
 export function defaultState(overrides: Partial<PlaygroundState> = {}): PlaygroundState {
   return normalize(overrides, {
     source: "calendar", plant: "rose", date: today(), seed: 1793, manner: "lavis", palette: "iron-gall", reading: "light",
-    t: 0.7, fullness: 0.65, mode: "page", side: "right",
+    t: 0.7, fullness: 0.65, mode: "page", side: "right", visitors: "shoots",
   });
 }
 
@@ -196,9 +199,12 @@ export async function createGarden(state: PlaygroundState, geometry: Geometry): 
   const value = normalize(state, defaultState());
   const selection = resolveSelection(value);
   const [form, festival] = await Promise.all([loadForm(selection.form), selection.festival ? loadFestival(selection.festival) : null]);
+  // Floating, an animal comes among the stems as they all once did, whatever its figure asks.
+  const guest = !selection.guest || value.mode === "hanging" ? null
+    : value.visitors === "floating" && selection.guest.kind === "visitor" ? { ...selection.guest, stance: "stems" as const } : selection.guest;
   const garden = growGarden({
     seed: value.seed, form, variant: selection.variant, width: geometry.column, height: geometry.height,
-    ...(selection.guest && value.mode !== "hanging" ? { guest: selection.guest } : {}),
+    ...(guest ? { guest } : {}),
     ...(festival ? { festival } : {}),
     ...(value.mode === "page" ? { page: { side: value.side, text: geometry.text, below: geometry.below } } : {}),
   });
@@ -232,7 +238,7 @@ async function figureDataUri(guest: CalendarGuest): Promise<string> {
 export async function exportSvg(state: PlaygroundState, geometry: Geometry): Promise<string> {
   const value = normalize(state, defaultState());
   const { selection, garden } = await createGarden(value, geometry);
-  const guest = garden.guest && selection.guest ? selection.guest : null;
+  const guest = garden.guests.length > 0 && selection.guest ? selection.guest : null;
   const guestFigure = guest ? await figureDataUri(guest) : null;
   const id = `eglantine-${value.seed}`;
   const inks = paletteInks(value.palette, value.reading);
@@ -256,6 +262,7 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
   const quote = JSON.stringify;
   const festival = selection.festival !== null;
   const guest = selection.guest !== null && value.mode !== "hanging";
+  const floating = guest && value.visitors === "floating" && selection.guest?.kind === "visitor";
   const size = `width: ${geometry.column}, height: ${geometry.height}`;
   const page = value.mode === "page"
     ? `,\n  // The text beside the column and the room under its last line, in centimetres at 32 pixels each.\n  page: { side: ${quote(value.side)}, text: ${geometry.text}, below: ${geometry.below} },`
@@ -266,7 +273,8 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
     "", `const day = calendarDay(${quote(value.date)});`,
     "const garden = growGarden({",
     `  seed: ${value.seed}, form: day.plant.form, variant: day.plant.variant, ${size}${page}`,
-    ...(guest ? ["  ...(day.guest ? { guest: day.guest } : {}),"] : []),
+    ...(floating ? ["  // The animal floats among the stems, whatever its figure asks.", '  ...(day.guest ? { guest: { ...day.guest, stance: "stems" } } : {}),']
+      : guest ? ["  ...(day.guest ? { guest: day.guest } : {}),"] : []),
     ...(festival ? ["  // A complementary day's festival does something to the year's last plant.", "  ...(day.festival ? { festival: day.festival } : {}),"] : []),
     "});",
   );
