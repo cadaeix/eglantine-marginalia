@@ -25,12 +25,12 @@ describe("the playground's settings", () => {
     expect(resolveSelection({ ...fallback, date: "2026-09-18" })).toMatchObject({ title: "Le panier", gloss: "pack basket" });
   });
 
-  it("grows the year's last plant under a complementary day's festival, and its website code asks for the festival too", () => {
+  it("grows the year's last plant under a complementary day's festival, and its website code asks for the festival too", async () => {
     const state = { ...fallback, date: "2027-09-22", mode: "margin" as const };
     const selection = resolveSelection(state);
     expect(selection).toMatchObject({ title: "Jour de l'opinion", gloss: "the day of convictions", form: "arbre-fruitier", festival: "opinion", guest: null });
     const geometry = { column: 6, height: 22, text: 10, below: 6 };
-    const { garden } = createGarden(state, geometry);
+    const { garden } = await createGarden(state, geometry);
     const asked = growGarden({ seed: state.seed, form: selection.form, variant: selection.variant, width: 6, height: 22, festival: "opinion" });
     expect(JSON.stringify(garden.items)).toBe(JSON.stringify(asked.items));
     expect(usageCode(state, geometry)).toContain("...(day.festival ? { festival: day.festival } : {}),");

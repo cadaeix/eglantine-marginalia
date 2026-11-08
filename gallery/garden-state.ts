@@ -3,9 +3,11 @@
 import { calendarDay, type CalendarGuest, DAYS, figureURL, nameFromArticle, republicanDate } from "../src/calendar/index.js";
 import type { Festival } from "../src/festival.js";
 import type { Variant } from "../src/form.js";
+import { type Garden, growGarden } from "../src/garden.js";
 import { num } from "../src/geometry.js";
-import { type Garden, growGarden } from "../src/grow.js";
 import { withInks } from "../src/inks.js";
+import { loadFestival } from "../src/load-festival.js";
+import { loadForm } from "../src/load-form.js";
 import type { Manner } from "../src/paint.js";
 import { PALETTES, paletteInks } from "../src/palettes.js";
 import { renderGarden } from "../src/render.js";
@@ -186,14 +188,18 @@ export function resolveSelection(state: PlaygroundState): Selection {
   return { title: capital(day.name), gloss: english, dateline: day.dateline, about, form: day.plant.form, variant: day.plant.variant, guest: day.guest, festival: null };
 }
 
-/** The garden the settings grow on the page; a hanging garden leaves the day's animal or tool out, as it would hang upside down. */
-export function createGarden(state: PlaygroundState, geometry: Geometry): GardenPreview {
+/**
+ * The garden the settings grow on the page, once its form and any festival have loaded, each on its own; a hanging
+ * garden leaves the day's animal or tool out, as it would hang upside down.
+ */
+export async function createGarden(state: PlaygroundState, geometry: Geometry): Promise<GardenPreview> {
   const value = normalize(state, defaultState());
   const selection = resolveSelection(value);
+  const [form, festival] = await Promise.all([loadForm(selection.form), selection.festival ? loadFestival(selection.festival) : null]);
   const garden = growGarden({
-    seed: value.seed, form: selection.form, variant: selection.variant, width: geometry.column, height: geometry.height,
+    seed: value.seed, form, variant: selection.variant, width: geometry.column, height: geometry.height,
     ...(selection.guest && value.mode !== "hanging" ? { guest: selection.guest } : {}),
-    ...(selection.festival ? { festival: selection.festival } : {}),
+    ...(festival ? { festival } : {}),
     ...(value.mode === "page" ? { page: { side: value.side, text: geometry.text, below: geometry.below } } : {}),
   });
   return { selection, garden };
@@ -225,7 +231,7 @@ async function figureDataUri(guest: CalendarGuest): Promise<string> {
 /** The garden on the page as a standalone SVG: its inks written in, its guest's engraving embedded and credited. */
 export async function exportSvg(state: PlaygroundState, geometry: Geometry): Promise<string> {
   const value = normalize(state, defaultState());
-  const { selection, garden } = createGarden(value, geometry);
+  const { selection, garden } = await createGarden(value, geometry);
   const guest = garden.guest && selection.guest ? selection.guest : null;
   const guestFigure = guest ? await figureDataUri(guest) : null;
   const id = `eglantine-${value.seed}`;

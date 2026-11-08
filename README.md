@@ -16,6 +16,8 @@ The playground is online at [cadaeic.space/eglantine](https://cadaeic.space/egla
 
 On phones and narrower tablets, the garden and its playback button stay in view above the settings. Touch controls have hit areas at least 44px high. With reduced motion enabled, the page skips the opening animation and offers "show the evening" instead of "watch the day".
 
+The playground loads its plant forms one at a time, as the light entry does. A visit fetches the engine, the calendar and the one form the day's garden draws, a guest's engraving only on its own day, and the plant chooser loads the other forms when it opens.
+
 The settings choose another day or one of eighteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page and the seed. "random plant" picks a day named for a plant, and "random visitor" a day whose animal visits the garden or whose tool lies at its foot. Three settings keep the result:
 
 - "save as SVG" writes the garden with its inks, and embeds and credits any engraving.

@@ -9,6 +9,9 @@ export default defineConfig({
   build: {
     outDir: "../site-dist",
     emptyOutDir: true,
+    // Vite would inline the smallest guest figures into the playground's script, for every visitor on every day;
+    // as files, each engraving loads only on its own day.
+    assetsInlineLimit: 0,
     rollupOptions: {
       input: {
         playground: fileURLToPath(new URL("index.html", import.meta.url)),

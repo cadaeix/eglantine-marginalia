@@ -2,11 +2,12 @@
 // and the garden's settings; the garden is grown for the page as it is laid out, and grown again when the
 // page changes shape, so with "round the text" it fills whatever room the text leaves below it.
 import { figureURL } from "../src/calendar/index.js";
+import { resolveVariant } from "../src/form.js";
 import { clamp } from "../src/geometry.js";
 import { INK_PROPERTIES } from "../src/inks.js";
+import { loadForm } from "../src/load-form.js";
 import { PALETTES, paletteInks } from "../src/palettes.js";
 import { createRng } from "../src/random.js";
-import { plantForm } from "../src/registry.js";
 import { renderGarden } from "../src/render.js";
 import { PLANTS } from "./catalog.js";
 import { shapesSvg } from "./drawing.js";
@@ -74,6 +75,8 @@ let geometry: Geometry | null = null;
 /** Pixels per centimetre of the garden, chosen so that the page holds a column about 25 cm tall. */
 let cm = 32;
 let grown: { key: string; preview: GardenPreview } | null = null;
+/** The garden asked for and growing: its form loads before it grows, and only the garden last asked for is kept. */
+let growing: { key: string; done: Promise<void> } | null = null;
 let drawnKey = "";
 let exporting = false;
 let animation = 0;
@@ -196,10 +199,16 @@ function place(svgWidth: number, svgHeight: number): void {
 
 function drawGarden(): void {
   if (!geometry) return;
-  const key = JSON.stringify([state.source, state.plant, state.date, state.seed, state.mode, state.side, geometry]);
-  if (!grown || grown.key !== key) grown = { key, preview: createGarden(state, geometry) };
-  const { selection, garden } = grown.preview;
   download.disabled = exporting;
+  const key = JSON.stringify([state.source, state.plant, state.date, state.seed, state.mode, state.side, geometry]);
+  if (grown?.key !== key) {
+    // The garden drawn so far stays on the page until this one's form has loaded and it has grown.
+    if (growing?.key !== key) growing = { key, done: grow(key, state, geometry) };
+    return;
+  }
+  // The garden on the page is the one asked for, so any still growing was asked for before it.
+  growing = null;
+  const { selection, garden } = grown.preview;
   const drawKey = JSON.stringify([key, state.manner, state.t, state.fullness, cm]);
   if (drawKey !== drawnKey) {
     const guestFigure = garden.guest && selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {};
@@ -210,6 +219,21 @@ function drawGarden(): void {
   // A hanging garden's drawing is shorter than the garden by the root it crops away; the SVG gives its size.
   const drawing = gardenElement.querySelector("svg")!;
   place(Number(drawing.getAttribute("width")), Number(drawing.getAttribute("height")));
+}
+
+/** Grows the garden `key` names once its form has loaded, and draws it if it is still the garden last asked for. */
+async function grow(key: string, settings: PlaygroundState, measured: Geometry): Promise<void> {
+  try {
+    const preview = await createGarden(settings, measured);
+    if (growing?.key !== key) return;
+    grown = { key, preview };
+    drawGarden();
+  } catch (error) {
+    if (growing?.key !== key) return;
+    growing = null;
+    announce(`The garden could not be drawn. ${error instanceof Error ? error.message : String(error)}`, true);
+    console.error(error);
+  }
 }
 
 /** Everything the settings show: the inks, the text, the controls, then the page measured and its garden. */
@@ -275,28 +299,32 @@ function buildPlants(): void {
   const list = element("plants");
   if (list.childElementCount > 0) return;
   for (const plant of PLANTS) {
-    const form = plantForm(plant.form, plant.variant);
-    const shapes = plant.part === "foot" && form.foot ? form.foot.draw(createRng(3), { width: 6, height: 22 }, 1, 1)
-      : plant.part === "leaf" ? form.leaf(createRng(11), 2.2, 0.1)
-      : form.terminal.draw(createRng(7), 1.4, "bloom");
     const button = document.createElement("button");
     button.type = "button";
     button.className = "plant";
     button.dataset.plant = plant.id;
-    button.innerHTML = shapesSvg(shapes, "taille-douce", `plant-${plant.id}`, 40);
-    button.querySelector("svg")?.setAttribute("aria-hidden", "true");
+    // The drawing's row keeps its place while the plant's form loads, so the names never move.
+    const drawing = document.createElement("span");
     const name = document.createElement("span");
     name.textContent = plant.name;
     const french = document.createElement("span");
     french.className = "french";
     french.lang = "fr";
     french.textContent = plant.french;
-    button.append(name, french);
+    button.append(drawing, name, french);
     button.addEventListener("click", () => {
       plantDialog.close();
       update({ source: "plants", plant: plant.id }, true);
     });
     list.append(button);
+    void loadForm(plant.form).then(module => {
+      const form = module.build(resolveVariant(module, plant.variant));
+      const shapes = plant.part === "foot" && form.foot ? form.foot.draw(createRng(3), { width: 6, height: 22 }, 1, 1)
+        : plant.part === "leaf" ? form.leaf(createRng(11), 2.2, 0.1)
+        : form.terminal.draw(createRng(7), 1.4, "bloom");
+      drawing.outerHTML = shapesSvg(shapes, "taille-douce", `plant-${plant.id}`, 40);
+      button.querySelector("svg")?.setAttribute("aria-hidden", "true");
+    });
   }
 }
 
@@ -444,9 +472,10 @@ makePalettes();
 const opening = firstVisit && !reducedMotion.matches ? state.t : null;
 if (opening !== null) state = { ...state, t: 0.05 };
 refresh();
-// The fonts change the text's length, and so the room under it.
-void document.fonts.ready.then(() => {
+// The fonts change the text's length, and so the room under it. The opening waits for them and for its garden.
+void document.fonts.ready.then(async () => {
   refresh();
-  if (opening !== null && grown?.preview.garden) passDay(0.05, opening, 2600, false);
+  await growing?.done;
+  if (opening !== null && grown) passDay(0.05, opening, 2600, false);
   else if (opening !== null) state = { ...state, t: opening };
 });
