@@ -77,7 +77,7 @@ The page is a grid of the text column, a gutter one garden-centimetre wide and a
 
 The garden is grown again whenever the page changes shape: a new plant, side or mode, or a window that rewraps the text. Its measurements are rounded to half a centimetre so that small shifts do not regrow it.
 
-At 960px and narrower, or on touch devices up to 1100px wide, the heading and garden stay in view above the paragraphs and settings. The preview height is 46% of the viewport height with the browser controls expanded, bounded between 180px and 430px. The playback button appears below the heading.
+At 720px and narrower, or up to 1100px wide on devices whose main pointer is touch, the heading and garden stay in view above the paragraphs and settings. A narrower desktop window keeps the page layout, so the garden can still grow round the text, even when a pen or touchpad also offers touch. The preview height is 46% of the viewport height with the browser controls expanded, bounded between 180px and 430px. The playback button appears below the heading.
 
 ## Components
 

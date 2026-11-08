@@ -36,7 +36,7 @@ const download = element<HTMLButtonElement>("download");
 const plantDialog = element<HTMLDialogElement>("plant-dialog");
 const codeDialog = element<HTMLDialogElement>("code-dialog");
 const copyDialog = element<HTMLDialogElement>("copy-dialog");
-const compact = matchMedia("(max-width: 960px), (max-width: 1100px) and (any-pointer: coarse)");
+const compact = matchMedia("(max-width: 720px), (max-width: 1100px) and (pointer: coarse)");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 const MODE_NOTES: Readonly<Record<Mode, string>> = {

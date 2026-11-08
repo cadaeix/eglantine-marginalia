@@ -221,8 +221,9 @@ textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--rule); backgrou
 .foot p { max-width: 48rem; margin: 0; }
 .noscript { padding: 2rem; }
 
-/* Compact layouts show the garden above the settings. */
-@media (max-width: 960px), (max-width: 1100px) and (any-pointer: coarse) {
+/* Compact layouts show the garden above the settings: on phones, and on tablets, whose main pointer is a finger. A narrow
+   desktop window keeps the page, so the garden can still reach round the text, even when a pen or touchpad offers touch. */
+@media (max-width: 720px), (max-width: 1100px) and (pointer: coarse) {
   html { --preview-height: clamp(180px, 46svh, 430px); scroll-padding-top: calc(var(--preview-height) + 1rem); }
   .masthead { padding: 0.8rem 1rem 0.6rem; }
   .wordmark { font-size: 1.35rem; }
