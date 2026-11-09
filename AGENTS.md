@@ -76,15 +76,14 @@ A festival does something to a plant: `growGarden({ …, festival })`, for any p
 
 An animal day's figure **visits**: it is 1.4 cm tall, faces the plant, and arrives at `t = 0.2`. Where it stands is its `stance` in `FIGURES`. Most animals stand on a shoot that coils out of a main stem for them and has grown by the time they arrive, as creatures stand on the scrolls of eighteenth-century ornament. The bee, the fish and the silkworm keep among the stems, and the otter, too long for any shoot, stands on the ground. On a shoot or among the stems a visitor comes once for every 12 cm the plant grows in, so once in the standard column and twice in a 30 cm one, each copy apart from the others. A tool day's figure **rests**: it is 3.2 cm long and lies near the foot from the start of the day, among the stems, where the leaves grow round it, and it comes once. Both are drawn as masks, so they take the manner's ink and the palette.
 
-To add one:
+Every animal and tool day has a figure. To replace one:
 
 1. Cut it from a public-domain engraving of the period. Make an ink mask with opaque ink and transparent paper, facing right, reduced to 240 px on its long side.
 2. Name the file `figures/<name>.png`, where `<name>` is what `figureName` gives for the day: no article or accents, œ spelled `oe`, words joined by hyphens.
-3. Add its `kind`, its `aspect` (width over height) and, for an animal, its `stance` to `FIGURES` in `src/calendar/figures.ts`.
-4. Add its row to `figures/PROVENANCE.md`, with the work, plate, scan and rights, and take the day out of "Days without a figure".
-5. Update the list of missing figures in `test/calendar.test.ts`, and the figure counts in the README's History section.
+3. Give it its `kind`, its `aspect` (width over height) and, for an animal, its `stance` in `FIGURES` in `src/calendar/figures.ts`.
+4. Give it its row in `figures/PROVENANCE.md`, with the work, plate, scan and rights.
 
-Scans from the Bibliothèque interuniversitaire de santé are under the Etalab Open Licence, which requires attribution. Record their terms exactly in `figures/PROVENANCE.md`.
+Use only scans their institution releases for any use, commercial included: CC0, a Public Domain Mark, a public-domain declaration or the Etalab Open Licence. Gallica's scans restrict commercial reuse, so they don't qualify. Scans from the Bibliothèque interuniversitaire de santé are under the Etalab Open Licence, which requires attribution. Record their terms exactly in `figures/PROVENANCE.md`.
 
 ## Palettes
 

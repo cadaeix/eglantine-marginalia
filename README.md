@@ -215,7 +215,7 @@ Fabre named the complementary days for festivals instead: of Genius, Labour, goo
 
 The Republic declared years III, VII and XI sextile before it abolished the calendar, and later readings disagree on the years after. `republicanDate` keeps the four-year rhythm those years set: year XV and every fourth year after are sextile, with no exception for centuries. By this rule 31 October 2026 is 8 brumaire an CCXXXV, a day later than a reading that follows the autumn equinox.
 
-The figures are ink masks cut from eighteenth-century engravings, in public-domain scans by the Smithsonian Libraries, the Bibliothèque interuniversitaire de santé in Paris, the University of Seville, Naturalis and other libraries, served through the Internet Archive. [figures/PROVENANCE.md](figures/PROVENANCE.md) lists the work, plate and scan for each of the 67 figures. Five days have no figure: le cordeau, le bœuf, la vache, la houlette and le traîneau. On those days the garden grows without a guest… for now.
+The figures are ink masks cut from engravings of the period, in public-domain scans by the Smithsonian Libraries, the Bibliothèque interuniversitaire de santé in Paris, the University of Seville, Naturalis, the Getty Research Institute and other libraries, served through the Internet Archive, and by the Rijksmuseum. [figures/PROVENANCE.md](figures/PROVENANCE.md) lists the work, plate and scan for each of the 72 figures, one for every animal and tool day.
 
 ## Credits
 

@@ -66,11 +66,11 @@ describe("a plant for every day", () => {
     }
   });
 
-  it("has a figure for every animal and tool day but five, and ships each one", () => {
+  it("has a figure for every animal and tool day, and ships each one", () => {
     const missing = DAYS.filter((_, day) => (day % 30 + 1) % 5 === 0).map(figureName).filter(name => FIGURES[name] === undefined);
-    expect(missing.sort()).toEqual(["boeuf", "cordeau", "houlette", "traineau", "vache"]);
+    expect(missing).toEqual([]);
     for (const name of Object.keys(FIGURES)) expect(existsSync(fileURLToPath(figureURL(name))), name).toBe(true);
-    for (const name of ["boeuf", "toString", "../oie"]) expect(() => figureURL(name), name).toThrow();
+    for (const name of ["licorne", "toString", "../oie"]) expect(() => figureURL(name), name).toThrow();
   });
 
   it("spells figure names without articles, accents or ligatures", () => {
