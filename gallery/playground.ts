@@ -1,8 +1,11 @@
 // The playground: a page with Églantine growing in its own margin. The text column holds the day's plant
 // and the garden's settings; the garden is grown for the page as it is laid out, and grown again when the
-// page changes shape, so with "round the text" it fills whatever room the text leaves below it.
+// page changes shape, so with "round the text" it fills whatever room the text leaves below it. As one of the
+// printers' ornaments it lies across the text instead: a headpiece over the entry, or a tailpiece under its
+// introduction.
 import { figureURL } from "../src/calendar/index.js";
 import { resolveVariant } from "../src/form.js";
+import { ORNAMENTS } from "../src/garden.js";
 import { clamp } from "../src/geometry.js";
 import { INK_PROPERTIES } from "../src/inks.js";
 import { loadForm } from "../src/load-form.js";
@@ -12,7 +15,7 @@ import { renderGarden } from "../src/render.js";
 import { PLANTS } from "./catalog.js";
 import { shapesSvg } from "./drawing.js";
 import {
-  createGarden, defaultState, exportSvg, type GardenPreview, type Geometry, type Mode,
+  bandSize, createGarden, defaultState, exportSvg, type GardenPreview, type Geometry, type Mode, ornamentOf,
   type PlaygroundState, randomDay, readState, resolveSelection, stateHash, today, usageCode,
 } from "./garden-state.js";
 
@@ -27,6 +30,9 @@ const text = element("text");
 const entry = element("entry");
 const body = element("body");
 const gardenElement = element("garden");
+/** The room a band takes in the page's flow, so the drawing laid under it never meets a line of text. */
+const bandSlot = element("band");
+const settingsForm = element("settings");
 const status = element("status");
 const dateInput = element<HTMLInputElement>("date");
 const timeInput = element<HTMLInputElement>("time");
@@ -44,6 +50,8 @@ const MODE_NOTES: Readonly<Record<Mode, string>> = {
   margin: "The plant keeps to its column, as it would in a sidebar.",
   page: "The plant reaches round the text, into the room under its last line.",
   hanging: "The plant hangs from the top of the margin, without its animal or tool.",
+  bandeau: "A bed of the plant heads the entry, as a bandeau heads a chapter.",
+  "cul-de-lampe": "One root sprays the plant both ways, as a cul-de-lampe ends a chapter.",
 };
 /** The garden's tallest column, in centimetres: a long page keeps its garden at its foot. */
 const TALLEST = 30;
@@ -74,6 +82,8 @@ let state = readState(location.hash, startingState());
 let geometry: Geometry | null = null;
 /** Pixels per centimetre of the garden, chosen so that the page holds a column about 25 cm tall. */
 let cm = 32;
+/** Pixels per centimetre of a band: the page's centimetre, or whatever fits the band to a phone's preview. */
+let bandScale = 32;
 let grown: { key: string; preview: GardenPreview } | null = null;
 /** The garden asked for and growing: its form loads before it grows, and only the garden last asked for is kept. */
 let growing: { key: string; done: Promise<void> } | null = null;
@@ -133,8 +143,11 @@ function syncPlayback(playing: boolean): void {
 }
 
 function syncControls(): void {
+  // A band lies across the text, so the side it would grow on does nothing.
+  const band = ornamentOf(state.mode) !== null;
   for (const input of document.querySelectorAll<HTMLInputElement>('.words input[type="radio"]')) {
     input.checked = state[input.name as "manner" | "reading" | "mode" | "side" | "visitors"] === input.value;
+    input.disabled = input.name === "side" && band;
   }
   for (const [id, input] of paletteInputs) input.checked = state.palette === id;
   const palette = PALETTES.find(candidate => candidate.id === state.palette)!;
@@ -166,6 +179,15 @@ function measure(): void {
   if (body.parentElement !== home) home.append(body);
   const playbackHome = onCompact ? entry : timeControls;
   if (playButton.parentElement !== playbackHome) playbackHome.append(playButton);
+  // A headpiece takes its room before the entry. A tailpiece takes it after the introduction, where it closes the
+  // text and stays in view above the settings; in a phone's preview, which holds only the heading, it closes that.
+  const ornament = ornamentOf(state.mode);
+  bandSlot.hidden = ornament === null;
+  bandSlot.style.height = "0";
+  if (ornament === "bandeau" && bandSlot !== text.firstElementChild) text.prepend(bandSlot);
+  else if (ornament === "cul-de-lampe" && onCompact && bandSlot.previousElementSibling !== entry) entry.after(bandSlot);
+  else if (ornament === "cul-de-lampe" && !onCompact && bandSlot.nextElementSibling !== settingsForm) settingsForm.before(bandSlot);
+  bandSlot.dataset.place = ornament === "bandeau" ? "head" : "tail";
   const top = onCompact ? 0 : element("masthead").offsetHeight;
   const sheetHeight = onCompact ? sheet.getBoundingClientRect().height : Math.max(480, innerHeight - top);
   cm = onCompact ? sheetHeight / 22 : clamp(Math.round(sheetHeight / 25), 22, 36);
@@ -182,12 +204,37 @@ function measure(): void {
     height,
     text: half((column.width + cm) / cm),
     below: clamp(half((page.height - end) / cm), 0, height),
+    // A phone's preview has no text to lie across, so its band keeps the bandeau's own width, and so never regrows.
+    measure: onCompact ? ORNAMENTS.bandeau.width : half(column.width / cm),
   };
+  if (!ornament) return;
+  const band = bandSize(ornament, geometry);
+  // On a page the band is drawn to the page's centimetre. In a phone's preview it is drawn as wide as the preview,
+  // or smaller if the room the heading leaves is too short for it.
+  bandScale = onCompact ? Math.max(0, Math.min(previewWidth() / band.width, (page.bottom - column.bottom) / band.height)) : cm;
+  bandSlot.style.height = `${band.height * bandScale}px`;
 }
 
-/** Places the drawing on the page: under the text and its margin, in the margin, or hanging from its top. */
+/** The width of a phone's preview inside its padding, in pixels. */
+function previewWidth(): number {
+  const style = getComputedStyle(sheet);
+  return sheet.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+}
+
+/**
+ * Places the drawing on the page: under the text and its margin, in the margin, or hanging from its top; a band in
+ * the room its slot keeps, centred across the text, or across a phone's whole preview.
+ */
 function place(svgWidth: number, svgHeight: number): void {
   const page = sheet.getBoundingClientRect(), column = text.getBoundingClientRect();
+  if (ornamentOf(state.mode)) {
+    const left = compact.matches ? (page.width - svgWidth) / 2 : column.left - page.left + (column.width - svgWidth) / 2;
+    Object.assign(gardenElement.style, {
+      left: `${left}px`, width: `${svgWidth}px`, height: `${svgHeight}px`,
+      top: `${bandSlot.getBoundingClientRect().top - page.top}px`, bottom: "auto",
+    });
+    return;
+  }
   const columnPx = 6 * cm;
   const marginLeft = state.side === "right" ? column.right - page.left + cm : column.left - page.left - cm - columnPx;
   const left = state.mode === "page" && state.side === "right" ? marginLeft + columnPx - svgWidth : marginLeft;
@@ -200,7 +247,10 @@ function place(svgWidth: number, svgHeight: number): void {
 function drawGarden(): void {
   if (!geometry) return;
   download.disabled = exporting;
-  const key = JSON.stringify([state.source, state.plant, state.date, state.seed, state.mode, state.side, state.visitors, geometry]);
+  // A band grows for its own room alone, so the page's height and the side never regrow it.
+  const ornament = ornamentOf(state.mode);
+  const room = ornament ? [bandSize(ornament, geometry)] : [state.side, geometry];
+  const key = JSON.stringify([state.source, state.plant, state.date, state.seed, state.mode, state.visitors, ...room]);
   if (grown?.key !== key) {
     // The garden drawn so far stays on the page until this one's form has loaded and it has grown.
     if (growing?.key !== key) growing = { key, done: grow(key, state, geometry) };
@@ -209,11 +259,13 @@ function drawGarden(): void {
   // The garden on the page is the one asked for, so any still growing was asked for before it.
   growing = null;
   const { selection, garden } = grown.preview;
-  const drawKey = JSON.stringify([key, state.manner, state.t, state.fullness, cm]);
+  const scale = ornament ? bandScale : cm;
+  const drawKey = JSON.stringify([key, state.manner, state.t, state.fullness, scale]);
   if (drawKey !== drawnKey) {
     const guestFigure = garden.guests.length > 0 && selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {};
-    gardenElement.innerHTML = renderGarden(garden, { t: state.t, fullness: state.fullness }, { manner: state.manner, id: "garden", scale: cm, hanging: state.mode === "hanging", ...guestFigure });
-    gardenElement.querySelector("svg")!.setAttribute("aria-label", `${selection.title}, ${state.manner === "lavis" ? "in wash" : "engraved"}, in the page's margin`);
+    gardenElement.innerHTML = renderGarden(garden, { t: state.t, fullness: state.fullness }, { manner: state.manner, id: "garden", scale, hanging: state.mode === "hanging", ...guestFigure });
+    const where = ornament === "bandeau" ? "as a headpiece over the entry" : ornament ? "as a tailpiece under the entry" : "in the page's margin";
+    gardenElement.querySelector("svg")!.setAttribute("aria-label", `${selection.title}, ${state.manner === "lavis" ? "in wash" : "engraved"}, ${where}`);
     drawnKey = drawKey;
   }
   // A hanging garden's drawing is shorter than the garden by the root it crops away; the SVG gives its size.

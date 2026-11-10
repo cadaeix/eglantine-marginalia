@@ -20,6 +20,7 @@
     <main class="sheet" id="sheet" data-side="right" data-mode="page">
       <div class="garden" id="garden"></div>
       <article class="text" id="text">
+        <div class="band" id="band" hidden aria-hidden="true"></div>
         <header class="entry" id="entry">
           <p class="dateline" id="dateline"></p>
           <h1><span id="title"></span> <span class="gloss" id="gloss"></span></h1>
@@ -74,7 +75,7 @@
               <legend class="label">Garden</legend>
               <div class="value">
                 <div class="line">
-                  <span class="words" role="radiogroup" aria-label="How the garden grows"><label><input type="radio" name="mode" value="margin" /><span>up the margin</span></label><label><input type="radio" name="mode" value="page" /><span>round the text</span></label><label><input type="radio" name="mode" value="hanging" /><span>hanging</span></label></span>
+                  <span class="words" role="radiogroup" aria-label="How the garden grows"><label><input type="radio" name="mode" value="margin" /><span>up the margin</span></label><label><input type="radio" name="mode" value="page" /><span>round the text</span></label><label><input type="radio" name="mode" value="hanging" /><span>hanging</span></label><span class="break" aria-hidden="true"></span><label><input type="radio" name="mode" value="bandeau" /><span>as a headpiece</span></label><label><input type="radio" name="mode" value="cul-de-lampe" /><span>as a tailpiece</span></label></span>
                   <span class="words" role="radiogroup" aria-label="Side"><label><input type="radio" name="side" value="left" /><span>left</span></label><label><input type="radio" name="side" value="right" /><span>right</span></label></span>
                 </div>
                 <p class="note" id="mode-note"></p>

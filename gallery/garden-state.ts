@@ -3,7 +3,7 @@
 import { calendarDay, type CalendarGuest, DAYS, figureURL, nameFromArticle, republicanDate } from "../src/calendar/index.js";
 import type { Festival } from "../src/festival.js";
 import type { Variant } from "../src/form.js";
-import { type Garden, growGarden } from "../src/garden.js";
+import { type Garden, growGarden, type Ornament, ORNAMENTS } from "../src/garden.js";
 import { num } from "../src/geometry.js";
 import { withInks } from "../src/inks.js";
 import { loadFestival } from "../src/load-festival.js";
@@ -14,8 +14,11 @@ import { renderGarden } from "../src/render.js";
 import { FORM_PHRASES, PLANTS } from "./catalog.js";
 import { ENGLISH_COMPLEMENTARY, ENGLISH_DAYS } from "./english.js";
 
-/** How the garden sits on the page: up its margin, round the text, or hanging from the top of the margin. */
-export type Mode = "margin" | "page" | "hanging";
+/**
+ * How the garden sits on the page: up its margin, round the text, hanging from the top of the margin, or as one of
+ * the printers' ornaments, a bandeau over the entry or a cul-de-lampe under its introduction.
+ */
+export type Mode = "margin" | "page" | "hanging" | Ornament;
 
 export interface PlaygroundState {
   source: "calendar" | "plants";
@@ -41,6 +44,11 @@ export interface Geometry {
   /** The text's width beside the column, and the room under its last line. */
   text: number;
   below: number;
+  /**
+   * The width a band may take across the text: the text's own width on a page, or the bandeau's own width in a
+   * phone's preview, where the drawing is scaled to the preview's width instead.
+   */
+  measure: number;
 }
 
 export interface Selection {
@@ -105,7 +113,8 @@ function normalize(input: StateInput, fallback: PlaygroundState): PlaygroundStat
     reading: input.reading === "light" || input.reading === "dark" ? input.reading : fallback.reading,
     t: numeric(input.t, fallback.t, 0, 1),
     fullness: numeric(input.fullness, fallback.fullness, 0, 1),
-    mode: input.mode === "margin" || input.mode === "page" || input.mode === "hanging" ? input.mode : fallback.mode,
+    mode: input.mode === "margin" || input.mode === "page" || input.mode === "hanging" || input.mode === "bandeau" || input.mode === "cul-de-lampe"
+      ? input.mode : fallback.mode,
     side: input.side === "left" || input.side === "right" ? input.side : fallback.side,
     visitors: input.visitors === "shoots" || input.visitors === "floating" ? input.visitors : fallback.visitors,
   };
@@ -191,9 +200,23 @@ export function resolveSelection(state: PlaygroundState): Selection {
   return { title: capital(day.name), gloss: english, dateline: day.dateline, about, form: day.plant.form, variant: day.plant.variant, guest: day.guest, festival: null };
 }
 
+/** The ornament a mode grows as, or nothing for the margin's column. */
+export function ornamentOf(mode: Mode): Ornament | null {
+  return mode === "bandeau" || mode === "cul-de-lampe" ? mode : null;
+}
+
+/**
+ * The room a band grows in on the measured page, in centimetres: a bandeau as wide as the text, and a cul-de-lampe
+ * its own width unless the text is narrower. Each is its own height.
+ */
+export function bandSize(ornament: Ornament, geometry: Geometry): { width: number; height: number } {
+  const room = ORNAMENTS[ornament];
+  return { width: ornament === "bandeau" ? geometry.measure : Math.min(room.width, geometry.measure), height: room.height };
+}
+
 /**
  * The garden the settings grow on the page, once its form and any festival have loaded, each on its own; a hanging
- * garden leaves the day's animal or tool out, as it would hang upside down.
+ * garden leaves the day's animal or tool out, as it would hang upside down, while a band keeps it.
  */
 export async function createGarden(state: PlaygroundState, geometry: Geometry): Promise<GardenPreview> {
   const value = normalize(state, defaultState());
@@ -202,8 +225,10 @@ export async function createGarden(state: PlaygroundState, geometry: Geometry): 
   // Floating, an animal comes among the stems as they all once did, whatever its figure asks.
   const guest = !selection.guest || value.mode === "hanging" ? null
     : value.visitors === "floating" && selection.guest.kind === "visitor" ? { ...selection.guest, stance: "stems" as const } : selection.guest;
+  const ornament = ornamentOf(value.mode);
+  const room = ornament ? { ornament, ...bandSize(ornament, geometry) } : { width: geometry.column, height: geometry.height };
   const garden = growGarden({
-    seed: value.seed, form, variant: selection.variant, width: geometry.column, height: geometry.height,
+    seed: value.seed, form, variant: selection.variant, ...room,
     ...(guest ? { guest } : {}),
     ...(festival ? { festival } : {}),
     ...(value.mode === "page" ? { page: { side: value.side, text: geometry.text, below: geometry.below } } : {}),
@@ -263,7 +288,12 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
   const festival = selection.festival !== null;
   const guest = selection.guest !== null && value.mode !== "hanging";
   const floating = guest && value.visitors === "floating" && selection.guest?.kind === "visitor";
-  const size = `width: ${geometry.column}, height: ${geometry.height}`;
+  const ornament = ornamentOf(value.mode);
+  const band = ornament ? bandSize(ornament, geometry) : null;
+  const piece = ornament === "bandeau" ? "headpiece" : "tailpiece";
+  const size = ornament && band ? `ornament: ${quote(ornament)}, width: ${band.width}, height: ${band.height}` : `width: ${geometry.column}, height: ${geometry.height}`;
+  const room = ornament === "bandeau" ? ["  // A headpiece as wide as the article's text, in centimetres at 32 pixels each."]
+    : ornament ? ["  // A tailpiece for the article's foot, in centimetres at 32 pixels each."] : [];
   const page = value.mode === "page"
     ? `,\n  // The text beside the column and the room under its last line, in centimetres at 32 pixels each.\n  page: { side: ${quote(value.side)}, text: ${geometry.text}, below: ${geometry.below} },`
     : ",";
@@ -271,21 +301,21 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
   if (value.source === "calendar") lines.push(
     `import { calendarDay${guest ? ", figureURL" : ""} } from "eglantine-marginalia/calendar";`,
     "", `const day = calendarDay(${quote(value.date)});`,
-    "const garden = growGarden({",
+    "const garden = growGarden({", ...room,
     `  seed: ${value.seed}, form: day.plant.form, variant: day.plant.variant, ${size}${page}`,
     ...(floating ? ["  // The animal floats among the stems, whatever its figure asks.", '  ...(day.guest ? { guest: { ...day.guest, stance: "stems" } } : {}),']
       : guest ? ["  ...(day.guest ? { guest: day.guest } : {}),"] : []),
     ...(festival ? ["  // A complementary day's festival does something to the year's last plant.", "  ...(day.festival ? { festival: day.festival } : {}),"] : []),
     "});",
   );
-  else lines.push("", "const garden = growGarden({",
+  else lines.push("", "const garden = growGarden({", ...room,
     `  seed: ${value.seed}, form: ${quote(selection.form)},`,
     `  variant: ${quote(selection.variant)},`,
     `  ${size}${page}`, "});");
   lines.push(
     `const inks = paletteInks(${quote(value.palette)}, ${quote(value.reading)});`,
     `const svg = withInks(renderGarden(garden, { t: ${value.t}, fullness: ${value.fullness} }, {`,
-    `  manner: ${quote(value.manner)}, id: "margin", scale: 32,${value.mode === "hanging" ? " hanging: true," : ""}`,
+    `  manner: ${quote(value.manner)}, id: ${quote(ornament ? piece : "margin")}, scale: 32,${value.mode === "hanging" ? " hanging: true," : ""}`,
     ...(guest ? ["  ...(day.guest ? { guestFigure: figureURL(day.guest.figure).href } : {}),"] : []),
     "}), inks);", "",
   );
@@ -295,6 +325,13 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
     'Object.assign(layer.style, { position: "absolute", left: "0", bottom: "0", zIndex: "-1", pointerEvents: "none" });',
     "layer.innerHTML = svg;",
     'document.querySelector("article").append(layer);',
+  );
+  else if (ornament) lines.push(
+    ornament === "bandeau" ? "// The headpiece lies over the article, centred across its text." : "// The tailpiece closes the article, centred under its last lines.",
+    `const ${piece} = document.createElement("div");`,
+    `${piece}.style.textAlign = "center";`,
+    `${piece}.innerHTML = svg;`,
+    `document.querySelector("article").${ornament === "bandeau" ? "prepend" : "append"}(${piece});`,
   );
   else lines.push(
     'const margin = document.createElement("aside");',

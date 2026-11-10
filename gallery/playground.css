@@ -73,6 +73,9 @@ p { margin: 0 0 1em; }
 .sheet[data-side="left"] .text { grid-column: 3; }
 .garden { position: absolute; z-index: 0; pointer-events: none; }
 .garden svg { display: block; width: 100%; height: 100%; }
+/* A band's room in the text's flow, so the drawing laid under it never meets a line: before the entry for a headpiece,
+   after the introduction for a tailpiece. playground.ts sets its height from the band's. */
+.band[data-place="head"] { margin-bottom: 0.9rem; }
 
 .dateline { margin: 0 0 0.3rem; font-variant-caps: all-small-caps; letter-spacing: 0.08em; color: var(--muted); }
 h1 { margin: 0 0 0.9rem; font-size: 3rem; font-weight: 400; line-height: 1.05; letter-spacing: -0.02em; text-wrap: balance; }
@@ -109,12 +112,18 @@ h1 { margin: 0 0 0.9rem; font-size: 3rem; font-weight: 400; line-height: 1.05; l
 .words > * + *::before { content: "·"; display: inline-block; margin: 0 0.55em; color: var(--muted); text-decoration: none; }
 .words > * { min-width: 0; }
 .words > label, .words > .word { display: inline-flex; align-items: baseline; white-space: nowrap; }
+/* A break starts a second line of choices, such as the ornaments after the margin's placements, with no point before it. */
+.words > .break { flex-basis: 100%; height: 0; }
+.words > .break::before, .words > .break + *::before { content: none; }
 .words label { cursor: pointer; }
 .words input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .words input[type="radio"] + span { color: var(--muted); }
 .words input[type="radio"]:checked + span { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.25em; }
 .words label:hover span { color: var(--ink); }
 .words input[type="radio"]:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* A choice that does nothing for the garden's mode, such as a band's side, is muted, unmarked and cannot be chosen. */
+.words input[type="radio"]:disabled + span, .words label:hover input:disabled + span { color: var(--muted); text-decoration: none; }
+.words label:has(input:disabled) { cursor: default; }
 .word {
   padding: 0;
   border: 0;
@@ -249,6 +258,7 @@ textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--rule); backgrou
   .entry > .word { display: inline-flex; align-items: center; min-height: 2.75rem; margin-top: 0.4rem; }
   h1 { font-size: 2rem; margin-bottom: 0; }
   .gloss { display: block; margin-top: 0.2rem; font-size: 1.05rem; }
+  .entry + .band { margin: 0.4rem 0 0; }
   .phone-slot { padding: 1rem 1rem 0.5rem; }
   .setting { grid-template-columns: 4.8rem minmax(0, 1fr); gap: 0 0.7rem; }
   .note, .status { white-space: normal; }
