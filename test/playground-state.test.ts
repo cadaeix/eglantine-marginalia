@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { calendarDay } from "../src/calendar/index.js";
+import { calendarDay, figureGuest, HANAMI } from "../src/calendar/index.js";
 import { createGarden, defaultState, type Geometry, type PlaygroundState, randomDay, readState, resolveSelection, stateHash, usageCode } from "../gallery/garden-state.js";
 import { type Garden, ORNAMENTS } from "../src/garden.js";
 import { growGarden } from "../src/grow.js";
 
 const fallback = defaultState({ date: "2026-11-03" });
 
-/** The garden the website code grows, run with the library's main entry and the day it names. */
+/** The garden the website code grows, run with the library's main entry, the day it names and the guests it asks for. */
 function grownByCode(code: string, date: string): Garden {
   const call = /const garden = (growGarden\(\{[\s\S]*?\n\}\));/u.exec(code)![1]!;
-  return new Function("growGarden", "day", `return ${call};`)(growGarden, calendarDay(date)) as Garden;
+  return new Function("growGarden", "day", "figureGuest", `return ${call};`)(growGarden, calendarDay(date), figureGuest) as Garden;
 }
 
 describe("the playground's settings", () => {
@@ -65,6 +65,17 @@ describe("the playground's settings", () => {
     expect(garden.guests).toEqual(asked.guests);
     expect(usageCode(floating, geometry)).toContain('...(day.guest ? { guest: { ...day.guest, stance: "stems" } } : {}),');
     expect(usageCode(state, geometry)).toContain("...(day.guest ? { guest: day.guest } : {}),");
+  });
+
+  it("brings le lapin to the cherry in blossom from a link to the hidden hanami, and its website code asks for him too", async () => {
+    const state = readState("#source=plants&plant=hanami&mode=margin", fallback);
+    expect([state.source, state.plant]).toEqual(["plants", "hanami"]);
+    const geometry = { column: 6, height: 25, text: 10, below: 6, measure: 9 };
+    const { garden } = await createGarden(state, geometry);
+    expect(garden.guests).toHaveLength(1);
+    expect(JSON.stringify(grownByCode(usageCode(state, geometry), state.date))).toBe(JSON.stringify(garden));
+    const asked = growGarden({ seed: state.seed, form: HANAMI.plant.form, variant: HANAMI.plant.variant, width: 6, height: 25, guest: HANAMI.guest });
+    expect(garden.guests).toEqual(asked.guests);
   });
 
   it("grows a headpiece as wide as the text and keeps the day's animal, and its website code grows the same band", async () => {

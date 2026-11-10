@@ -1,3 +1,4 @@
+import { type CalendarGuest, HANAMI } from "../src/calendar/index.js";
 import type { Variant } from "../src/form.js";
 
 export interface PlantChoice {
@@ -9,6 +10,10 @@ export interface PlantChoice {
   readonly variant: Variant;
   /** The part the chooser draws: the bloom at the stem's end, a leaf, or the foot the plant stands on. */
   readonly part: "bloom" | "leaf" | "foot";
+  /** An animal that visits it, as a calendar day's guest does. */
+  readonly guest?: CalendarGuest;
+  /** Left out of the plant chooser: reached by a link, or by typing its name on the page. */
+  readonly hidden?: true;
 }
 
 export const PLANTS: readonly PlantChoice[] = [
@@ -21,6 +26,7 @@ export const PLANTS: readonly PlantChoice[] = [
   { id: "apple", name: "Apple", french: "la pomme", part: "bloom", description: "A round pome hangs from a leafy fruiting branch.", form: "arbre-fruitier", variant: { fruit: "pome", calyx: "eye", surface: "speckled", leaf: "serrate", stalk: 0.9 } },
   { id: "pear", name: "Pear", french: "la poire", part: "bloom", description: "A pear-shaped pome hangs from a leafy fruiting branch.", form: "arbre-fruitier", variant: { fruit: "pear", calyx: "eye", surface: "speckled", leaf: "simple", breadth: 1.1, stalk: 1.3, elong: 1.15 } },
   { id: "cherry-blossom", name: "Cherry blossom", french: "le cerisier en fleur", part: "bloom", description: "Clusters of notched five-petalled flowers open along a slender shoot, and shed their petals towards evening.", form: "arbre-fruitier", variant: { fruit: "drupe", cluster: "pair", size: 0.75, surface: "glossy", stalk: 2.2, leaf: "serrate", breadth: 0.85, blossom: true } },
+  { id: "hanami", name: "Hanami", french: "le lapin et le cerisier en fleur", part: "bloom", hidden: true, guest: HANAMI.guest, description: "A wild rabbit comes to see the cherry in blossom, and stays to watch its petals fall.", form: HANAMI.plant.form, variant: HANAMI.plant.variant },
   { id: "wheat", name: "Wheat", french: "le blé", part: "bloom", description: "A grass stem ends in a dense head of grain-bearing spikelets.", form: "epi-graminee", variant: { density: 1.3, nod: 0.15 } },
   { id: "lavender", name: "Lavender", french: "la lavande", part: "bloom", description: "Small lipped flowers cluster in a spike above narrow leaves.", form: "epi-aromatique", variant: { inflorescence: "spike", corolla: "lipped", leaf: "linear", opposite: true, habit: "shrub", size: 0.9, flowers: 1.4, length: 0.8, bare: 0.45, hairy: true } },
   { id: "elder", name: "Elder", french: "le sureau", part: "bloom", description: "A flat-topped cluster of small flowers sits above divided leaves.", form: "ombelle-corymbe", variant: { leaf: "pinnate" } },

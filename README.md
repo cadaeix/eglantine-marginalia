@@ -26,6 +26,8 @@ The settings choose another day or one of nineteen familiar plants, the time and
 
 The English day names come from the tables in Wikipedia's article on the French Republican calendar.
 
+For those who love rabbits, typing "usagi" or "hanami" anywhere on the page outside a field brings le lapin to see the cherry in blossom, and a link keeps him there.
+
 ## Usage
 
 ```sh
@@ -197,6 +199,15 @@ const svg = renderGarden(garden, { t: 0.5, fullness: 0.5 }, {
 ```
 
 On a complementary day, `day.plant` is the year's last plant and `day.festival` names the day's festival; [History](#history) explains the days, their guests and their festivals. An animal stands where its figure asks, most of them on a shoot of their own. To let it float among the stems instead, as every animal once did, grow the garden with `{ ...day.guest, stance: "stems" }` as its guest.
+
+`figureGuest` brings any figure to any plant as the guest its own day brings: `growGarden({ seed, form: "rosacee-coupe", guest: figureGuest("chat") })` lets le chat visit a rose, and its engraving is `figureURL("chat")`. `HANAMI` is a day outside the calendar, for those who love rabbits. Hanami is the viewing of the cherry blossom, and on it le lapin comes to see the calendar's cherry in flower and stays to watch its petals fall. It has a `plant` and a `guest` as a calendar day has, so it grows as one does:
+
+```ts
+import { figureURL, HANAMI } from "eglantine-marginalia/calendar";
+
+const garden = growGarden({ seed: 1793, form: HANAMI.plant.form, variant: HANAMI.plant.variant, guest: HANAMI.guest });
+const svg = renderGarden(garden, { t: 0.95, fullness: 0.8 }, { manner: "lavis", id: "hanami", scale: 36, guestFigure: figureURL(HANAMI.guest.figure).href });
+```
 
 ## Extending
 

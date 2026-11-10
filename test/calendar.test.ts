@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { calendarDay, DAYS, FIGURES, figureName, figureURL, localDate, nameFromArticle, PLANTS, republicanDate } from "../src/calendar/index.js";
+import { calendarDay, DAYS, FIGURES, figureGuest, figureName, figureURL, HANAMI, localDate, nameFromArticle, PLANTS, republicanDate } from "../src/calendar/index.js";
+import { growGarden } from "../src/grow.js";
 import { plantForm } from "../src/registry.js";
 
 describe("the Republican calendar", () => {
@@ -78,5 +79,20 @@ describe("a plant for every day", () => {
     expect(figureName("du bœuf")).toBe("boeuf");
     expect(figureName("du ver à soie")).toBe("ver-a-soie");
     expect(nameFromArticle("des épinards")).toBe("les épinards");
+  });
+});
+
+describe("guests away from their days", () => {
+  it("brings any figure to any plant as the guest its own day brings, and refuses a figure it does not know", () => {
+    const days = Array.from({ length: 360 }, (_, offset) => calendarDay(new Date(Date.UTC(2026, 8, 22 + offset)).toISOString().slice(0, 10)));
+    for (const day of days.filter(candidate => candidate.guest)) expect(figureGuest(day.guest!.figure)).toEqual(day.guest);
+    expect(() => figureGuest("licorne")).toThrow();
+  });
+
+  it("grows hanami: the calendar's cherry in blossom, visited by le lapin, shedding its petals", () => {
+    const garden = growGarden({ seed: 1793, form: HANAMI.plant.form, variant: HANAMI.plant.variant, guest: HANAMI.guest });
+    expect(HANAMI.guest.name).toBe("le lapin");
+    expect(garden.guests).toHaveLength(1);
+    expect(garden.items.some(item => item.kind === "motif" && item.name === "petal")).toBe(true);
   });
 });

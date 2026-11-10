@@ -350,7 +350,7 @@ function passDay(from: number, to: number, duration: number, record = true): voi
 function buildPlants(): void {
   const list = element("plants");
   if (list.childElementCount > 0) return;
-  for (const plant of PLANTS) {
+  for (const plant of PLANTS.filter(choice => !choice.hidden)) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "plant";
@@ -458,6 +458,19 @@ for (const button of document.querySelectorAll<HTMLButtonElement>(".random-visit
     if (hanging) announce("A hanging garden leaves its visitor out, so this one grows round the text.");
   });
 }
+// A secret for those who love rabbits: typing "usagi" or "hanami" anywhere outside a field brings le lapin to see the
+// cherry in blossom. A hanging garden would leave the rabbit out, so it grows round the text instead.
+const SECRETS = ["usagi", "hanami"];
+let typed = "";
+document.addEventListener("keydown", event => {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+  if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
+  typed = (typed + event.key.toLowerCase()).slice(-12);
+  if (!SECRETS.some(word => typed.endsWith(word))) return;
+  typed = "";
+  update({ source: "plants", plant: "hanami", ...(state.mode === "hanging" ? { mode: "page" as const } : {}) }, true);
+  announce("A rabbit has come to see the cherry in blossom.");
+});
 element("new-seed").addEventListener("click", () => update({ seed: crypto.getRandomValues(new Uint32Array(1))[0]! }, true));
 playButton.addEventListener("click", () => {
   if (animation) stopDay();

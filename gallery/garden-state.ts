@@ -172,7 +172,7 @@ export function resolveSelection(state: PlaygroundState): Selection {
   const value = normalize(state, defaultState());
   if (value.source === "plants") {
     const plant = PLANTS.find(candidate => candidate.id === value.plant)!;
-    return { title: plant.name, gloss: plant.french, dateline: "", about: plant.description, form: plant.form, variant: plant.variant, guest: null, festival: null };
+    return { title: plant.name, gloss: plant.french, dateline: "", about: plant.description, form: plant.form, variant: plant.variant, guest: plant.guest ?? null, festival: null };
   }
   const day = calendarDay(value.date);
   if (day.date.complementary) {
@@ -308,15 +308,23 @@ export function usageCode(state: PlaygroundState, geometry: Geometry): string {
     ...(festival ? ["  // A complementary day's festival does something to the year's last plant.", "  ...(day.festival ? { festival: day.festival } : {}),"] : []),
     "});",
   );
-  else lines.push("", "const garden = growGarden({", ...room,
-    `  seed: ${value.seed}, form: ${quote(selection.form)},`,
-    `  variant: ${quote(selection.variant)},`,
-    `  ${size}${page}`, "});");
+  else {
+    const figure = guest ? quote(selection.guest!.figure) : "";
+    if (guest) lines.push(`import { figureGuest, figureURL } from "eglantine-marginalia/calendar";`);
+    lines.push("", "const garden = growGarden({", ...room,
+      `  seed: ${value.seed}, form: ${quote(selection.form)},`,
+      `  variant: ${quote(selection.variant)},`,
+      `  ${size}${page}`,
+      ...(floating ? ["  // The animal floats among the stems, whatever its figure asks.", `  guest: { ...figureGuest(${figure}), stance: "stems" },`]
+        : guest ? [`  guest: figureGuest(${figure}),`] : []),
+      "});");
+  }
   lines.push(
     `const inks = paletteInks(${quote(value.palette)}, ${quote(value.reading)});`,
     `const svg = withInks(renderGarden(garden, { t: ${value.t}, fullness: ${value.fullness} }, {`,
     `  manner: ${quote(value.manner)}, id: ${quote(ornament ? piece : "margin")}, scale: 32,${value.mode === "hanging" ? " hanging: true," : ""}`,
-    ...(guest ? ["  ...(day.guest ? { guestFigure: figureURL(day.guest.figure).href } : {}),"] : []),
+    ...(!guest ? [] : value.source === "calendar" ? ["  ...(day.guest ? { guestFigure: figureURL(day.guest.figure).href } : {}),"]
+      : [`  guestFigure: figureURL(${quote(selection.guest!.figure)}).href,`]),
     "}), inks);", "",
   );
   if (value.mode === "page") lines.push(

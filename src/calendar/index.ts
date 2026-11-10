@@ -71,6 +71,35 @@ export function figureURL(figure: string): URL {
 }
 
 const plants = new Map(PLANTS.map(row => [row.day, row]));
+/** Each figure's day, as its name is written in the day names: "du lapin" for lapin. */
+const figureDays = new Map<string, string>();
+for (const article of DAYS) if (!figureDays.has(figureName(article))) figureDays.set(figureName(article), article);
+
+/**
+ * A figure as a garden's guest, for any plant: `figureGuest("lapin")` brings the rabbit of 15 nivôse to whatever the
+ * garden grows. It is the guest the figure's own day brings.
+ */
+export function figureGuest(figure: string): CalendarGuest {
+  const article = figureDays.get(figure);
+  if (!Object.hasOwn(FIGURES, figure) || article === undefined) throw new Error(`no figure ${figure}`);
+  const found = FIGURES[figure]!;
+  return { kind: found.kind, ...(found.stance ? { stance: found.stance } : {}), name: nameFromArticle(article), figure, aspect: found.aspect, size: FIGURE_SIZE[found.kind] };
+}
+
+/** The calendar's cherry, which 19 messidor grows in fruit. */
+const cherry = PLANTS.find(row => row.name === "de la cerise")!;
+/**
+ * A day outside the calendar, for those who love rabbits: hanami, the viewing of the cherry blossom. Le lapin comes
+ * to see the calendar's cherry in flower, and stays to watch its petals fall. It has a plant and a guest as a
+ * calendar day has, so it grows as one does.
+ */
+export const HANAMI: Pick<CalendarDay, "name" | "plant" | "festival"> & { readonly guest: CalendarGuest } = {
+  name: "hanami",
+  plant: { name: "le cerisier en fleur", form: cherry.form, variant: { ...cherry.variant, blossom: true } },
+  guest: figureGuest("lapin"),
+  festival: null,
+};
+
 /** The year's last plant, which the last day of fructidor grows: le marron. The complementary days hold their festivals with it. */
 const yearsPlant = PLANTS.reduce((last, row) => row.day > last.day ? row : last);
 
@@ -93,8 +122,7 @@ export function calendarDay(localDate: string): CalendarDay {
   let guest: CalendarGuest | null = null;
   if (kind !== "plant") {
     const figure = figureName(article);
-    const found = FIGURES[figure];
-    if (found) guest = { kind: found.kind, ...(found.stance ? { stance: found.stance } : {}), name: nameFromArticle(article), figure, aspect: found.aspect, size: FIGURE_SIZE[found.kind] };
+    if (Object.hasOwn(FIGURES, figure)) guest = figureGuest(figure);
   }
   return {
     date, dateline: `${date.day === 1 ? "1er" : date.day} ${MONTHS[date.month - 1]} an ${year}`, name: nameFromArticle(article), kind,
