@@ -1,6 +1,6 @@
 // Églantine: margin gardens in the manner of eighteenth-century French engraving. Grow a garden from a seed
 // and a plant form, then render it at any moment of the day as SVG.
-export { COLUMN, foliageShown, type Garden, type GardenItem, growGarden, type GrowSpec, type Guest, type GuestPlace, type GuestStance, type MotifItem, type Page, stageAt, stemShown, type StemItem } from "./grow.js";
+export { COLUMN, foliageShown, type Garden, type GardenItem, growGarden, type GrowSpec, type Guest, type GuestPlace, type GuestStance, type MotifItem, type Ornament, ORNAMENTS, type Page, stageAt, stemShown, type StemItem } from "./grow.js";
 export { type Festival, type FestivalModule, FESTIVALS } from "./festival.js";
 export { type Decorations, type Inlay, type Moment, renderGarden, type RenderOptions } from "./render.js";
 export { type Manner, paintShapes, Sheet } from "./paint.js";

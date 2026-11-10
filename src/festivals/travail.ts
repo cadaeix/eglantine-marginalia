@@ -8,6 +8,10 @@
 // rock) is cut above it and leaves it behind; a plant with no stems of its own is gathered as a faggot of
 // sticks bearing what it grows.
 //
+// A cul-de-lampe binds its spray in one sheaf, which tapers to its cut ends as the tailpiece does. A bandeau's
+// bed is bound as a row of small sheaves stood along the field, one for each of its plants, each opening
+// sooner above its tie, since a band's plants are short.
+//
 // Time brings the stalks up from their cut ends through the morning, as it brings any stem, and the tie once
 // they reach it; buds, blooms and seed keep the plant's own season. Fullness brings the foliage as it always does.
 import type { FestivalContext, FestivalModule } from "../festival.js";
@@ -44,12 +48,20 @@ const TURNS = 2;
  * bloom is drawn on, so each stick ends in it.
  */
 const STICKS: PlantForm["stems"] = { count: 3, amplitude: 0.05, lambda: [6, 9], width: 0.16, tops: [0.8, 0.68, 0.58] };
+/** A bed's sheaves are smaller: fewer stalks are added to each, as a share of a lone sheaf's. */
+const BED_EXTRAS = 0.45;
 
 /** A stalk of the sheaf as it is laid: its centreline from the cut end, widths and growth. */
 interface Stalk { points: Pt[]; w0: number; w1: number; born: number; grown: number; main: boolean }
 
+/** Where a sheaf is bound: the x it is gathered to, the room [x0, x1] its added heads keep to, and how far its cut ends splay from it. */
+interface Place { centre: number; room: [number, number]; spread: number }
+
+/** A sheaf as it is bound: its items, its own stalks, and where it stands. */
+interface Sheaf { items: GardenItem[]; mains: Pt[][]; centre: number; spread: number }
+
 function grow(context: FestivalContext): Garden {
-  const { rng, width: W } = context;
+  const { width: W } = context;
   // The plant is grown on bare ground: whatever it stood on is left behind, and a stemless plant gets sticks.
   const { foot: _foot, ...bare } = context.form;
   const form: PlantForm = bare.stems.count > 0 ? bare : { ...bare, stems: STICKS, nodes: { ...bare.nodes, below: 0 } };
@@ -59,28 +71,67 @@ function grow(context: FestivalContext): Garden {
   const branches = garden.items.filter((item): item is StemItem => item.kind === "stem" && !item.main && item.born > 0);
   const motifs = garden.items.filter((item): item is MotifItem => item.kind === "motif");
 
+  // Each plant is bound in a sheaf of its own: the column's and a cul-de-lampe's one plant, or each of a bed's,
+  // whose stems rise from its root.
+  let sheaves: Sheaf[];
+  if (context.ornament !== "bandeau") sheaves = [sheaf(context, form, mains, branches, motifs, { centre: W / 2, room: [0, W], spread: SPREAD })];
+  else {
+    const roots = [...new Set(mains.map(item => item.points[0]![0]))];
+    // A branch belongs to the plant whose stem it leaves, and a motif to the plant whose stem bears it, or else to the nearest.
+    const plantOf = new Map<string, number>();
+    const key = (p: Pt): string => `${p[0]},${p[1]}`;
+    for (const item of mains) for (const p of item.points) plantOf.set(key(p), roots.indexOf(item.points[0]![0]));
+    const branchesOf = roots.map((): StemItem[] => []), motifsOf = roots.map((): MotifItem[] => []);
+    for (const item of branches) {
+      const plant = plantOf.get(key(item.points[0]!));
+      if (plant === undefined) continue;
+      branchesOf[plant]!.push(item);
+      for (const p of item.points.slice(1)) plantOf.set(key(p), plant);
+    }
+    const nearest = (x: number): number => roots.reduce((best, root, index) => Math.abs(root - x) < Math.abs(roots[best]! - x) ? index : best, 0);
+    for (const item of motifs) motifsOf[plantOf.get(key(item.at)) ?? nearest(item.at[0])]!.push(item);
+    sheaves = roots.map((root, index) => {
+      const x0 = index === 0 ? 0 : (roots[index - 1]! + root) / 2, x1 = index === roots.length - 1 ? W : (root + roots[index + 1]!) / 2;
+      const spread = Math.min(SPREAD, Math.min(root - x0, x1 - root) * 0.55);
+      return sheaf(context, form, mains.filter(item => item.points[0]![0] === root), branchesOf[index]!, motifsOf[index]!, { centre: root, room: [x0, x1], spread });
+    });
+  }
+  return context.compose(sheaves.flatMap(bound => bound.items), {
+    mains: sheaves.flatMap(bound => bound.mains),
+    foot: r => sheaves.flatMap(bound => ground(r, bound.centre, bound.spread)),
+  });
+}
+
+/** Binds the plant's main stems, with the branches and motifs they bear, in a sheaf at `place`. */
+function sheaf(context: FestivalContext, form: PlantForm, mains: StemItem[], branches: StemItem[], motifs: MotifItem[], place: Place): Sheaf {
+  const { rng, width: W, ornament } = context;
+  const { centre } = place;
+
   // ---------------------------------------------------------------- the cut, the band and the map that binds
   const rootY = mains[0]!.points[0]![1];
   const shift = rootY + CUT - FOOT;
   const tallest = Math.max(...mains.map(item => item.points[item.points.length - 1]![1])) - shift;
   const band = FOOT + BAND * (tallest - FOOT);
   const waistLow = band - WAIST, waistTop = band + WAIST;
+  // A band's plants are short, so their sheaves open sooner above the tie, to the plant's own spread.
+  const splay = ornament ? Math.min(SPLAY, (tallest - waistTop) * 0.8) : SPLAY;
   /** The plant's axis at an original height: the mean of its main stems, each held at its tip beyond it. */
   const axisAt = (y: number): number => mains.reduce((sum, item) => sum + xAt(item.points, y), 0) / mains.length;
   const offsets = mains.map(item => Math.abs(xAt(item.points, band + shift) - axisAt(band + shift)));
   const width = form.stems.width;
-  const extras = clamp(Math.round(0.8 / width), 6, 16) + rng.int(0, 2);
+  const counted = clamp(Math.round(0.8 / width), 6, 16) + rng.int(0, 2);
+  const extras = ornament === "bandeau" ? Math.max(3, Math.round(counted * BED_EXTRAS)) : counted;
   const half = clamp(0.6 * Math.sqrt(extras + mains.length) * width, 0.16, 0.32);
   const squeeze = Math.min(0.4, half * 0.7 / Math.max(0.05, ...offsets));
   /**
-   * The binding: everything is lowered to the cut, and pinched horizontally toward the column's centre as a
+   * The binding: everything is lowered to the cut, and pinched horizontally toward the sheaf's centre as a
    * smooth function of height, tight in the waist and opening above it to the plant's own spread.
    */
   const bind = (p: Pt): Pt => {
     const y = p[1] - shift;
-    const open = smoothstep(waistTop, waistTop + SPLAY, y);
+    const open = smoothstep(waistTop, waistTop + splay, y);
     const axis = axisAt(p[1]);
-    return [lerp(W / 2, axis, open) + (p[0] - axis) * lerp(squeeze, 1, open), y];
+    return [lerp(centre, axis, open) + (p[0] - axis) * lerp(squeeze, 1, open), y];
   };
 
   // ---------------------------------------------------------------- the stalks: the plant's own, then more from the field
@@ -90,7 +141,7 @@ function grow(context: FestivalContext): Garden {
     .filter(({ upper }) => upper.length >= 3 && upper[upper.length - 1]![1] >= waistTop + 0.6);
   // The cut ends are spread evenly over the foot and dealt to the stalks at random, so that, running
   // straight from their ends into the tie, the stalks cross one another every way just under it.
-  const feet = shuffle(rng, Array.from({ length: rising.length + extras }, (_, k) => W / 2 + SPREAD * (((k + rng.range(0.2, 0.8)) / (rising.length + extras)) * 2 - 1)));
+  const feet = shuffle(rng, Array.from({ length: rising.length + extras }, (_, k) => centre + place.spread * (((k + rng.range(0.2, 0.8)) / (rising.length + extras)) * 2 - 1)));
   /** The stalk below the waist: nearly straight from its cut end up to `start`, bending only to arrive along `heading`. */
   const lower = (start: Pt, heading: Pt): Pt[] => {
     const from: Pt = [feet.pop()!, FOOT + rng.range(0, 0.06)];
@@ -150,19 +201,20 @@ function grow(context: FestivalContext): Garden {
   // ---------------------------------------------------------------- more stalks from the same field, each with its head and a leaf or two
   // Their heads stand at heights spread through the fan the binding has thinned, from just above the tie to
   // well into the plant; each leans the way that leaves it most room among the heads already there, and
-  // never out of the column.
+  // never out of its room. A band's short sheaf spreads them through its own height.
   const heads: Pt[] = kept.filter(item => item.layer >= LAYER.bloom).map(item => item.at);
   const crops: MotifItem[] = [];
   const motif = (name: string, at: Pt, angle: number, size: number, layer: number, born: number, staged: boolean, draw: MotifItem["draw"]): void => {
     const fit = fitted({ kind: "motif", order: 0, layer, name, at, angle, size, seed: Math.floor(rng.u() * 4294967295), born, staged, seedAt: 2, leafRank: null, draw }, W, context.height);
     if (fit) crops.push(fit);
   };
-  const lowest = 1.8, highest = Math.max(lowest + 0.5, (tallest - waistTop) * 0.66);
+  const lowest = ornament ? (tallest - waistTop) * 0.4 : 1.8;
+  const highest = ornament ? (tallest - waistTop) * 0.85 : Math.max(lowest + 0.5, (tallest - waistTop) * 0.66);
   const tiers = shuffle(rng, Array.from({ length: extras }, (_, k) => k));
   for (let k = 0; k < extras; k += 1) {
     // Stratified across the waist, so the bundle is full from edge to edge.
     const across = ((k + rng.range(0.15, 0.85)) / extras) * 2 - 1;
-    const start: Pt = [W / 2 + across * half * 0.92, waistLow];
+    const start: Pt = [centre + across * half * 0.92, waistLow];
     const size = rng.range(...form.terminal.size) * 0.72;
     const r = form.terminal.r(size);
     const up = lerp(lowest, highest, (tiers[k]! + rng.u()) / extras);
@@ -170,7 +222,7 @@ function grow(context: FestivalContext): Garden {
     for (let attempt = 0; attempt < 12; attempt += 1) {
       const l = clamp(across + rng.sym(0.8), -1, 1);
       const x = start[0] + Math.sin(l * FAN) * up * 0.9;
-      const margin = Math.min(x - r, W - x - r) - 0.3;
+      const margin = Math.min(x - r - place.room[0], place.room[1] - x - r) - 0.3;
       const free = Math.min(3, ...heads.map(head => Math.hypot(head[0] - x, head[1] - waistTop - up))) + Math.min(0, margin) * 4;
       if (free > room) { room = free; lean = l; }
     }
@@ -198,7 +250,7 @@ function grow(context: FestivalContext): Garden {
     }
   }
 
-  // ---------------------------------------------------------------- the garden: stalks, branches, the cut faces, the tie, the plant above
+  // ---------------------------------------------------------------- the sheaf: stalks, branches, the cut faces, the tie, the plant above
   const items: GardenItem[] = stalks.map((stalk): StemItem => ({ kind: "stem", order: 0, layer: mains[0]!.layer, ...stalk }));
   for (const item of branches) if (standing.has(item)) items.push({ ...item, points: item.points.map(bind) });
   const tied = Math.max(...stalks.map(stalk => {
@@ -208,25 +260,22 @@ function grow(context: FestivalContext): Garden {
   }));
   const ends = stalks.map(stalk => {
     const [a, b] = [stalk.points[0]!, stalk.points[1]!];
-    return { at: [a[0] - W / 2, a[1] - FOOT] as Pt, angle: Math.atan2(b[1] - a[1], b[0] - a[0]) - Math.PI / 2, w: stalk.w0 };
+    return { at: [a[0] - centre, a[1] - FOOT] as Pt, angle: Math.atan2(b[1] - a[1], b[0] - a[0]) - Math.PI / 2, w: stalk.w0 };
   });
   const xs = stalks.map(stalk => xAt(stalk.points, band));
   const girth = Math.max(...xs) - Math.min(...xs) + Math.max(...stalks.map(stalk => stalk.w0)) + ROPE * 0.6;
-  const centre = (Math.max(...xs) + Math.min(...xs)) / 2;
+  const middle = (Math.max(...xs) + Math.min(...xs)) / 2;
   const tieSide = rng.chance(0.5) ? 1 : -1;
   items.push(
-    { kind: "motif", order: 0, layer: CUT_LAYER, name: "cut ends", at: [W / 2, FOOT], angle: 90, size: 1, seed: Math.floor(rng.u() * 4294967295),
+    { kind: "motif", order: 0, layer: CUT_LAYER, name: "cut ends", at: [centre, FOOT], angle: 90, size: 1, seed: Math.floor(rng.u() * 4294967295),
       born: 0, staged: false, seedAt: 2, leafRank: null, draw: (r) => ends.flatMap(end => cutFace(r, end.at, end.angle, end.w)) },
-    { kind: "motif", order: 0, layer: TIE_LAYER, name: "tie", at: [centre, band], angle: 90, size: girth, seed: Math.floor(rng.u() * 4294967295),
+    { kind: "motif", order: 0, layer: TIE_LAYER, name: "tie", at: [middle, band], angle: 90, size: girth, seed: Math.floor(rng.u() * 4294967295),
       born: Math.min(0.5, tied), staged: false, seedAt: 2, leafRank: null, draw: (r, s) => tie(r, s, tieSide) },
     ...kept,
     ...crops,
   );
   const spread = Math.max(...ends.map(end => Math.abs(end.at[0]))) + 0.35;
-  return context.compose(items, {
-    mains: stalks.filter(stalk => stalk.main).map(stalk => stalk.points),
-    foot: (r, column) => ground(r, column.width / 2, spread),
-  });
+  return { items, mains: stalks.filter(stalk => stalk.main).map(stalk => stalk.points), centre, spread };
 }
 
 /**

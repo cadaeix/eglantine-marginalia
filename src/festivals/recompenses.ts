@@ -6,6 +6,10 @@
 // plant's own leaf, so the two are braided; acorns and the plant's fruit are tucked in among them. A ribbon
 // ties the knot, its loops spread and its two ends hanging, striped with the accent ink of a cockade.
 //
+// A cul-de-lampe holds the crown as the column does, its ribbon's ends hanging to the tailpiece's point. A
+// bandeau hangs a festoon from each side of the crown, braided the same way, sagging across the band and
+// caught up at its top corners by a bow of the same ribbon, as Louis XVI headpieces hang their garlands.
+//
 // The ribbon is there from dawn. The branches grow round from the knot through the morning, and their
 // leaves and fruit come as each branch passes; the fruit ripens towards evening, as a chestnut's burr
 // splits. Fullness brings the leaves in an order spread round the ring, so a quiet day shows a thin crown
@@ -155,45 +159,43 @@ function spread(count: number): number[] {
   return ranks;
 }
 
-function grow(context: FestivalContext): Garden {
-  const { rng, width: W, height: H } = context;
-  const scale = Math.min(1, W / 6);
-  const radius = RING * scale;
-  const centre: Pt = [W / 2, Math.min(context.ground - radius - 0.9 * scale, H * 0.6)];
-  const leaf = plantLeaf(context);
-  const fruit = plantFruit(context);
+/**
+ * A braided branch and its mirror: `path` is one branch in its own frame, from its cut end to its tip, set on
+ * the paper at `origin` and mirrored about it for the other. `toward` moves a point on the path to its
+ * outer side (a factor over 1) or its inner side (under 1), the outer side being left of the way it runs. Its
+ * leaves begin `first` of the way along it.
+ */
+interface Braid { path: Pt[]; origin: Pt; scale: number; first: number; toward: (at: Pt, heading: number, factor: number) => Pt }
+
+/** Lays a braid's two branches, the leaves along them, the leaf at each tip and the fruit tucked among them. */
+function braid(rng: Rng, leaf: (rng: Rng, s: number, bend: number) => Shape[], fruit: { draw: Draw; size: number }, b: Braid): GardenItem[] {
+  const { path, origin, scale, first, toward } = b;
   const seed = (): number => Math.floor(rng.u() * 4294967295);
-  // The left branch's line, from its cut end right of the knot round to its tip left of the top; the right one is its mirror.
-  const path = sample(u => {
-    const a = lerp(START, END, u) * RAD;
-    const r = radius * (1 + 0.1 * (1 - smoothstep(0, 0.16, u)));
-    return [Math.cos(a) * r, Math.sin(a) * r];
-  }, 80);
   const { at: lengths, total } = arcLength(path);
   const pointAt = (share: number): { at: Pt; heading: number } => {
     const goal = share * total;
     let k = 1;
     while (k < path.length - 1 && lengths[k]! < goal) k += 1;
-    const a = path[k - 1]!, b = path[k]!;
+    const a = path[k - 1]!, c = path[k]!;
     const f = (goal - lengths[k - 1]!) / Math.max(1e-9, lengths[k]! - lengths[k - 1]!);
-    return { at: [lerp(a[0], b[0], f), lerp(a[1], b[1], f)], heading: Math.atan2(b[1] - a[1], b[0] - a[0]) / RAD };
+    return { at: [lerp(a[0], c[0], f), lerp(a[1], c[1], f)], heading: Math.atan2(c[1] - a[1], c[0] - a[0]) / RAD };
   };
   const bornAt = (share: number): number => Math.min(GROWN, share * GROWN + 0.015);
-  const place = (p: Pt, hand: 1 | -1): Pt => [centre[0] + hand * p[0], centre[1] + p[1]];
+  const place = (p: Pt, hand: 1 | -1): Pt => [origin[0] + hand * p[0], origin[1] + p[1]];
   const turnHeading = (heading: number, hand: 1 | -1): number => hand === 1 ? heading : 180 - heading;
 
   const stems: GardenItem[] = [], leaves: MotifItem[] = [], fruits: GardenItem[] = [];
   for (const hand of [1, -1] as const) {
     stems.push({ kind: "stem", order: 0, layer: LAYER.stem, main: false, points: path.map(p => place(p, hand)), w0: 0.075 * scale, w1: 0.018 * scale, born: 0, grown: GROWN });
   }
-  // The leaves begin just past the knot and stand closer and smaller towards the tips.
-  const first = 0.15, nodes = Math.floor(total * (1 - first) / NODE);
+  // The leaves begin just past the cut end and stand closer and smaller towards the tips.
+  const nodes = Math.floor(total * (1 - first) / NODE);
   const ranks = spread(nodes);
   for (let k = 0; k < nodes; k += 1) {
     const share = first + (1 - first) * (k + 0.5) / nodes;
     const { at, heading } = pointAt(share);
     const taper = 1 - 0.45 * smoothstep(0.75, 1, share);
-    // The node is laid alike on both branches, so the crown stays symmetric as it fills; only the draws differ.
+    // The node is laid alike on both branches, so the braid stays symmetric as it fills; only the draws differ.
     // The plant's leaf is drawn a little longer than the oak's, as a chestnut's is, so the two read apart.
     const outward = rng.range(28, 38), inward = rng.range(18, 26);
     const oakLength = rng.range(0.92, 1.02), plantLength = rng.range(1.08, 1.22);
@@ -204,7 +206,7 @@ function grow(context: FestivalContext): Garden {
         const spreadAngle = inner ? -inward : outward;
         const size = (oak ? oakLength : plantLength) * (inner ? 0.9 : 1) * taper * scale;
         const bend = (inner ? 0.12 : 0.06) * hand;
-        const base: Pt = [at[0] * (inner ? 0.985 : 1.015), at[1] * (inner ? 0.985 : 1.015)];
+        const base = toward(at, heading, inner ? 0.985 : 1.015);
         leaves.push({
           kind: "motif", order: 0, layer: LEAVES, name: oak ? "oak" : "leaf", at: place(base, hand),
           angle: turnHeading(heading + spreadAngle, hand), size, seed: seed(), born: bornAt(share), staged: false, seedAt: 2,
@@ -214,7 +216,7 @@ function grow(context: FestivalContext): Garden {
       }
     }
   }
-  // Each branch ends in a single leaf of the plant along its line, where the two tips nearly meet.
+  // Each branch ends in a single leaf of the plant along its line.
   const tip = pointAt(1), tipLength = rng.range(0.6, 0.7) * scale;
   for (const hand of [1, -1] as const) {
     const bend = 0.1 * hand;
@@ -223,24 +225,58 @@ function grow(context: FestivalContext): Garden {
       seed: seed(), born: GROWN, staged: false, seedAt: 2, leafRank: 0, draw: (r, s) => leaf(r, s, bend),
     });
   }
-  // Fruit and acorns sit among the leaves at the ring's edge, pointing out and a little towards the tip.
+  // Fruit and acorns sit among the leaves at the outer edge, pointing out and a little towards the tip.
   for (const [shares, draw, size, name] of [[FRUITS, fruit.draw, fruit.size, "fruit"], [ACORNS, acorns, 0.75, "acorns"]] as const) {
     for (const share of shares) {
       const { at, heading } = pointAt(share);
       const tilt = rng.range(-35, -15);
       for (const hand of [1, -1] as const) {
         fruits.push({
-          kind: "motif", order: 0, layer: FRUIT, name, at: place([at[0] * 0.96, at[1] * 0.96], hand),
+          kind: "motif", order: 0, layer: FRUIT, name, at: place(toward(at, heading, 0.96), hand),
           angle: turnHeading(heading + 90 + tilt, hand), size: size * scale, seed: seed(), born: bornAt(share) + 0.02, staged: true, seedAt: 2, leafRank: null, draw,
         });
       }
     }
   }
+  return [...stems, ...leaves, ...fruits];
+}
+
+function grow(context: FestivalContext): Garden {
+  const { rng, width: W, height: H } = context;
+  const scale = Math.min(1, W / 6);
+  const radius = RING * scale;
+  const centre: Pt = [W / 2, Math.min(context.ground - radius - 0.9 * scale, H * 0.6)];
+  const leaf = plantLeaf(context);
+  const fruit = plantFruit(context);
+  // The left branch's line, from its cut end right of the knot round to its tip left of the top; the right one is its mirror.
+  const path = sample(u => {
+    const a = lerp(START, END, u) * RAD;
+    const r = radius * (1 + 0.1 * (1 - smoothstep(0, 0.16, u)));
+    return [Math.cos(a) * r, Math.sin(a) * r];
+  }, 80);
+  const crown = braid(rng, leaf, fruit, { path, origin: centre, scale, first: 0.15, toward: (at, _heading, factor) => [at[0] * factor, at[1] * factor] });
   // The ribbon's ends hang about 3 cm, or less in a column too short for them.
-  const knot = place([0, -radius * 1.06], 1);
+  const knot: Pt = [centre[0], centre[1] - radius * 1.06];
   const hang = Math.max(0.1, Math.min(scale, (knot[1] - 0.3) / 3));
-  const ribbon: MotifItem = { kind: "motif", order: 0, layer: RIBBON, name: "ribbon", at: knot, angle: 90, size: hang, seed: seed(), born: 0, staged: false, seedAt: 2, leafRank: null, draw: bow };
-  return context.compose([...stems, ...leaves, ...fruits, ribbon]);
+  const ribbon: MotifItem = { kind: "motif", order: 0, layer: RIBBON, name: "ribbon", at: knot, angle: 90, size: hang, seed: Math.floor(rng.u() * 4294967295), born: 0, staged: false, seedAt: 2, leafRank: null, draw: bow };
+  if (context.ornament !== "bandeau") return context.compose([...crown, ribbon]);
+
+  // A bandeau's festoons: each runs from a bow at a top corner of the band, sags across it and rises to slip its
+  // tip into the crown's side, so its leaves point to the crown. Its bow's loops reach about a centimetre to
+  // either side of the knot and above it.
+  const corner: Pt = [W / 2 - 1.25, H - 1.1];
+  const side: Pt = [radius + 0.35, centre[1] + 0.25];
+  const low = (11.2 - corner[1] - side[1]) / 6;
+  const swag = sample(bezier3(corner, [corner[0] - (corner[0] - side[0]) * 0.15, low], [side[0] + (corner[0] - side[0]) * 0.35, low], side), 60);
+  const festoons = braid(rng, leaf, fruit, {
+    path: swag, origin: [W / 2, 0], scale: scale * 0.85, first: 0.05,
+    toward: (at, heading, factor) => [at[0] + Math.cos((heading + 90) * RAD) * (factor - 1) * RING, at[1] + Math.sin((heading + 90) * RAD) * (factor - 1) * RING],
+  });
+  const bows = ([1, -1] as const).map((hand): MotifItem => ({
+    kind: "motif", order: 0, layer: RIBBON, name: "ribbon", at: [W / 2 + hand * corner[0], corner[1] + 0.1], angle: 90, size: 0.3, seed: Math.floor(rng.u() * 4294967295),
+    born: 0, staged: false, seedAt: 2, leafRank: null, draw: bow,
+  }));
+  return context.compose([...crown, ribbon, ...festoons, ...bows]);
 }
 
 export const festival: FestivalModule = { id: "recompenses", grow };

@@ -50,7 +50,8 @@ export interface RenderOptions {
    * The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by
    * that much. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and
    * its leaves fill the guest's room, with no empty shoots left where animals would have stood. A garden grown
-   * round a page cannot hang, since its runner and arcs would turn over onto the text.
+   * round a page cannot hang, since its runner and arcs would turn over onto the text, and nor can a bandeau or a
+   * cul-de-lampe, which stand on the band's foot.
    */
   hanging?: boolean;
   /** Marks to lay on the garden at this moment. */
@@ -78,14 +79,16 @@ const group = (at: Pt, angle: number, mirrored: boolean, body: string): string =
 export function renderGarden(garden: Garden, moment: Moment, options: RenderOptions): string {
   const hanging = options.hanging === true;
   if (hanging && garden.column[2] - garden.column[0] < garden.width) throw new RangeError("a garden grown round a page cannot hang");
+  if (hanging && garden.ornament) throw new RangeError(`a ${garden.ornament} cannot hang`);
   const sheet = new Sheet(options.id);
   const layers = new Map<number, string>();
   const add = (layer: number, body: string): void => { layers.set(layer, (layers.get(layer) ?? "") + body); };
   if (garden.foot) {
-    // The foot is drawn for the column and stands where the column does, never mirrored.
-    const [x0, , x1] = garden.column;
-    const foot = paintShapes(garden.foot.draw(createRng(garden.foot.seed), { width: x1 - x0, height: garden.height }, moment.t, moment.fullness), options.manner, sheet);
-    add(FOOT_LAYER, x0 === 0 ? foot : `<g transform="translate(${num(x0)} 0)">${foot}</g>`);
+    // The foot is drawn for its own column and stands where the garden puts it, never mirrored.
+    const { x, width, drop, scale } = garden.foot;
+    const foot = paintShapes(garden.foot.draw(createRng(garden.foot.seed), { width, height: (garden.height + drop) / scale }, moment.t, moment.fullness), options.manner, sheet);
+    const transform = `${x === 0 && drop === 0 ? "" : `translate(${num(x)} ${num(-drop)})`}${scale === 1 ? "" : ` scale(${num(scale)})`}`.trim();
+    add(FOOT_LAYER, transform ? `<g transform="${transform}">${foot}</g>` : foot);
   }
   for (const item of garden.items) {
     if (item.kind === "stem") {

@@ -39,7 +39,7 @@ const garden = growGarden({ seed: 1793, form: "capitule", variant: { rays: 21 } 
 const svg = renderGarden(garden, { t: 0.6, fullness: 0.4 }, { manner: "taille-douce", id: "margin", scale: 36 });
 ```
 
-`growGarden` lays the whole garden out once from its seed. `renderGarden` draws it at a moment and returns an SVG string. The garden fills a column 6 cm wide and 22 cm tall unless `width` and `height` say otherwise, and `scale` sets the pixels per centimetre. `id` prefixes the SVG's internal ids, so several gardens can share a page. The renderer encodes characters other than ASCII letters, digits and hyphens in internal SVG ids.
+`growGarden` lays the whole garden out once from its seed. `renderGarden` draws it at a moment and returns an SVG string. The garden fills a column 6 cm wide and 22 cm tall unless `width` and `height` say otherwise. With `ornament`, it grows instead as a headpiece or a tailpiece (see [Headpieces and tailpieces](#headpieces-and-tailpieces)). `scale` sets the pixels per centimetre. `id` prefixes the SVG's internal ids, so several gardens can share a page. The renderer encodes characters other than ASCII letters, digits and hyphens in internal SVG ids.
 
 A moment has two values between 0 and 1:
 
@@ -70,6 +70,21 @@ const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "taille-do
 
 With `hanging`, the garden hangs upside down from the top of its column, for a margin that begins under a page's header. The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by that much and needs no transform or clipping from the page. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and its leaves fill the room the guest would take, with no empty shoots left where animals would have stood. A garden grown round a page cannot hang, since its runner and arcs would turn over onto the text.
 
+## Headpieces and tailpieces
+
+```ts
+const garden = growGarden({ seed: 1793, form: "rosacee-coupe", ornament: "cul-de-lampe" });
+const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "taille-douce", id: "tailpiece", scale: 24 });
+```
+
+With `ornament`, a garden grows in a wide, short band as one of the ornaments that eighteenth-century printers set over and under a text, instead of in the margin's column. As a `bandeau`, the headpiece over a chapter, the plant grows as a bed of short plants that stand side by side along the band's foot, about 3 cm apart. The bed's outer two plants curl their roots into scrolls. As a `cul-de-lampe`, the tailpiece at a chapter's end, the plant sprays out to both sides from one root in the middle of the band's foot. The band's lower corners stay empty, so the spray narrows to its root as the tailpiece's inverted triangle does.
+
+A bandeau grows in 18 × 6 cm and a cul-de-lampe in 12 × 8 cm unless `width` and `height` say otherwise, and `ORNAMENTS` holds these sizes. The plants keep the sizes they have in the column, so a smaller drawing of a band comes from a smaller `scale`. A narrower band holds fewer plants. The growth loop keeps a band's drawing inside its top and its foot: it shrinks or leaves out any leaf or bloom whose drawing would run out. Leaves reach no more than about 3 mm past a band's ends.
+
+A plant with a foot stands on it in a band as well. A bed's foot runs the band's width, with one plant of the bed on the foot's crown, and a deep foot such as a rock section is lowered until only its top shows above the band's lower edge. A cul-de-lampe's foot is a column's width, centred under its root and shrunk to as little as 60%, so that a carrot's root or a turnip's swelling shows as the tailpiece's point. A longer root runs on past the band's lower edge. A foot that is the whole plant, such as the dead birch of l'amadouvier, is shrunk until it fits.
+
+The day's guest comes into a band as it does into the column: an animal stands on a shoot of its own where the band leaves room for one, and a tool lies among the plants. A figure taller than the band allows, such as the incubator of le couvoir, is drawn smaller. A band cannot hang, since it stands on its foot. Nor can it reach round a page, since it lies over or under the text rather than beside it.
+
 ## Festivals
 
 ```ts
@@ -88,6 +103,8 @@ The French Republican calendar names its complementary days for festivals rather
 | `revolution` | jour de la révolution | leaves a single seed in the middle of the column, whose root comes out towards evening |
 
 Time and fullness bring a festival garden as they bring any other, and still never take back what they have shown. Virtue, which has no foliage, does not answer to fullness, and Opinion's marks come in with it: the more the page writes, the more the margin writes back. A form can draw two things for the festivals, `husk` and `kernel` (see `PlantForm` in `src/form.ts`); le marron's form draws its empty burr and its chestnut. A plant without them keeps its stems bare under Virtue, stakes its quill in a mound of earth under Genius, and leaves its bloom gone to seed under the Revolution.
+
+A festival keeps its idea in a headpiece or a tailpiece. Virtue and the Revolution grow in a band as they do in the column. Genius stakes a single quill in the middle of a bed, where the middle plant climbs it and the others lean towards it. In a cul-de-lampe the quill stands at the root, and every stem of the spray winds up its shaft before it arches out. Labour binds each plant of a bed in a small sheaf of its own, and a cul-de-lampe in a single sheaf that tapers to its cut ends. Opinion writes a line of scrawl along a band's thin sky and more lines where the band is emptiest, a cul-de-lampe's lower corners among them. Rewards keeps its crown in a cul-de-lampe, with the ribbon's ends hanging to the tailpiece's point. In a bandeau it hangs a festoon of oak and leaves from each side of the crown, caught up by bows at the band's top corners.
 
 ## In a browser, lightly
 
@@ -185,7 +202,7 @@ On a complementary day, `day.plant` is the year's last plant and `day.festival` 
 
 `renderGarden` takes a `decorate` option that lays further marks on a garden. An inlay lies at a numbered layer among the plant's parts, inside the wash, and the `under` and `over` marks lie beneath and above the whole garden. Decoration strings are raw SVG and must come from trusted sources.
 
-The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres and a foot is placed within that column, so a much narrower or shorter column crowds the plants and a much larger one spreads them out. A garden on a page holds more of each motif in proportion to its room, at the same sizes, so it fills the page rather than thinning out. A larger drawing of the same garden comes from a larger `scale`.
+The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres and a foot is placed within that column, so a much narrower or shorter column crowds the plants and a much larger one spreads them out. A garden on a page or in a band holds more of each motif in proportion to its room, at the same sizes, so it fills the room rather than thinning out. A larger drawing of the same garden comes from a larger `scale`.
 
 ## Development
 

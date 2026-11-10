@@ -4,7 +4,9 @@
 // cheeky hand goes over the engraving in red chalk. Its blooms and fruit get faces, with eyebrows and curled
 // moustaches, a wig, a bonnet or a long nose; a leaf or two is struck out; an arrow points at the best of the
 // caricatures; and a child's illegible running hand fills the open sky above the plant and, on a page, the room
-// under the text, creeping onto the text block itself. It is the one day the margin writes on the text.
+// under the text, creeping onto the text block itself. It is the one day the margin writes on the text. A band's
+// sky is a thin strip, so the hand writes one row along it, broken into lines, and two or three more lines where
+// the plant leaves the band emptiest, as in a cul-de-lampe's open lower corners, with an arrow from one of them.
 //
 // The marks lie over everything, at layer 7 and above, in the accent ink. Each comes a little after what it
 // sits on, and they come in as the day fills, as foliage does: the more the page writes, the more the margin
@@ -180,7 +182,7 @@ function rature(rng: Rng, s: number): Shape[] {
 }
 
 function grow(context: FestivalContext): Garden {
-  const { rng, ground, spec } = context;
+  const { rng, ground, spec, ornament } = context;
   const garden = context.grow();
   const { mirrored, width: canvas, height: H } = garden;
   const [cx0, , cx1] = garden.column;
@@ -214,10 +216,11 @@ function grow(context: FestivalContext): Garden {
   // each modelled form of a fruit's size the foot draws at the end of a full day, coming when the foot first shows it.
   const foot = garden.foot;
   if (sitters.length < 2 && foot) {
-    const columnSize = { width: cx1 - cx0, height: H };
+    // The foot is drawn for its own column, scaled and lowered where the garden puts it.
+    const columnSize = { width: foot.width, height: (H + foot.drop) / foot.scale };
     const forms = (t: number) => foot.draw(createRng(foot.seed), columnSize, t, 1).flatMap(shape => {
       if (shape.type !== "body") return [];
-      const xs = shape.outline.map(p => p[0] + cx0), ys = shape.outline.map(p => p[1]);
+      const xs = shape.outline.map(p => foot.x + p[0] * foot.scale), ys = shape.outline.map(p => p[1] * foot.scale - foot.drop);
       const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
       return x1 - x0 > 0.5 && x1 - x0 < 2.5 && y1 - y0 > 0.35 && y1 - y0 < 2 ? [{ centre: [(x0 + x1) / 2, (y0 + y1) / 2] as Pt, span: Math.min(x1 - x0, y1 - y0) }] : [];
     });
@@ -255,28 +258,39 @@ function grow(context: FestivalContext): Garden {
     });
   }
 
-  // The running hand. Lines fill the sky over the column; on a page two or three lines find the emptiest bands
-  // of the room under the text, which the plant's arcs fill, and two or three more, one of them slanting across,
-  // write on the text block itself, coming in last and only on a full day.
+  // The running hand. Lines fill the sky over the column, or run along a band's thin sky; on a page two or three
+  // lines find the emptiest bands of the room under the text, which the plant's arcs fill, and two or three more,
+  // one of them slanting across, write on the text block itself, coming in last and only on a full day. A band
+  // has its emptiest places written in as a page's room is.
   const lines: { x0: number; x1: number; y: number; rank: number; tilt: number }[] = [];
   const [sx0, sx1] = [cx0 + EDGE, cx1 - EDGE];
-  const rows: number[] = [];
-  for (let y = ground + 0.35 + rng.range(0, 0.15); y < H - 0.5; y += rng.range(0.42, 0.6)) if (rng.chance(0.85)) rows.push(y);
-  rows.forEach((y, k) => {
-    const x = sx0 + rng.range(0, (sx1 - sx0) * 0.2);
-    const end = sx1 - rng.range(0, (sx1 - sx0) * 0.35);
-    if (end - x > 0.8) lines.push({ x0: x, x1: end, y, rank: 0.05 + 0.9 * (k + rng.u()) / rows.length, tilt: 0 });
-  });
-  const page = spec.page;
-  if (page) {
-    const [tx0, tx1] = page.side === "left" ? [cx1 + 0.4, canvas - EDGE] : [EDGE, cx0 - 0.4];
-    // What the garden already draws under the text: stem points, and each motif as a disc about its place.
+  if (!ornament) {
+    const rows: number[] = [];
+    for (let y = ground + 0.35 + rng.range(0, 0.15); y < H - 0.5; y += rng.range(0.42, 0.6)) if (rng.chance(0.85)) rows.push(y);
+    rows.forEach((y, k) => {
+      const x = sx0 + rng.range(0, (sx1 - sx0) * 0.2);
+      const end = sx1 - rng.range(0, (sx1 - sx0) * 0.35);
+      if (end - x > 0.8) lines.push({ x0: x, x1: end, y, rank: 0.05 + 0.9 * (k + rng.u()) / rows.length, tilt: 0 });
+    });
+  } else {
+    const y = ground + 0.2 + rng.range(0, 0.1);
+    const runs: [number, number][] = [];
+    for (let x = sx0 + rng.range(0, 1.5); x < sx1 - 1.5;) {
+      const end = Math.min(sx1, x + rng.range(2.5, 5));
+      runs.push([x, end]);
+      x = end + rng.range(1, 3);
+    }
+    runs.forEach(([x0, x1], k) => lines.push({ x0, x1, y, rank: 0.05 + 0.9 * (k + rng.u()) / runs.length, tilt: 0 }));
+  }
+  /** Up to three lines in the emptiest bands of the room [x0, x1] × [y0, y1], measured against what the garden already draws there. */
+  const emptiest = (x0: number, x1: number, y0: number, y1: number): { x0: number; x1: number; y: number }[] => {
+    // What the garden already draws: stem points, and each motif as a disc about its place.
     const crowd: [number, number, number][] = garden.items.flatMap((item): [number, number, number][] =>
       item.kind === "stem" ? item.points.filter((_, k) => k % 2 === 0).map(([x, y]): [number, number, number] => [x, y, 0.1])
         : [[item.at[0], item.at[1], item.size * 0.6]]);
     const candidates: { x0: number; x1: number; y: number; score: number }[] = [];
-    for (let y = 0.5; y < page.below - 0.5; y += 0.3) for (let x = tx0; x < tx1 - 2.5; x += 0.8) {
-      const end = Math.min(tx1, x + rng.range(2.5, 4.5));
+    for (let y = y0; y < y1; y += 0.3) for (let x = x0; x < x1 - 2.5; x += 0.8) {
+      const end = Math.min(x1, x + rng.range(2.5, 4.5));
       const score = crowd.filter(([px, py, r]) => px + r > x - 0.2 && px - r < end + 0.2 && py + r > y - 0.25 && py - r < y + 0.5).length;
       candidates.push({ x0: x, x1: end, y, score });
     }
@@ -287,7 +301,15 @@ function grow(context: FestivalContext): Garden {
       if (room.some(o => Math.abs(o.y - c.y) < 0.6)) continue;
       room.push(c);
     }
+    return room;
+  };
+  const roomLines = (room: { x0: number; x1: number; y: number }[]): void =>
     room.forEach((c, k) => lines.push({ x0: c.x0, x1: c.x1, y: c.y, rank: 0.2 + 0.25 * k + rng.range(0, 0.15), tilt: 0 }));
+  if (ornament) roomLines(emptiest(sx0, sx1, 0.5, ground - 0.5));
+  const page = spec.page;
+  if (page) {
+    const [tx0, tx1] = page.side === "left" ? [cx1 + 0.4, canvas - EDGE] : [EDGE, cx0 - 0.4];
+    roomLines(emptiest(tx0, tx1, 0.5, page.below - 0.5));
     const written = rng.int(2, 3);
     for (let k = 0; k < written; k += 1) {
       const x = tx0 + rng.range(0.3, (tx1 - tx0) * 0.4);
@@ -305,13 +327,33 @@ function grow(context: FestivalContext): Garden {
       : scrawl(r, length, x).map(shape => shape.type === "line" ? { ...shape, points: shape.points.map(([px, py]): Pt => [px * c - py * s, px * s + py * c]) } : shape));
   });
 
-  // An arrow from the end of a line of scrawl in the sky down to the highest caricature, as if the writing were about it.
-  const target = faces.reduce<typeof faces[number] | undefined>((best, f) => best && best.centre[1] >= f.centre[1] ? best : f, undefined);
-  const from = lines.find(line => line.y > ground);
-  if (target && from) {
-    const tail: Pt = [clamp(target.centre[0] + rng.sym(1), cx0 + EDGE + 0.3, cx1 - EDGE - 0.3), from.y - 0.15];
-    const to: Pt = [target.centre[0] - tail[0], target.centre[1] + target.size * 0.65 - tail[1]];
-    if (to[1] < -0.5 && Math.hypot(to[0], to[1]) < 5) mark("arrow", SCRAWL, tail, Math.max(target.born, 0.25 + 0.7 * from.rank) + 0.03, Math.max(from.rank, 0.12) + 0.01, r => arrow(r, to));
+  // An arrow from the end of a line of scrawl in the sky down to the highest caricature, as if the writing were
+  // about it. A band's sky is too close over its caricatures, so there the arrow leaves the end of a line, those
+  // in the band's empty places first, for the nearest caricature it can point at from there.
+  if (!ornament) {
+    const target = faces.reduce<typeof faces[number] | undefined>((best, f) => best && best.centre[1] >= f.centre[1] ? best : f, undefined);
+    const from = lines.find(line => line.y > ground);
+    if (target && from) {
+      const tail: Pt = [clamp(target.centre[0] + rng.sym(1), cx0 + EDGE + 0.3, cx1 - EDGE - 0.3), from.y - 0.15];
+      const to: Pt = [target.centre[0] - tail[0], target.centre[1] + target.size * 0.65 - tail[1]];
+      if (to[1] < -0.5 && Math.hypot(to[0], to[1]) < 5) mark("arrow", SCRAWL, tail, Math.max(target.born, 0.25 + 0.7 * from.rank) + 0.03, Math.max(from.rank, 0.12) + 0.01, r => arrow(r, to));
+    }
+  } else {
+    for (const from of [...lines].reverse()) {
+      let best: { tail: Pt; to: Pt; born: number } | null = null;
+      for (const end of [from.x0 - 0.15, from.x1 + 0.15]) for (const f of faces) {
+        const tail: Pt = [end, from.y + 0.1];
+        const away = Math.hypot(f.centre[0] - tail[0], f.centre[1] - tail[1]);
+        const reach = away - f.size * 0.6;
+        if (reach < 0.8 || reach > 4 || (best && reach >= Math.hypot(...best.to))) continue;
+        const share = reach / away;
+        best = { tail, to: [(f.centre[0] - tail[0]) * share, (f.centre[1] - tail[1]) * share], born: f.born };
+      }
+      if (!best) continue;
+      const { tail, to, born } = best;
+      mark("arrow", SCRAWL, tail, Math.max(born, 0.25 + 0.7 * from.rank) + 0.03, Math.max(from.rank, 0.12) + 0.01, r => arrow(r, to));
+      break;
+    }
   }
 
   // The marks are numbered after the plant's items.

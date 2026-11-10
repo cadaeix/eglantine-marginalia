@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type CalendarDay, calendarDay } from "../src/calendar/index.js";
-import { COLUMN, type Garden, type GuestPlace, growGarden, type StemItem } from "../src/grow.js";
+import { COLUMN, type Garden, type GuestPlace, growGarden, ORNAMENTS, type StemItem } from "../src/grow.js";
 
 const epoch = Date.UTC(1792, 8, 22);
 const days = Array.from({ length: 360 }, (_, offset) => calendarDay(new Date(epoch + offset * 86_400_000).toISOString().slice(0, 10)))
@@ -88,6 +88,23 @@ describe("calendar guests", () => {
           expect(Math.abs(guest.at[1] - other.at[1]), label).toBeGreaterThanOrEqual(guest.height + 1 - 1e-10);
         }
       }
+    }
+  }, 120_000);
+
+  it.each(["bandeau", "cul-de-lampe"] as const)("brings every animal and tool into a %s once, wholly inside the band", ornament => {
+    for (const day of days) {
+      const garden = growGarden({ seed: 1793, form: day.plant.form, variant: day.plant.variant, guest: day.guest!, ornament });
+      const label = day.guest!.figure;
+      expect(garden.guests, label).toHaveLength(1);
+      const guest = garden.guests[0]!;
+      const angle = guest.angle * Math.PI / 180;
+      const halfSpan = (guest.width * Math.abs(Math.cos(angle)) + guest.height * Math.abs(Math.sin(angle))) / 2;
+      const halfRise = (guest.width * Math.abs(Math.sin(angle)) + guest.height * Math.abs(Math.cos(angle))) / 2;
+      const { width, height } = ORNAMENTS[ornament];
+      expect(guest.at[0] - halfSpan, label).toBeGreaterThanOrEqual(0);
+      expect(guest.at[0] + halfSpan, label).toBeLessThanOrEqual(width);
+      expect(guest.at[1] - halfRise, label).toBeGreaterThanOrEqual(0);
+      expect(guest.at[1] + halfRise, label).toBeLessThanOrEqual(height);
     }
   }, 120_000);
 

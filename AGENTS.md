@@ -45,6 +45,7 @@ The tests hold most of these. Keep them holding rather than loosening a test.
 - **A seed is a garden.** The same spec grows the same garden. The guest draws from its own random stream, so placing one never shifts the layout's other draws.
 - **A moment only reveals.** The layout is fixed at growth; `t` and `fullness` only reveal it. Nothing shown at one moment disappears at a later time or a greater fullness. A quiet day shows fewer leaves (never under 30%) and the same blooms.
 - **The column is the unit.** Forms are drawn for the 6 × 22 cm column, with sizes in centimetres. Plants keep inside it and leave its top fifth as sky. On a page, the garden never draws over the text, and a right-hand page is the mirror of a left-hand one.
+- **A band keeps inside itself, and leaves the column alone.** A bandeau or a cul-de-lampe (`ornament`) grows at the forms' own sizes. Nothing in it is drawn past its top or its foot, and leaves reach no more than about 3 mm past its ends. Band code never changes a column garden: the column's random draws keep their order, and its arithmetic keeps its last bit.
 - **Colour and moment never regrow.** Changing the palette, its light, `t` or `fullness` must not regrow the garden, in the library or the playground.
 - **Strict TypeScript.** `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` and `verbatimModuleSyntax` are on: type-only imports use `import type`, and relative imports end in `.js`.
 - **SVG safety.** Guest URLs are escaped and id prefixes are encoded. `decorate` strings are raw SVG from trusted callers.
@@ -67,10 +68,11 @@ The tests hold most of these. Keep them holding rather than loosening a test.
 
 A festival does something to a plant: `growGarden({ …, festival })`, for any plant. Each lives in `src/festivals/<id>.ts` and exports `festival: FestivalModule`. Like the forms, festivals are listed by hand twice: in `registry.ts` for the main entry, which takes their ids, and in `load-festival.ts` for the light entry, which takes their modules, so a light page carries no festival it does not hold. Their ideas came from Camille. A festival builds its garden through the context it is given, never by importing the growth loop:
 
-- `context.grow()` grows the plant's ordinary garden. It can grow it in the column alone (`page: false`), from another form, or with main stems laid by `mains`.
+- `context.grow()` grows the plant's ordinary garden. It can grow it in the column alone (`page: false`), from another form, or with main stems laid by `mains`, which receives the stem the loop would lay itself (`laid`) to follow or bend.
 - `context.compose(items)` makes a garden from items laid out in the column. It numbers them, ripens them as the loop does, and sets the column on the page.
+- In a bandeau or a cul-de-lampe, `context.ornament`, the band's `width` and `height`, `footWidth` and `laid` say where the plant stands. A festival fits itself to the band from these, never by copying the loop's layout.
 
-`test/festivals.test.ts` holds every festival to the garden invariants, on a grain, a flower, a climber, a footed plant and a stemless one. Only Opinion's marks (layer 7 and up) may write over a page's text. A form can offer the festivals its `husk` and `kernel`, which only `arbre-fruitier`'s chestnut draws so far. Code shared by a form and a festival but not by most forms, such as the oak leaf in `src/leaves.ts`, stays out of `kit.ts`, which every form loads and the toolkit exports.
+`test/festivals.test.ts` holds every festival to the garden invariants, on a grain, a flower, a climber, a footed plant and a stemless one, in the column, on a page and in both bands. Only Opinion's marks (layer 7 and up) may write over a page's text. A form can offer the festivals its `husk` and `kernel`, which only `arbre-fruitier`'s chestnut draws so far. Code shared by a form and a festival but not by most forms, such as the oak leaf in `src/leaves.ts`, stays out of `kit.ts`, which every form loads and the toolkit exports.
 
 ## Guest figures
 

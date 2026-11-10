@@ -8,6 +8,11 @@
 // mound of earth, and a fruit that leaves a husk, as the chestnut leaves its burr, stands it in the empty husk:
 // "la plume plantée dans la bogue". The quill is there from dawn; time brings the plant up it as it brings
 // stems on any day, and fullness, which counts the words written, brings the leaves.
+//
+// In a bandeau the quill stands in the middle of the bed, in a smaller pot, and the plant there twines up it while
+// the rest of the bed leans a little towards it. In a cul-de-lampe it stands at the spray's one root: every stem
+// winds up its shaft, the outer ones leaving it lowest to arch out to the sides, and the middle one goes on to the
+// vanes. A band's quill reaches the top of its plants, and its vanes are narrowed to its shorter length.
 import type { FestivalContext, FestivalModule } from "../festival.js";
 import { type Foot, LAYER } from "../form.js";
 import type { Garden, GardenItem, MotifItem, StemItem } from "../garden.js";
@@ -31,17 +36,32 @@ const BARREL = 0.17, VANES = 0.5;
 const NARROW = 0.42, BROAD = 0.7;
 /** The empty husk's width and the mound's, in centimetres. */
 const HUSK_WIDTH = 2.3, MOUND_WIDTH = 2.6;
+/** In a band, génie keeps its pot no taller than this share of the band's height, so the band shows it whole on its foot. */
+const BAND_POT = 0.22;
+/** In a band, génie winds its stems this much more tightly, to make a turn or two on the short shaft before they leave it. */
+const BAND_TURN = 0.45;
+/** Where génie stands a bed's plants on bare ground, the quill's among them. */
+const BED_ROOT = 0.5;
+/** In a band, each stem's twining starts this far round the shaft from the one before: the golden angle, so any number of them spread evenly. */
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+
+/** The quill as it stands: its nib's place, its length, how high its shaft is bare, and above what height stems cross in front of it. */
+interface Stake { x: number; base: number; length: number; bare: number; clear: number }
 
 function grow(context: FestivalContext): Garden {
-  const { form, rng, width: W, height: H, spec } = context;
+  const { form, rng, width: W, height: H, spec, ornament } = context;
   const mirrored = spec.page?.side === "right";
+  const bed = ornament === "bandeau";
   const lean = rng.sym(2.5);
   const broad: 1 | -1 = rng.chance(0.5) ? 1 : -1;
   const bow = broad * rng.range(0.2, 0.4);
-  const lambda = rng.range(2.2, 2.8), phase = rng.range(0, 2 * Math.PI);
+  const lambda = rng.range(2.2, 2.8) * (ornament ? BAND_TURN : 1), phase = rng.range(0, 2 * Math.PI);
   const away: 1 | -1 = rng.chance(0.5) ? 1 : -1;
+  // A band lays more main stems than the plant has; the sways of the stems past the plant's own are drawn as they come.
   const sways = Array.from({ length: form.stems.count }, () => noise1(rng));
+  const swayOf = (k: number): (x: number) => number => sways[k] ??= noise1(rng);
   const quillSeed = Math.floor(rng.u() * 4294967295), potSeed = Math.floor(rng.u() * 4294967295);
+  const { footWidth } = context;
 
   // What the quill stands in: the plant's own foot, or a husk or mound drawn over the quill's buried end.
   let pot: { draw: MotifItem["draw"]; size: number; name: string; at: number } | null = null;
@@ -53,59 +73,134 @@ function grow(context: FestivalContext): Garden {
     clear = foot.crown[1] + 0.4;
     share = foot.crown[0];
     // With no stems to twine round it, the quill stands behind what the foot draws, a little to the side of
-    // its crown where the column is wider, as a stake pushed into the ground behind a stump.
-    if (form.stems.count === 0) share = clamp(share + (share < 0.5 ? 1 : -1) * 1.5 / W, 1 / W, 1 - 1 / W);
+    // its crown where the column is wider, as a stake pushed into the ground behind a stump. A band places it
+    // once it knows where it has drawn the foot.
+    if (form.stems.count === 0 && !ornament) share = clamp(share + (share < 0.5 ? 1 : -1) * 1.5 / W, 1 / W, 1 - 1 / W);
   } else {
     let top: number, half: number, crown: number;
     if (form.husk) {
       // The husk is measured once, so it stands at the width wanted whatever its form draws, its stalk on the
-      // soil line; a little earth heaped round its foot hides the stalk.
+      // soil line; a little earth heaped round its foot hides the stalk. A band draws it smaller if it must.
       const husk = form.husk;
       const bounds = extent(husk(createRng(potSeed), 1));
-      const size = HUSK_WIDTH / (bounds[2] - bounds[0]);
-      const bottom = SOIL + Math.max(0, bounds[1]) * size, height = (bounds[3] - Math.max(0, bounds[1])) * size;
-      pot = { draw: (r, s) => [...husk(r, s), ...mound(r, HUSK_WIDTH * 0.72)], size, name: "husk", at: SOIL };
-      top = bottom + height; half = HUSK_WIDTH / 2; crown = bottom + height * 0.55; base = bottom + height * 0.45;
+      const across = bounds[2] - bounds[0], tall = bounds[3] - Math.max(0, bounds[1]);
+      const size = ornament ? Math.min(HUSK_WIDTH / across, H * BAND_POT / tall) : HUSK_WIDTH / across;
+      const wide = ornament ? size * across : HUSK_WIDTH;
+      const bottom = SOIL + Math.max(0, bounds[1]) * size, height = tall * size;
+      pot = { draw: (r, s) => [...husk(r, s), ...mound(r, wide * 0.72)], size, name: "husk", at: SOIL };
+      top = bottom + height; half = wide / 2; crown = bottom + height * 0.55; base = bottom + height * 0.45;
     } else {
       const height = MOUND_WIDTH * 0.22;
       pot = { draw: mound, size: MOUND_WIDTH, name: "earth", at: SOIL };
       top = SOIL + height; half = MOUND_WIDTH / 2; crown = SOIL + height * 0.7; base = SOIL + height * 0.3;
     }
     clear = top + 0.1;
-    foot = { crown: [0.5, crown], room: [[0.5 - (half + 0.1) / W, 0, 0.5 + (half + 0.1) / W, top]], scroll: false, draw: ground };
+    // A bed's plants stand on bare ground, the quill's among them, its root hidden in the pot drawn over it, and
+    // the bed's outer plants curl their roots as they would on any day.
+    if (bed) crown = BED_ROOT;
+    foot = { crown: [0.5, crown], room: [[0.5 - (half + 0.1) / footWidth, 0, 0.5 + (half + 0.1) / footWidth, top]], scroll: bed, draw: ground };
     share = 0.5;
   }
-  const length = (clamp(H * REACH, base + 6, H - 0.4) - base) / Math.cos(lean * RAD);
-  // The quill's axis in the layout before a right-hand page is mirrored: it leans by `lean` degrees towards -x.
-  const rootX = W * (mirrored ? 1 - share : share);
-  const axis = (y: number): number => rootX - (y - base) * Math.tan(lean * RAD);
-  const bare = base + length * (VANES - 0.04) * Math.cos(lean * RAD);
+  const cos = Math.cos(lean * RAD);
+  /** The quill with its nib at (x, nib) and `length` long. */
+  const stake = (x: number, nib: number, length: number, above: number): Stake => ({ x, base: nib, length, bare: nib + length * (VANES - 0.04) * cos, clear: above });
+  // In a band the quill is placed once the garden gives its plant a root, as deep below it as the foot puts it,
+  // and reaches the top of the band's plants.
+  const settle = (x: number, nib: number): Stake => stake(x, nib, (context.ground - nib) / cos, nib + clear - base);
+  // In the column the quill stands where the foot puts it, in the layout before a right-hand page is mirrored, and
+  // leans by `lean` degrees towards -x.
+  let stood: Stake | null = ornament ? null : stake(W * (mirrored ? 1 - share : share), base, (clamp(H * REACH, base + 6, H - 0.4) - base) / cos, clear);
   const radius = 0.24 + form.stems.width * 0.6;
 
+  /** A stem of a bed that does not climb the quill: it rises from its root with a little sway, leaning towards the quill. */
+  const beside = (k: number, j: number, root: Pt, top: number): Pt[] => {
+    const sway = swayOf(k);
+    const toward = (share * footWidth - root[0]) / W * 0.2, apart = j === 0 ? 0 : root[0] < share * footWidth ? -0.3 : 0.3;
+    const points: Pt[] = [];
+    for (let y = root[1]; y <= top; y += 0.25) {
+      const rise = y - root[1];
+      const x = root[0] + toward * rise + apart * smoothstep(0, 1.2, rise) + 0.4 * (sway(y / 2) - sway(root[1] / 2)) * smoothstep(0, 1.5, rise);
+      points.push([clamp(x, 0.5, W - 0.5), y]);
+    }
+    return points;
+  };
   // Main stem k winds round the shaft as a helix seen from the side, its turns offset from the other stems',
   // to the top of the bare shaft; there it leaves the quill for one side and sways free to its top. Where it
-  // comes round in front of the shaft is marked, to be drawn again over the quill.
+  // comes round in front of the shaft is marked, to be drawn again over the quill. A cul-de-lampe's side stems,
+  // those the loop arches out to the sides, leave the shaft lower the further out the loop takes them, and from
+  // there run into the loop's own arch to its tip.
   const fronts: boolean[][] = [];
-  const mains = (k: number, root: Pt, top: number): Pt[] => {
-    const offset = phase + 2 * Math.PI * k / Math.max(1, form.stems.count);
-    const side = (k % 2 === 0 ? away : -away) * (1.4 + 0.4 * Math.floor(k / 2));
-    const sway = sways[k]!;
+  const counted = new Map<number, number>();
+  const mains = (k: number, root: Pt, top: number, laid: readonly Pt[]): Pt[] => {
+    const j = counted.get(root[0]) ?? 0;
+    counted.set(root[0], j + 1);
+    // The quill's plant is the one on the foot's crown: in a bed, one of several; in a cul-de-lampe, its only one.
+    // Its nib goes as deep below the root as the foot puts it, but no deeper than the band's foot.
+    if (!stood && (!bed || Math.abs(root[0] - share * footWidth) < 1e-6)) stood = settle(root[0], Math.max(0.05, root[1] - (foot.crown[1] - base)));
+    if (!stood || Math.abs(root[0] - stood.x) > 1e-6 && bed) {
+      fronts[k] = [];
+      return beside(k, j, root, top);
+    }
+    const q = stood;
+    const axis = (y: number): number => q.x - (y - q.base) * Math.tan(lean * RAD);
+    const offset = ornament ? phase + GOLDEN * j : phase + 2 * Math.PI * k / Math.max(1, form.stems.count);
+    const side = (j % 2 === 0 ? away : -away) * ((ornament ? 1.7 : 1.4) + 0.4 * Math.floor(j / 2));
+    const sway = swayOf(k);
+    const tip = laid[laid.length - 1] ?? root;
+    const out = Math.abs(tip[0] - root[0]);
+    const arching = ornament === "cul-de-lampe" && out > 1;
+    const leave = arching ? lerp(q.bare - 0.4, root[1] + 1, clamp(out / (W * 0.35), 0, 1)) : Infinity;
+    const edge = ornament ? 0.5 : 0.8;
     const points: Pt[] = [], front: boolean[] = [];
-    for (let y = root[1]; y <= top; y += y < bare ? 0.2 : 0.25) {
+    for (let y = root[1]; y <= Math.min(top, leave); y += y < q.bare ? 0.2 : 0.25) {
       const turn = 2 * Math.PI * (y - root[1]) / lambda + offset;
-      const free = smoothstep(bare, bare + 2.2, y);
+      const free = smoothstep(q.bare, q.bare + (ornament ? 1.2 : 2.2), y);
       const wind = radius * smoothstep(root[1], root[1] + 0.8, y) * (1 - free);
       const x = axis(y) + wind * Math.sin(turn) + free * (side + 0.35 * sway(y / 3));
-      points.push([clamp(x, 0.8, W - 0.8), y]);
-      front.push(y > clear && free === 0 && Math.cos(turn) > 0);
+      points.push([clamp(x, edge, W - edge), y]);
+      front.push(y > q.clear && free === 0 && Math.cos(turn) > 0);
+    }
+    if (arching && points.length > 0) {
+      // From where it leaves the shaft it eases into the loop's arch, where that rises past the same height, and
+      // follows it to its tip.
+      const from = points[points.length - 1]!;
+      const start = Math.max(1, laid.findIndex(p => p[1] >= from[1]));
+      const rest = laid.slice(start);
+      const { at, total } = arcLength(rest);
+      const ease = Math.min(1.5, total * 0.5);
+      const dx = from[0] - rest[0]![0], dy = from[1] - rest[0]![1];
+      rest.forEach(([px, py], index) => {
+        const keep = 1 - smoothstep(0, ease, at[index]!);
+        points.push([clamp(px + dx * keep, edge, W - edge), py + dy * keep]);
+        front.push(false);
+      });
     }
     fronts[k] = front;
     return points;
   };
   const garden = context.grow({ form: form.foot ? form : { ...form, foot }, mains });
-  const x = mirrored ? garden.width - rootX : rootX;
+  // A band places a quill with no stems to climb it once the garden has drawn the foot, which the band may have
+  // shrunk or lowered. The stump fills the band's height, so a quill behind it would be lost: it stands clear
+  // beside the forms the foot raises above its crown, on the side with more room, or in front of the stump if
+  // there is none.
+  const drawn = garden.foot!;
+  let layer = form.stems.count === 0 ? BEHIND_LAYER : QUILL_LAYER;
+  if (!stood) {
+    const raised = drawn.draw(createRng(drawn.seed), { width: drawn.width, height: (H + drawn.drop) / drawn.scale }, 1, 1)
+      .filter(shape => shape.type === "body" && Math.max(...shape.outline.map(p => p[1])) > foot.crown[1] + 0.3);
+    const box = extent(raised);
+    const x0 = drawn.x + box[0] * drawn.scale, x1 = drawn.x + box[2] * drawn.scale;
+    const beyond = W - x1 >= x0 ? x1 + 0.5 : x0 - 0.5;
+    const clearOf = beyond > 0.8 && beyond < W - 0.8;
+    if (!clearOf) layer = QUILL_LAYER;
+    stood = settle(clearOf ? beyond : drawn.x + share * drawn.width * drawn.scale + (share < 0.5 ? 1.2 : -1.2), base * drawn.scale - drawn.drop);
+  }
+  const q: Stake = stood;
+  const x = mirrored ? garden.width - q.x : q.x;
   const angle = mirrored ? 90 - lean : 90 + lean;
-
+  // A band's shorter quill has narrower vanes and a slighter bow.
+  const wide = ornament ? clamp(q.length / 11, 0.55, 1) : 1;
+  const bent = bow * wide;
   // The loop knows nothing of the quill, and would hang fruit and flowers over its vanes. Those that would
   // hide the feather are taken off with the branches that bore them, before the garden is shown: the
   // stems still pass behind the vanes and the leaves over them, as a vine's do on its stake.
@@ -117,9 +212,9 @@ function grow(context: FestivalContext): Garden {
     const row = item.kind === "motif" ? rows.get(item.name) : undefined;
     if (item.kind !== "motif" || !row || item.layer <= LAYER.leaf) continue;
     const r = row.r(item.size), off = row.off(item.size);
-    const cx = item.at[0] + Math.cos(item.angle * RAD) * off - x, cy = item.at[1] + Math.sin(item.angle * RAD) * off - base;
+    const cx = item.at[0] + Math.cos(item.angle * RAD) * off - x, cy = item.at[1] + Math.sin(item.angle * RAD) * off - q.base;
     const along = cx * dx + cy * dy, across = flip * broad * (cx * dy - cy * dx);
-    if (along > length * VANES - r * 0.5 && along < length + r * 0.3 && across > -(NARROW + 0.12 + r * 0.7) && across < BROAD + 0.12 + Math.abs(bow) + r * 0.7) {
+    if (along > q.length * VANES - r * 0.5 && along < q.length + r * 0.3 && across > -(NARROW * wide + 0.12 + r * 0.7) && across < BROAD * wide + 0.12 + Math.abs(bent) + r * 0.7) {
       hidden.add(key(item.at));
     }
   }
@@ -140,10 +235,10 @@ function grow(context: FestivalContext): Garden {
     ? item.main || !cut.has(key(item.points[item.points.length - 1]!))
     : !hidden.has(key(item.at)) && !cut.has(key(item.at)));
   let order = Math.max(0, ...items.map(item => item.order)) + 1;
-  items.push({ kind: "motif", order: order++, layer: form.stems.count === 0 ? BEHIND_LAYER : QUILL_LAYER, name: "quill", at: [x, base], angle, size: length, seed: quillSeed,
-    born: 0, staged: false, seedAt: 2, leafRank: null, draw: (r, s) => quill(r, s, broad, bow) });
+  items.push({ kind: "motif", order: order++, layer, name: "quill", at: [x, q.base], angle, size: q.length, seed: quillSeed,
+    born: 0, staged: false, seedAt: 2, leafRank: null, draw: (r, s) => quill(r, s, broad, bent, wide) });
   if (pot) {
-    items.push({ kind: "motif", order: order++, layer: POT_LAYER, name: pot.name, at: [x, pot.at], angle: 90, size: pot.size, seed: potSeed,
+    items.push({ kind: "motif", order: order++, layer: POT_LAYER, name: pot.name, at: [x, pot.at * drawn.scale - drawn.drop], angle: 90, size: pot.size * drawn.scale, seed: potSeed,
       born: 0, staged: false, seedAt: 2, leafRank: null, draw: pot.draw });
   }
   // Each run of a main stem in front of the shaft is drawn again over the quill, as wide as the stem is there
@@ -186,9 +281,10 @@ function extent(shapes: Shape[]): [number, number, number, number] {
  * scoop to a slit point, showing the hollow of the barrel; the barrel and the stripped shaft above it are
  * bare, shaded down their right side as a cylinder; the upper half keeps its vanes, a broad one on the side
  * `broad` and a narrow one opposite, their barbs cut as fine strokes and parted here and there where the
- * feather has split. The shaft bows a little towards the broad vane, by `bow` centimetres at its tip.
+ * feather has split. The shaft bows a little towards the broad vane, by `bow` centimetres at its tip, and the vanes
+ * are `wide` times their usual widths.
  */
-function quill(rng: Rng, s: number, broad: 1 | -1, bow: number): Shape[] {
+function quill(rng: Rng, s: number, broad: 1 | -1, bow: number, wide: number): Shape[] {
   const nib = 0.85, barrel = s * BARREL, start = s * VANES;
   const spine = (y: number): number => bow * (y / s) ** 2;
   const shaft = (y: number): number => y < barrel ? 0.16 : lerp(0.135, 0.024, ((y - barrel) / (s - barrel)) ** 1.15);
@@ -221,7 +317,7 @@ function quill(rng: Rng, s: number, broad: 1 | -1, bow: number): Shape[] {
   ];
   const body: Body = { type: "body", outline, shadow: [hollowRing, band], grain, veins, weight: 0.55 };
 
-  const shapes: Shape[] = [vane(rng, s, start, -broad, NARROW, true, spine, half), vane(rng, s, start, broad, BROAD, false, spine, half)];
+  const shapes: Shape[] = [vane(rng, s, start, -broad, NARROW * wide, true, spine, half), vane(rng, s, start, broad, BROAD * wide, false, spine, half)];
   // A few barbs the stripping missed, ragged below the vanes.
   for (const side of [-1, 1] as const) {
     for (let k = 0; k < 4; k += 1) {

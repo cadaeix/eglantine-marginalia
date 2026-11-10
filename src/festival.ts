@@ -10,7 +10,7 @@
 // the forms, they are listed by hand twice: in registry.ts for the main entry, and in load-festival.ts, which
 // loads one at a time for the light entry, so a page carries no festival it does not hold.
 import type { Foot, PlantForm } from "./form.js";
-import type { Garden, GardenItem, GrowSpec } from "./garden.js";
+import type { Garden, GardenItem, GrowSpec, Ornament } from "./garden.js";
 import type { Pt } from "./geometry.js";
 import type { Rng } from "./random.js";
 
@@ -18,19 +18,29 @@ import type { Rng } from "./random.js";
 export const FESTIVALS = ["vertu", "genie", "travail", "opinion", "recompenses", "revolution"] as const;
 export type Festival = typeof FESTIVALS[number];
 
-/** Lays main stem `k` from the root up to the height `top`, in place of the swaying line, with points about 0.25 cm apart. */
-export type MainsShaping = (k: number, root: Pt, top: number) => Pt[];
+/**
+ * Lays main stem `k` from the root up to the height `top`, with points about 0.25 cm apart, in place of `laid`, the
+ * stem the loop lays itself, which a festival may follow, bend or set aside.
+ */
+export type MainsShaping = (k: number, root: Pt, top: number, laid: readonly Pt[]) => Pt[];
 
 /** What a festival grows from: the plant, the spec without its festival or guest, and the growth loop's two ways of laying out a garden. */
 export interface FestivalContext {
   readonly form: PlantForm;
   /** The spec the garden is grown from, without its festival or guest: a festival garden has no guest. */
   readonly spec: GrowSpec;
-  /** The column, in centimetres. */
+  /** The column, in centimetres, or the band of a bandeau or a cul-de-lampe. */
   readonly width: number;
   readonly height: number;
+  /** The printer's ornament the garden grows as, or null for a margin's column. */
+  readonly ornament: Ornament | null;
   /** The height below the column's open sky, which the plant leaves empty above it. */
   readonly ground: number;
+  /**
+   * How wide the loop draws the plant's foot here, in centimetres: the column's width, a bed's band, or the column's
+   * width a cul-de-lampe centres under its root. A foot's crown and room give x as shares of it.
+   */
+  readonly footWidth: number;
   /** The festival's own stream, apart from the plant's, seeded from the garden's seed. */
   readonly rng: Rng;
   /**
