@@ -58,7 +58,7 @@ export const FIGURES: Readonly<Record<string, FigureRow>> = {
   hotte: { kind: "rest", aspect: 1.9149 },
   houlette: { kind: "rest", aspect: 13.3333 },
   hoyau: { kind: "rest", aspect: 1.6484 },
-  lapin: { kind: "visitor", stance: "shoot", aspect: 1.9111 },
+  lapin: { kind: "visitor", stance: "shoot", aspect: 1.7143 },
   lievre: { kind: "visitor", stance: "shoot", aspect: 1.6 },
   loutre: { kind: "visitor", stance: "ground", aspect: 2.9917 },
   moulin: { kind: "rest", aspect: 0.69 },
