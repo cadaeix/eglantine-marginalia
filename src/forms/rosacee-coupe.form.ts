@@ -360,6 +360,21 @@ function closedBud(rng: Rng, s: number, b: Bloom): Shape[] {
   return out;
 }
 
+/**
+ * One petal of a radial flower `s` across as it falls, from any of its rings: as long, as broad and as tipped as in
+ * the bloom, along +y from the origin. It keeps the curve its cup gave it, turned so that the line from its claw to
+ * its tip lies along +y, and it is seen flat or a little turned, so the curve shows as a slight bow.
+ */
+function fallenPetal(rng: Rng, s: number, b: Bloom, small: boolean): Shape[] {
+  const ring = rng.int(0, b.rings - 1);
+  const len = s * 0.5 * (1 - 0.2 * ring) * rng.range(0.92, 1.06);
+  const curve = cupPath(len, Math.min(1, b.cup + 0.28 * ring), 0);
+  const [r1, h1] = curve(1);
+  const c = r1 / Math.hypot(r1, h1), d = h1 / Math.hypot(r1, h1);
+  return petal(rng, Math.PI, rng.range(0.75, Math.PI / 2), { path: v => { const [r, h] = curve(v); return [r * c + h * d, h * c - r * d]; },
+    width: petalWidth(len, b.breadth, b.tip), tip: b.tip, weight: small ? 0.2 : 0.3, veins: b.veins ? 3 : 0, ...(small ? { lanes: 0 } : {}), samples: small ? 8 : 16 }).shapes;
+}
+
 // ---------------------------------------------------------------- what the flower becomes
 
 /** One fruit along +y from the origin, `s` the flower's size. */
@@ -796,6 +811,9 @@ export const form: FormModule = {
       : plain;
     const broad = ["trifoliate", "ternate", "compound", "pedate", "divided", "heart", "kidney", "round", "mallow", "lobed", "pinnate", "pinnatifid"].includes(kind);
     const draw = (rng: Rng, s: number, stage: Stage): Shape[] => inflorescence(rng, s, stage, b);
+    // A radial flower sheds its petals as it goes to seed; a corymb's are those of its small flowers.
+    const corymb = b.cluster === "corymb";
+    const sheds = b.symmetry === "radial" ? { petal: (rng: Rng, s: number): Shape[] => fallenPetal(rng, corymb ? s * 0.22 : s, b, corymb) } : {};
     const low = height < 0.6;
     const tops = [0.92, 0.7, 0.5].map(top => top * height);
     return {
@@ -807,10 +825,10 @@ export const form: FormModule = {
       leafProxy: broad ? 0.36 : 0.26,
       leaf,
       leaflet: (rng, length, bend) => kind === "pinnate" || kind === "trifoliate" ? serrate(rng, length * 0.8, bend, 0.28) : broad ? simpleLeaf(rng, length, bend, 0.3) : plain(rng, length, bend),
-      terminal: { size: [1.25 * size, 1.5 * size], r: s => 0.5 * s, off: () => 0, draw },
+      terminal: { size: [1.25 * size, 1.5 * size], r: s => 0.5 * s, off: () => 0, draw, ...sheds },
       motifs: [
         { name: "bloom", w: 3, smin: 0.9 * size, smax: 1.3 * size, max: b.cluster === "corymb" ? 6 : 5, hard: true, layer: LAYER.bloom, upright: 0.8, staged: true,
-          r: s => 0.46 * s, off: s => 0.42 * s, draw },
+          r: s => 0.46 * s, off: s => 0.42 * s, draw, ...sheds },
         { name: "bud", w: 1, smin: 0.7 * size, smax: 0.95 * size, max: 4, hard: true, layer: LAYER.bloom, upright: 0.8,
           r: s => 0.28 * s, off: s => 0.3 * s, draw: (rng, s) => single(rng, s, "bud", b, s * 0.3) },
         { name: "leaf", w: 2, smin: 1.1, smax: broad ? 2.0 : 1.7, max: 12, hard: true, layer: LAYER.leaf, upright: 0.3,

@@ -198,6 +198,8 @@ const BED_SPACING = 3.2;
 const BAND_OVERHANG = 0.3;
 /** The stages a staged motif passes through, all probed before a band takes it. */
 const STAGES: readonly Stage[] = ["bud", "bloom", "seed"];
+/** Petals in the air lie over the blooms; petals on the ground lie over the stems' feet and under the leaves. */
+const FALLING = 5.5, FALLEN = 2.5;
 const SMALLEST = 0.36;
 const FILLMIN = 0.26;
 const FILLERS = 12;
@@ -234,7 +236,7 @@ export function growGarden(spec: GrowSpec & { form: FormModule; festival?: Festi
 /** Grows a garden from a built plant form and the id it is known by. */
 export function growForm(form: PlantForm, formId: string, spec: GrowSpec): Garden {
   checkOrnament(spec);
-  if (spec.festival === undefined) return growPlain(form, formId, spec, null);
+  if (spec.festival === undefined) return growPlain(form, formId, spec, null, true);
   const { festival, guest: _guest, ...plain } = spec;
   if (typeof festival === "string") throw new TypeError(`this growGarden holds a festival from its module, as loadFestival("${festival}") gives it`);
   return festival.grow(festivalContext(form, formId, plain));
@@ -269,8 +271,11 @@ function footColumn(form: PlantForm, ornament: Ornament | null, W: number): { wi
   return { width: centred ? Math.min(W, COLUMN.width) : W, centred };
 }
 
-/** The garden a plant grows without a festival; `shaping`, when given, lays its main stems. */
-function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: MainsShaping | null): Garden {
+/**
+ * The garden a plant grows without a festival; `shaping`, when given, lays its main stems, and with `shed` its
+ * blooms let their petals fall as they go to seed.
+ */
+function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: MainsShaping | null, shed: boolean): Garden {
   const { W, H } = roomOf(spec);
   const page = spec.page ?? null;
   checkPage(page, H);
@@ -301,6 +306,8 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   const footRooms: Rect[] = foot ? foot.room.map(([x0, y0, x1, y1]): Rect => mirrored
     ? [(1 - x1) * W, y0, (1 - x0) * W, y1]
     : [footX + x0 * span, y0 * footScale - drop, footX + x1 * span, y1 * footScale - drop]) : [];
+  // A foot that spans the column, such as a bed of strata, is the ground the guest stands or lies on, and fallen petals lie on.
+  const floor = foot ? Math.max(0, ...foot.room.flatMap((rect, index) => rect[2] - rect[0] > 0.5 ? [footRooms[index]![3]] : [])) : 0;
   // The page draws from a stream of its own, so the runner's length, chosen here, never moves the main stems.
   const spread = createRng(Math.imul(spec.seed, 7919) + 409);
   let ground: Rect | null = null, room: Rect | null = null;
@@ -317,12 +324,13 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   // A garden on a page or in a band holds more of each motif as its room grows.
   const plenty = page || ornament ? Math.max(1, field.x.length / BASE_CELLS) : 1;
   const reach = ornament ? BAND_REACH[ornament] : REACH;
-  // A cul-de-lampe tapers to its root, as the tailpiece's inverted triangle does: the band's lower corners are closed
-  // in steps, so that only the arching stems cross them.
+  // A cul-de-lampe tapers to its root, as the tailpiece's inverted triangle does: at height `y` it keeps open only
+  // `taper(y)` either side of its middle. Its lower corners are closed in steps, so that only the arching stems cross
+  // them, and the petals it sheds gather round its foot.
+  const taper = (y: number): number => lerp(1.2, W / 2, clamp(y / (H * 0.55), 0, 1));
   if (ornament === "cul-de-lampe") {
-    const tall = H * 0.55;
-    for (let y = 0; y < tall; y += 0.4) {
-      const open = W / 2 - lerp(1.2, W / 2, (y + 0.2) / tall);
+    for (let y = 0; y < H * 0.55; y += 0.4) {
+      const open = W / 2 - taper(y + 0.2);
       if (open < 0.15) continue;
       field.block([0, y, open, y + 0.4]);
       field.block([W - open, y, W, y + 0.4]);
@@ -365,23 +373,18 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
     items.push(item);
     return item;
   };
+  /** The blooms that shed their petals as they go to seed, each with what draws one of them. */
+  const shedders: { bloom: MotifItem; from: { petal?(rng: Rng, s: number): Shape[] } }[] = [];
 
   /**
    * Whether a motif drawn at `at` along `angle` would run out of a band, such as an amaranth's tassel hanging past
    * its foot: its drawing is probed at every stage it passes through, so nothing it becomes later runs out either.
    */
-  const runsOut = (draw: MotifItem["draw"], size: number, at: Pt, angle: number, staged: boolean, seed: number): boolean => {
-    const a = (angle - 90) * RAD, c = Math.cos(a), s = Math.sin(a);
-    for (const stage of staged ? STAGES : ["bloom" as const]) {
-      for (const shape of draw(createRng(seed), size, stage)) {
-        for (const [x, y] of shape.type === "line" || shape.type === "dots" ? shape.points : shape.outline) {
-          const u = at[0] + x * c - y * s, v = at[1] + x * s + y * c;
-          if (v < 0 || v > H || u < -BAND_OVERHANG || u > W + BAND_OVERHANG) return true;
-        }
-      }
-    }
-    return false;
-  };
+  const runsOut = (draw: MotifItem["draw"], size: number, at: Pt, angle: number, staged: boolean, seed: number): boolean =>
+    (staged ? STAGES : ["bloom" as const]).some(stage => {
+      const [left, below, right, above] = reachOf(draw(createRng(seed), size, stage), angle);
+      return at[1] + below < 0 || at[1] + above > H || at[0] + left < -BAND_OVERHANG || at[0] + right > W + BAND_OVERHANG;
+    });
 
   // ---------------------------------------------------------------- 1. the foot, then the main stems out of it
   for (const rect of footRooms) field.block(rect);
@@ -467,7 +470,8 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
     const angle = !ornament && k === 0 ? 90 : degrees(hx, hy);
     const seed = ornament ? motifSeed() : undefined;
     if (seed !== undefined) for (let attempt = 0; attempt < 4 && runsOut(form.terminal.draw, size, at, angle, true, seed); attempt += 1) size *= 0.85;
-    motif("terminal", at, angle, size, LAYER.bloom, mainItems[k]!.grown, true, form.terminal.draw, seed);
+    const bloomItem = motif("terminal", at, angle, size, LAYER.bloom, mainItems[k]!.grown, true, form.terminal.draw, seed);
+    if (form.terminal.petal) shedders.push({ bloom: bloomItem, from: form.terminal });
     const r = form.terminal.r(size);
     field.disc(at[0] + hx * r * 0.6, at[1] + hy * r * 0.6, r * 1.1, 0.85);
     if (at[1] + r * 1.4 > crown[1]) crown = [at[0], Math.min(H, at[1] + r * 1.4)];
@@ -491,8 +495,6 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
     const fit = Math.min(1, (W - 0.3) / span, ornament ? G * 0.6 / rise : 1);
     const width = wantedWidth * fit, height = wantedHeight * fit, halfSpan = span * fit / 2;
     const reach = Math.max(width, height) * 0.5;
-    // A foot that spans the column, such as a bed of strata, is the ground the guest stands or lies on.
-    const floor = foot ? Math.max(0, ...foot.room.flatMap((rect, index) => rect[2] - rect[0] > 0.5 ? [footRooms[index]![3]] : [])) : 0;
     const copies = stance === "shoot" || stance === "stems" ? Math.max(1, Math.floor(G / COPY_HEIGHT)) : 1;
     /**
      * The roomiest of `attempts` places that `candidate` offers, by the free room around the figure. A candidate
@@ -633,7 +635,8 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
       const [hx, hy] = unit(tip[0] - before[0], tip[1] - before[1]);
       const size = spread.range(...form.terminal.size) * 0.85;
       const at: Pt = [tip[0] + hx * 0.05, tip[1] + hy * 0.05];
-      motif("terminal", at, degrees(hx, hy), size, LAYER.bloom, arc.grown, true, form.terminal.draw);
+      const bloomItem = motif("terminal", at, degrees(hx, hy), size, LAYER.bloom, arc.grown, true, form.terminal.draw);
+      if (form.terminal.petal) shedders.push({ bloom: bloomItem, from: form.terminal });
       const r = form.terminal.r(size);
       field.disc(at[0] + hx * r * 0.6, at[1] + hy * r * 0.6, r * 1.1, 0.85);
       if (at[1] + r * 1.4 > crown[1]) crown = [at[0], Math.min(H, at[1] + r * 1.4)];
@@ -775,6 +778,7 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
       }
     }
     const placed = motif(pick.name, origin, degrees(ax, ay), size, pick.layer, 0, pick.staged ?? false, pick.draw, seed);
+    if (pick.petal && pick.staged) shedders.push({ bloom: placed, from: pick });
     branchItems.push({ stem: branch, leaves, motif: placed });
     counts.set(pick.name, counts.get(pick.name)! + 1);
     field.disc(px, py, pick.r(size), 0.85);
@@ -810,6 +814,38 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   fillers.forEach((item, index) => { item.born = 0.84 + 0.1 * index / Math.max(1, fillers.length); });
 
   ripen(items, spec.seed);
+
+  // ---------------------------------------------------------------- 6. petals, shed as the blooms go to seed
+  // A bloom that sheds lets a few petals fall as it goes to seed: some hang in the air below it, further aside the
+  // further they have fallen, and the rest lie on the ground. Each bloom's petals come from a stream of their own,
+  // after the rest of the layout, so the garden's other parts grow as they would without them; and like everything
+  // else a petal stays where it appears, so a moment still only reveals. On a page, a petal beside the text keeps to
+  // the column.
+  if (shed) {
+    const lying = foot ? floor + 0.08 : rootAt[1] - (ornament ? 0.25 : 0.4);
+    for (const { bloom, from } of shedders) {
+      const fall = createRng(Math.imul(bloom.seed, 2654435761) + 977);
+      const drop = Math.max(0, bloom.at[1] - lying);
+      const draw: MotifItem["draw"] = (rng, s) => from.petal!(rng, s);
+      for (let j = 0, count = fall.int(2, 4); j < count; j += 1) {
+        const aloft = drop > 1.2 && fall.chance(0.6);
+        const depth = aloft ? drop * fall.range(0.15, 0.8) : drop;
+        const aside = fall.sym(aloft ? 0.3 + depth * 0.2 : 0.4 + drop * 0.1);
+        const angle = aloft ? fall.range(0, 360) : (fall.chance(0.5) ? 0 : 180) + fall.sym(25);
+        const born = Math.min(0.995, bloom.seedAt + fall.range(0.005, 0.03) * (j + 1));
+        const seed = Math.floor(fall.u() * 4294967295);
+        // How far the petal reaches from its base: one on the ground rests its lowest point on it, and none runs out
+        // of a band or over the text beside the column.
+        const [left, below, right] = reachOf(draw(createRng(seed), bloom.size, "bloom"), angle);
+        const y = aloft ? Math.max(bloom.at[1] - depth, 0.05 - below) : lying - below + fall.range(0, 0.06);
+        const besideText = page !== null && y > page.below - 1.2;
+        const narrow = ornament === "cul-de-lampe" ? taper(y) - 0.3 : Infinity;
+        const x = clamp(bloom.at[0] + aside, Math.max(0.05 - left, W / 2 - narrow), Math.min((ornament || besideText ? W : canvas) - 0.05 - right, W / 2 + narrow));
+        items.push({ kind: "motif", order: order++, layer: aloft ? FALLING : FALLEN, name: "petal", at: [x, y], angle, size: bloom.size,
+          seed, born, staged: false, seedAt: 2, leafRank: null, draw });
+      }
+    }
+  }
   if (mirrored) {
     const mirror = (p: Pt): Pt => [canvas - p[0], p[1]];
     for (const item of items) {
@@ -852,7 +888,7 @@ function festivalContext(form: PlantForm, formId: string, spec: GrowSpec): Festi
   return {
     form, spec, width: W, height: H, ornament, ground: H * (1 - (ornament ? BAND_SKY : SKY)), footWidth: footColumn(form, ornament, W).width,
     rng: createRng(Math.imul(spec.seed, 7919) + 503),
-    grow: (options = {}) => growPlain(options.form ?? form, formId, options.page === false ? alone : spec, options.mains ?? null),
+    grow: (options = {}) => growPlain(options.form ?? form, formId, options.page === false ? alone : spec, options.mains ?? null, false),
     compose: (items, options = {}) => compose(form, formId, spec, items, options),
   };
 }
@@ -997,4 +1033,17 @@ export function stemShown(item: StemItem, t: number): number {
   if (t < item.born) return 0;
   if (item.grown <= item.born) return 1;
   return clamp((t - item.born) / (item.grown - item.born), 0, 1);
+}
+
+/** How far a drawing laid along `angle` reaches from its origin, as [left, below, right, above] offsets in centimetres. */
+function reachOf(shapes: Shape[], angle: number): Rect {
+  const a = (angle - 90) * RAD, c = Math.cos(a), s = Math.sin(a);
+  let left = Infinity, below = Infinity, right = -Infinity, above = -Infinity;
+  for (const shape of shapes) {
+    for (const [x, y] of shape.type === "line" || shape.type === "dots" ? shape.points : shape.outline) {
+      const u = x * c - y * s, v = x * s + y * c;
+      left = Math.min(left, u); right = Math.max(right, u); below = Math.min(below, v); above = Math.max(above, v);
+    }
+  }
+  return [left, below, right, above];
 }

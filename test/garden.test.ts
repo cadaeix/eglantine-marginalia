@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { resolveVariant, type Variant } from "../src/form.js";
+import { setImmediate } from "node:timers/promises";
+import { afterEach, describe, expect, it } from "vitest";
+import { type FormModule, resolveVariant, type Variant } from "../src/form.js";
 import { FORM_MODULES, plantForm } from "../src/registry.js";
-import { type Garden, growGarden, type Ornament, stageAt, stemShown } from "../src/grow.js";
+import { type Garden, growGarden, type MotifItem, type Ornament, stageAt, stemShown } from "../src/grow.js";
+import { renderGarden } from "../src/render.js";
 import { createRng, seedFromText } from "../src/random.js";
 import type { Shape } from "../src/shapes.js";
 
@@ -26,6 +28,11 @@ const layout = (garden: Garden): string => JSON.stringify(garden.items);
 const STAGES = ["bud", "bloom", "seed"] as const;
 /** Every form's examples are grown several times over; the default per-test limit is too short for them. */
 const HEAVY = 120_000;
+/**
+ * Each test grows gardens for a long while without yielding. A turn of the event loop between tests lets the test
+ * runner's messages through, which a file of such tests would otherwise hold back past the runner's timeout.
+ */
+afterEach(() => setImmediate());
 
 type Box = [x0: number, y0: number, x1: number, y1: number];
 /**
@@ -213,5 +220,57 @@ describe("printer's ornaments", () => {
   it("refuses to grow a band round a page, or as an ornament it does not know", () => {
     expect(() => growGarden({ seed: 1793, form: "capitule", ornament: "bandeau", page: { side: "left", text: 14, below: 9 } })).toThrow(RangeError);
     expect(() => growGarden({ seed: 1793, form: "capitule", ornament: "frontispice" as Ornament })).toThrow(RangeError);
+  });
+});
+
+/** Each form as it would be with no blooms that shed, for comparing a garden with and without its petals. */
+const BARE = new Map([...FORM_MODULES.values()].map((module): [string, FormModule] => [module.id, {
+  ...module,
+  build: variant => {
+    const form = module.build(variant);
+    const { petal: _petal, ...terminal } = form.terminal;
+    return { ...form, terminal, motifs: form.motifs.map(({ petal: _rowPetal, ...row }) => row) };
+  },
+}]));
+const isPetal = (item: Garden["items"][number]): item is MotifItem => item.kind === "motif" && item.name === "petal";
+
+describe("falling petals", () => {
+  it("lets a bloom's petals fall only once it goes to seed, below it, and keeps them to the day's end", () => {
+    const shedding = new Set<string>();
+    const astray: string[] = [];
+    for (const plant of PLANTS) {
+      for (const room of ROOMS) {
+        const garden = grow("2026-10-30", plant, room);
+        const blooms = garden.items.filter((item): item is MotifItem => item.kind === "motif" && item.staged);
+        for (const petal of garden.items.filter(isPetal)) {
+          shedding.add(plant.form);
+          if (!blooms.some(bloom => bloom.seedAt <= petal.born && bloom.at[1] >= petal.at[1])) astray.push(`${plant.name} ${room}: a petal falls before or above every bloom`);
+          if (stageAt(petal, 1, 0) === null) astray.push(`${plant.name} ${room}: a petal is gone by the end of a quiet day`);
+        }
+      }
+    }
+    expect(astray).toEqual([]);
+    expect([...shedding]).toEqual(expect.arrayContaining(["rosacee-coupe", "arbre-fruitier"]));
+  }, HEAVY);
+
+  it("sheds without moving any other part of the garden", () => {
+    for (const plant of PLANTS) {
+      for (const room of [null, "bandeau"] as const) {
+        const spec = { seed: seedFromText("2026-10-30"), variant: plant.variant, ...(room ? { ornament: room } : {}) };
+        const shed = grow("2026-10-30", plant, room).items.filter(item => !isPetal(item));
+        expect(JSON.stringify(shed), plant.name).toBe(layout(growGarden({ ...spec, form: BARE.get(plant.form)! })));
+      }
+    }
+  }, HEAVY);
+
+  it("lets no petal fall in a hanging garden, which would drop them upwards, or in a festival's", () => {
+    const rose = PLANTS.find(plant => plant.form === "rosacee-coupe")!;
+    const garden = growGarden({ seed: 1793, form: rose.form, variant: rose.variant });
+    expect(garden.items.some(isPetal)).toBe(true);
+    const evening = { t: 1, fullness: 1 }, options = { manner: "taille-douce", id: "h", scale: 10, hanging: true } as const;
+    expect(renderGarden(garden, evening, options)).toBe(renderGarden({ ...garden, items: garden.items.filter(item => !isPetal(item)) }, evening, options));
+    for (const festival of ["opinion", "vertu"] as const) {
+      expect(growGarden({ seed: 1793, form: rose.form, variant: rose.variant, festival }).items.some(isPetal), festival).toBe(false);
+    }
   });
 });

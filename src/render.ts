@@ -16,8 +16,8 @@ export interface Moment {
 /** A mark painted among the garden's layers, so it lies over some parts of the plant and under others. */
 export interface Inlay {
   /**
-   * Where it lies: the foot is at 1.8, stems at 2, a tool at rest at 2.6, leaves at 3, airy motifs at 4,
-   * blooms at 5 and a visiting animal at 6.
+   * Where it lies: the foot is at 1.8, stems at 2, fallen petals at 2.5, a tool at rest at 2.6, leaves at 3, airy
+   * motifs at 4, blooms at 5, falling petals at 5.5 and a visiting animal at 6.
    */
   layer: number;
   svg: string;
@@ -49,7 +49,8 @@ export interface RenderOptions {
    * Hangs the garden upside down from the top of its column, for a margin that begins under a page's header.
    * The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by
    * that much. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and
-   * its leaves fill the guest's room, with no empty shoots left where animals would have stood. A garden grown
+   * its leaves fill the guest's room, with no empty shoots left where animals would have stood. Nor does it draw the
+   * petals its blooms shed, which would fall upwards. A garden grown
    * round a page cannot hang, since its runner and arcs would turn over onto the text, and nor can a bandeau or a
    * cul-de-lampe, which stand on the band's foot.
    */
@@ -105,6 +106,8 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
       add(item.layer, paintShapes(shapes, options.manner, sheet));
       continue;
     }
+    // A hanging garden's petals would fall upwards, so it lets none fall.
+    if (hanging && item.name === "petal") continue;
     const shapes = motifShapes(item, moment);
     if (shapes) add(item.layer, group(item.at, item.angle, garden.mirrored, paintShapes(shapes, options.manner, sheet)));
   }

@@ -4,9 +4,10 @@
 // aubergine, coton) keep thin green stems, and the mâcre floats as a rosette on thin submerged stems.
 import { type FormModule, LAYER, numberOf, type PlantForm, type Stage, textOf, flagOf, type Variant } from "../form.js";
 import { bezier3, blade, lerp, type Pt, sample, smoothstep, unit } from "../geometry.js";
-import { HATCH, line, lobedLeaf, palmateLeaf, side, simpleLeaf, turnShape } from "../kit.js";
+import { circle, HATCH, line, lobedLeaf, palmateLeaf, side, simpleLeaf, turnShape } from "../kit.js";
 import type { Rng } from "../random.js";
 import { bladeBody, type Body, type Dots, roundBody, type Shape } from "../shapes.js";
+import { arrange, egg, petal as corollaPetal, type Placed, project } from "./rosacee-coupe.form.js";
 
 function figBody(rng: Rng, s: number, open: boolean): Shape[] {
   const stalk = s * 0.1;
@@ -1089,6 +1090,151 @@ function rosette(nutDraw: FruitDraw): FruitDraw {
   };
 }
 
+// ---------------------------------------------------------------- the cherry in flower
+
+/** A cherry flower's breadth as a share of its umbel's size, and its petal's length as a share of the flower's breadth. */
+const FLOWER = 0.58, PETAL = 0.34;
+
+/** A sakura petal's half-width along its length: a narrow claw widening to a broad, rounded blade. */
+const sakuraWidth = (length: number) => (v: number): number =>
+  length * 0.44 * Math.sin(Math.PI / 2 * Math.min(1, v / 0.74)) ** 0.7 * (0.2 + 0.8 * smoothstep(0, 0.5, v)) * (1 - 0.1 * Math.max(0, (v - 0.74) / 0.26));
+
+/**
+ * One rounded petal with the small notch at its tip that marks the sakura, `length` from claw to notch, its centreline
+ * leaving the axis at `base` and rising a little toward its tip, since the sakura's open face is barely cupped. In the
+ * flower it lies at azimuth `theta` of a face seen from `tilt` above its side; alone, as it falls, `theta` is π and it
+ * lies along +y from the origin.
+ */
+function sakuraPetal(rng: Rng, theta: number, tilt: number, base: number, length: number): Placed {
+  return corollaPetal(rng, theta, tilt, { path: v => [base + length * v, length * 0.2 * v * v], width: sakuraWidth(length), tip: "notch", weight: 0.18,
+    lanes: length > 0.16 ? 2 : 1, samples: 12 });
+}
+
+/** The calyx below the face: a short bell-shaped tube and five narrow sepals turned back from its rim, between the petals. */
+function calyx(rng: Rng, f: number, tilt: number, start: number, lift: number, dry: boolean): Shape[] {
+  const tube = bladeBody({ spine: v => [0, lift * v], halfWidth: v => lerp(f * 0.024, f * 0.05, v ** 1.4), shade: 1, spacing: HATCH * 0.7,
+    grain: "along", reach: [0.5, 0.9], weight: dry ? 0.7 : 0.55, samples: 8 }, rng);
+  const sepals: Placed[] = [];
+  for (let k = 0; k < 5; k += 1) {
+    const theta = start + (k + 0.5) / 5 * TAU + rng.sym(0.1);
+    const reach = f * rng.range(0.1, 0.13);
+    sepals.push(corollaPetal(rng, theta, tilt, { path: v => [f * 0.045 + reach * v, -reach * (dry ? 0.75 : 0.5) * v * v],
+      width: v => f * 0.028 * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, v * 1.4))) * (1 - 0.75 * v), tip: "pointed", weight: 0.6, lanes: 1, samples: 8 }));
+  }
+  return [tube, ...arrange(sepals).map(shape => turnShape(shape, 0, [0, lift]))];
+}
+
+/** Stamens round the axis: many fine filaments with their anthers in bloom; shorter, splayed and curling once the petals fall. */
+function stamens(rng: Rng, f: number, tilt: number, dry: boolean): Shape[] {
+  const out: Shape[] = [];
+  const anthers: Pt[] = [];
+  for (let k = 0; k < 24; k += 1) {
+    const theta = rng.range(0, TAU), a = rng.range(0.2, 0.7) + (dry ? 0.5 : 0);
+    const length = f * rng.range(0.15, 0.24) * (dry ? 0.75 : 1);
+    const from = project(theta, tilt, f * 0.03, 0);
+    const mid = project(theta, tilt, f * 0.03 + length * Math.sin(a) * 0.5, length * Math.cos(a) * 0.55);
+    const to = project(theta, tilt, f * 0.03 + length * Math.sin(a + (dry ? 0.5 : 0)), length * Math.cos(a + (dry ? 0.7 : 0)));
+    out.push(line([from, mid, to], f * 0.005));
+    anthers.push(to);
+  }
+  out.push(dots(anthers, f * (dry ? 0.007 : 0.011)));
+  // The style stands in the middle, a little longer than the stamens, as the sakura's does.
+  const stigma = project(0, tilt, 0, f * 0.27);
+  out.push(line([[0, 0], stigma], f * 0.007), dots([stigma], f * 0.012));
+  return out;
+}
+
+/**
+ * One cherry flower, axis +y from the end of its pedicel, `f` across, its face seen from `tilt` above its side (near 0
+ * in profile, near π/2 face-on). A bud is round and closed, the madder of its petals showing at its tip; the open flower
+ * spreads five notched petals round a madder eye and a spray of stamens; at seed its petals are gone, and a young
+ * cherry swells in the calyx among the drying stamens.
+ */
+function cherryFlower(rng: Rng, f: number, tilt: number, stage: Stage): Shape[] {
+  const start = rng.range(0, TAU);
+  if (stage === "bud") {
+    const lift = f * 0.08, length = f * 0.34, width = f * 0.27;
+    const outline = egg([0, lift], length, width, 0.25, 24), centre: Pt = [0, lift + length * 0.5];
+    const body = roundBody(outline, centre, width / 2, HATCH * 0.6, 0.4);
+    // The petals' folds show at the top of the bud, and their colour where the sepals part.
+    body.veins.push(meridian(centre, width / 2, length / 2, 0.55, 0.5, 0.95), meridian(centre, width / 2, length / 2, -0.6, 0.55, 0.95));
+    const tip: Body = { type: "body", outline: outline.filter(p => p[1] > lift + length * 0.74), shadow: [], grain: [], veins: [], weight: 0.5, tone: "accent" };
+    const sepals: Shape[] = [-1, 0, 1].map(sd => bladeBody({ spine: v => [sd * width * 0.4 * Math.sin(Math.PI * v * 0.8), lift * 0.4 + length * 0.42 * v],
+      halfWidth: v => width * 0.22 * (1 - v) ** 0.8 * (sd === 0 ? 1 : 0.75), shade: sd >= 0 ? 1 : -1, spacing: HATCH * 0.7, grain: "along", reach: [0.4, 0.8], weight: 0.6, samples: 8 }, rng));
+    return [line([[0, 0], [0, lift * 0.6]], f * 0.05), body, tip, ...sepals];
+  }
+  const lift = f * 0.13 * Math.cos(tilt);
+  const out = calyx(rng, f, tilt, start, lift, stage === "seed");
+  const face: Shape[] = [];
+  if (stage === "seed") {
+    const r = f * 0.075, at: Pt = [0, r * 0.7];
+    face.push(roundBody(circle(at, r * 0.92, r, 12), at, r, HATCH * 0.6, 0.45), ...stamens(rng, f, tilt, true));
+  } else {
+    const parts: Placed[] = [];
+    for (let k = 0; k < 5; k += 1) parts.push(sakuraPetal(rng, start + k / 5 * TAU + rng.sym(0.07), tilt, f * 0.035, f * PETAL * rng.range(0.92, 1.05)));
+    const eye = f * 0.055;
+    face.push(...arrange(parts), { type: "body", outline: circle([0, 0], eye, eye * Math.max(0.35, Math.sin(tilt)), 12), shadow: [], grain: [], veins: [], weight: 0.5, tone: "accent" },
+      ...stamens(rng, f, tilt, false));
+  }
+  return [...out, ...face.map(shape => turnShape(shape, 0, [0, lift]))];
+}
+
+/** One of a cherry flower's petals as it falls, at its size in an umbel of size `s`, seen flat or a little turned. */
+function cherryPetal(rng: Rng, s: number): Shape[] {
+  return sakuraPetal(rng, Math.PI, rng.range(0.75, Math.PI / 2), 0, s * FLOWER * PETAL * rng.range(0.9, 1.05)).shapes;
+}
+
+/**
+ * An umbel of the flowering cherry (cerisier en fleur): two to five flowers on long pedicels from a short spur, the bud
+ * scales still at its base, facing every way, some in profile. The layout is drawn first, so the umbel keeps its place
+ * from bud to seed; its pedicels lengthen as it opens.
+ */
+function umbel(count?: number): FruitDraw {
+  return (rng, s, stage) => {
+    const n = count ?? rng.int(2, 5);
+    const spur: Pt = [rng.sym(0.03) * s, s * 0.12];
+    const heads: { a: number; reach: number; bow: number; nod: number; tilt: number; f: number }[] = [];
+    for (let k = 0; k < n; k += 1) {
+      const q = n === 1 ? 0 : -1 + 2 * k / (n - 1);
+      heads.push({ a: q * (0.45 + 0.13 * n) + rng.sym(0.18), reach: s * rng.range(0.32, 0.48), bow: rng.sym(0.08) * s, nod: rng.sym(0.4),
+        tilt: k === Math.floor(n / 2) ? rng.range(1.15, 1.4) : rng.range(0.25, 1.35), f: s * FLOWER * rng.range(0.9, 1.05) });
+    }
+    const out: Shape[] = [line([[0, 0], spur], s * 0.05)];
+    // Bud scales, brown and papery, stay round the foot of the umbel while it flowers.
+    for (const sd of [-1, 1, -0.4, 0.4]) {
+      const l = s * (Math.abs(sd) < 1 ? 0.09 : 0.07);
+      out.push(...place([bladeBody({ spine: v => [0, l * v], halfWidth: v => l * 0.32 * Math.sin(Math.PI * Math.min(1, 0.15 + v * 0.85)) ** 0.7, shade: sd > 0 ? 1 : -1,
+        spacing: HATCH * 0.7, grain: "along", reach: [0.5, 0.9], weight: 0.7, samples: 8 }, rng)], [spur[0], spur[1] - s * 0.02], unit(sd * 0.8, 1)));
+    }
+    const reach = stage === "bud" ? 0.65 : 1;
+    const flowers: { at: Pt; dir: Pt; tilt: number; f: number }[] = [];
+    for (const head of heads) {
+      const length = head.reach * reach;
+      const dir: Pt = [Math.sin(head.a), Math.cos(head.a)];
+      const at: Pt = [spur[0] + dir[0] * length, spur[1] + dir[1] * length];
+      const ctrl: Pt = [spur[0] + dir[0] * length * 0.5 - dir[1] * head.bow, spur[1] + dir[1] * length * 0.5 + dir[0] * head.bow];
+      out.push(line(sample(bezier3(spur, ctrl, ctrl, at), 6), s * 0.013));
+      flowers.push({ at, dir: unit(dir[0] + Math.sin(head.nod) * 0.6, dir[1]), tilt: head.tilt, f: head.f });
+    }
+    // The flowers nearest the spur lie behind; the far ones are drawn last.
+    flowers.sort((p, q) => p.at[1] - q.at[1]);
+    for (const { at, dir, tilt, f } of flowers) out.push(...place(cherryFlower(rng, f, tilt, stage), at, dir));
+    return out;
+  };
+}
+
+/** A young leaf of the flowering cherry, small and bronzed, half unfolded at the end of a spur among its bud scales. */
+function youngLeaf(breadth: number): PlantForm["leaf"] {
+  return (rng, length, bend) => {
+    const out: Shape[] = [];
+    for (const sd of [-1, 1]) {
+      const leaf = serrateLeaf(rng, length * (sd < 0 ? 0.5 : 0.4), bend + sd * 0.08, breadth * 0.7);
+      out.push(...place(leaf.map(shape => shape.type === "body" ? { ...shape, weight: 0.75 } : shape), [0, length * 0.08], unit(sd * 0.35, 1)));
+    }
+    return [line([[0, 0], [0, length * 0.1]], length * 0.035), ...out];
+  };
+}
+
 // ---------------------------------------------------------------- the form
 
 const SHOOTS: Record<string, PlantForm["stems"]> = {
@@ -1098,12 +1244,39 @@ const SHOOTS: Record<string, PlantForm["stems"]> = {
   aquatic: { count: 2, amplitude: 0.22, lambda: [2, 3], width: 0.032, tops: [0.86, 0.66] },
 };
 
+/**
+ * The flowering cherry: the variant's shoots bear umbels at the nodes and on spurs, and few small young leaves, so the
+ * blossom carries the plate. Its umbels shed their petals as they go to seed.
+ */
+function cherryInFlower(variant: Variant): PlantForm {
+  const leaf = youngLeaf(numberOf(variant, "breadth"));
+  return {
+    id: "arbre-fruitier",
+    stems: SHOOTS[textOf(variant, "shoot")]!,
+    basal: null,
+    nodes: { every: [2.4, 3.4], length: height => lerp(1.4, 1.0, height), angle: [30, 55], below: 1 },
+    leafProxy: 0.28,
+    leaf,
+    leaflet: (rng, length, bend) => leaf(rng, length * 0.7, bend),
+    terminal: { size: [1.2, 1.4], r: s => 0.55 * s, off: () => 0, draw: umbel(4), petal: cherryPetal },
+    motifs: [
+      { name: "umbel", w: 3, smin: 0.9, smax: 1.3, max: 12, layer: LAYER.bloom, upright: -0.15, staged: true,
+        r: s => 0.5 * s, off: s => 0.45 * s, draw: umbel(), petal: cherryPetal },
+      { name: "pair", w: 1.2, smin: 0.8, smax: 1.0, max: 4, layer: LAYER.bloom, upright: 0.1, staged: true,
+        r: s => 0.45 * s, off: s => 0.42 * s, draw: umbel(2), petal: cherryPetal },
+      { name: "leaf", w: 0.6, smin: 0.9, smax: 1.3, max: 2, layer: LAYER.leaf, upright: 0.3,
+        r: s => 0.33 * s, off: s => 0.5 * s, draw: (rng, s) => leaf(rng, s, rng.sym(0.25)) },
+    ],
+  };
+}
+
 export const form: FormModule = {
   id: "arbre-fruitier",
   name: "arbre fruitier",
   doc: "Trees, shrubs and fruiting shoots shown by their fruit, which buds, swells and ripens, darkens or splits.",
   variants: {
     fruit: { doc: "The fruit drawn at the nodes", default: "fig", values: Object.keys(FRUITS) },
+    blossom: { doc: "The tree in flower instead of in fruit, after the flowering cherry (cerisier en fleur): umbels of notched flowers on long pedicels from short spurs, and a few small young leaves; the flowers shed their petals and set young cherries, and the fruit keys go unused", default: false, values: [true, false] },
     cluster: { doc: "How fruits hang: one by one (and in forked pairs), as long-stalked twins, in a bunch, or strung on a raceme", default: "single", values: ["single", "pair", "bunch", "raceme"] },
     count: { doc: "Fruits in a bunch or on a raceme", default: 5, range: [2, 14] },
     size: { doc: "Fruit size against the motif: small berries below 1, a quince or pomegranate above", default: 1, range: [0.4, 1.5] },
@@ -1128,6 +1301,7 @@ export const form: FormModule = {
     { name: "pomme", variant: { fruit: "pome", calyx: "eye", surface: "speckled", leaf: "serrate", stalk: 0.9 } },
     { name: "poire", variant: { fruit: "pear", calyx: "eye", surface: "speckled", leaf: "simple", breadth: 1.1, stalk: 1.3, elong: 1.15 } },
     { name: "cerise", variant: { fruit: "drupe", cluster: "pair", size: 0.75, surface: "glossy", stalk: 2.2, leaf: "serrate", breadth: 0.85 } },
+    { name: "cerisier en fleur", variant: { fruit: "drupe", cluster: "pair", size: 0.75, surface: "glossy", stalk: 2.2, leaf: "serrate", breadth: 0.85, blossom: true } },
     { name: "groseille", variant: { fruit: "berry", cluster: "raceme", count: 8, ripe: "translucent", calyx: "eye", stalk: 0.4, leaf: "palmate", shoot: "shrub" } },
     { name: "châtaigne", variant: { fruit: "nut", husk: "burr", nuts: 3, leaf: "serrate", breadth: 0.6 } },
     { name: "noix", variant: { fruit: "nut", husk: "hull", tip: 0.3, leaf: "pinnate", pinnae: 3, breadth: 1.2 } },
@@ -1144,6 +1318,7 @@ export const form: FormModule = {
     { name: "myrtille", variant: { fruit: "berry", calyx: "ring", ripe: "dark", size: 1.3, stalk: 0.5, leaf: "small", shoot: "shrub" } },
   ],
   build(variant: Variant): PlantForm {
+    if (flagOf(variant, "blossom")) return cherryInFlower(variant);
     const kind = textOf(variant, "fruit");
     const fruiting: Fruiting = {
       size: numberOf(variant, "size"), elong: numberOf(variant, "elong"), tip: numberOf(variant, "tip"), stalk: numberOf(variant, "stalk"),

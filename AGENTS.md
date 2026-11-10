@@ -42,8 +42,8 @@ npm run gallery:preview  # the built site on the same port; stop the dev server 
 The tests hold most of these. Keep them holding rather than loosening a test.
 
 - **The core is pure.** No runtime dependencies, and nothing under `src/` uses the DOM: a garden must grow and render in a browser, a worker or Node. The gallery measures the page and hands the library centimetres.
-- **A seed is a garden.** The same spec grows the same garden. The guest draws from its own random stream, so placing one never shifts the layout's other draws.
-- **A moment only reveals.** The layout is fixed at growth; `t` and `fullness` only reveal it. Nothing shown at one moment disappears at a later time or a greater fullness. A quiet day shows fewer leaves (never under 30%) and the same blooms.
+- **A seed is a garden.** The same spec grows the same garden. The guest and each bloom's fallen petals draw from random streams of their own, so placing them never shifts the layout's other draws.
+- **A moment only reveals.** The layout is fixed at growth; `t` and `fullness` only reveal it. Nothing shown at one moment disappears at a later time or a greater fullness, so a fallen petal stays where it appears rather than drifting. A quiet day shows fewer leaves (never under 30%) and the same blooms.
 - **The column is the unit.** Forms are drawn for the 6 × 22 cm column, with sizes in centimetres. Plants keep inside it and leave its top fifth as sky. On a page, the garden never draws over the text, and a right-hand page is the mirror of a left-hand one.
 - **A band keeps inside itself, and leaves the column alone.** A bandeau or a cul-de-lampe (`ornament`) grows at the forms' own sizes. Nothing in it is drawn past its top or its foot, and leaves reach no more than about 3 mm past its ends. Band code never changes a column garden: the column's random draws keep their order, and its arithmetic keeps its last bit.
 - **Colour and moment never regrow.** Changing the palette, its light, `t` or `fullness` must not regrow the garden, in the library or the playground.
@@ -54,7 +54,7 @@ The tests hold most of these. Keep them holding rather than loosening a test.
 
 1. Write `src/forms/<id>.form.ts` exporting `form: FormModule`. The id is plain lowercase ASCII and the display name is French.
 2. List it by hand in **both** `src/registry.ts` and `src/load-form.ts`. Both lists are deliberate, since discovery would not load the same way in a browser, a bundler and Node.
-3. Document every variant key; `resolveVariant` refuses unknown keys and values out of range. Give the form at least one example, since the specimen gallery and tests draw from them.
+3. Document every variant key; `resolveVariant` refuses unknown keys and values out of range. Give the form at least one example, since the specimen gallery and tests draw from them. A bloom that sheds as it goes to seed draws one of its petals with `petal`, and its seed stage shows it without them.
 4. Update the forms table in the README, including its count of calendar days.
 
 ## The calendar

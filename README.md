@@ -18,7 +18,7 @@ On phones and narrower tablets, the garden and its playback button stay in view 
 
 The playground loads its plant forms one at a time, as the light entry does. A visit fetches the engine, the calendar and the one form the day's garden draws, a guest's engraving only on its own day, and the plant chooser loads the other forms when it opens.
 
-The settings choose another day or one of eighteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page, whether the animals stand on shoots or float among the stems, and the seed. "random plant" picks a day named for a plant, and "random visitor" a day whose animal visits the garden or whose tool lies at its foot. Three settings keep the result:
+The settings choose another day or one of nineteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page, whether the animals stand on shoots or float among the stems, and the seed. "random plant" picks a day named for a plant, and "random visitor" a day whose animal visits the garden or whose tool lies at its foot. Three settings keep the result:
 
 - "save as SVG" writes the garden with its inks, and embeds and credits any engraving.
 - "copy a link" keeps the settings in the URL's fragment.
@@ -48,6 +48,8 @@ A moment has two values between 0 and 1:
 
 Neither value takes back what it has shown: a leaf or bloom present at some moment stays present at every later time and greater fullness.
 
+Towards evening, a bloom that sheds lets its petals fall as it goes to seed. A few hang in the air below it, further aside the further they have fallen, and the rest lie on the ground at the garden's foot. In a cul-de-lampe they gather round its root. A petal stays where it appears, so the day still takes nothing back. Roses and the other cupped flowers of `rosacee-coupe` shed, and so does the cherry in blossom. A form's bloom sheds when it draws a `petal` (see `MotifRow` in `src/form.ts`), and the petals come from streams of their own, so a garden that sheds grows every other part as it would without them.
+
 ## Round the text
 
 ```ts
@@ -68,7 +70,7 @@ const garden = growGarden({ seed: 1793, form: "grimpante", variant: { woody: tru
 const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "taille-douce", id: "header", scale: 36, hanging: true });
 ```
 
-With `hanging`, the garden hangs upside down from the top of its column, for a margin that begins under a page's header. The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by that much and needs no transform or clipping from the page. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and its leaves fill the room the guest would take, with no empty shoots left where animals would have stood. A garden grown round a page cannot hang, since its runner and arcs would turn over onto the text.
+With `hanging`, the garden hangs upside down from the top of its column, for a margin that begins under a page's header. The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by that much and needs no transform or clipping from the page. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and its leaves fill the room the guest would take, with no empty shoots left where animals would have stood. Nor does it draw fallen petals, which would fall upwards. A garden grown round a page cannot hang, since its runner and arcs would turn over onto the text.
 
 ## Headpieces and tailpieces
 
@@ -91,7 +93,7 @@ The day's guest comes into a band as it does into the column: an animal stands o
 const garden = growGarden({ seed: 1793, form: "capitule", variant: { rays: 21 }, festival: "opinion" });
 ```
 
-The French Republican calendar names its complementary days for festivals rather than plants. With `festival`, a garden keeps one of them, and since a festival names no plant, it does something to the plant the garden grows: it strips it, stakes it, binds it, mocks it, crowns it or leaves one seed of it. The calendar gives each complementary day its festival and the year's last plant, le marron. A festival garden has no guest, and a page round it works as it does for any garden.
+The French Republican calendar names its complementary days for festivals rather than plants. With `festival`, a garden keeps one of them, and since a festival names no plant, it does something to the plant the garden grows: it strips it, stakes it, binds it, mocks it, crowns it or leaves one seed of it. The calendar gives each complementary day its festival and the year's last plant, le marron. A festival garden has no guest and sheds no petals, and a page round it works as it does for any garden.
 
 | Festival | Day | What it does to the plant |
 |---|---|---|
@@ -124,7 +126,7 @@ A form describes what a plant is made of and how it stands: its stems, leaves, b
 
 | Form | Name | Draws | Calendar days |
 |---|---|---|---|
-| `arbre-fruitier` | arbre fruitier | trees, shrubs and fruiting shoots, shown by fruit that buds, swells and ripens | 39 |
+| `arbre-fruitier` | arbre fruitier | trees, shrubs and fruiting shoots, shown by fruit that buds, swells and ripens, or by blossom that sheds its petals | 39 |
 | `capitule` | capitule | composite flower heads, going to a clock of plumed seeds or a dry head | 17 |
 | `conifere` | conifère | needled or scaled sprays and their cones, berry-like cones or arils | 8 |
 | `cryptogame` | cryptogame | fungi from soil and dead wood over their mycelium, mosses, lichens, ferns and horsetails | 10 |

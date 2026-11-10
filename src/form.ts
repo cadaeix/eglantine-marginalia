@@ -29,6 +29,11 @@ export interface MotifRow {
   off(s: number): number;
   /** Draws in the motif's frame: origin at its base, axis along +y, final size in centimetres. */
   draw(rng: Rng, s: number, stage: Stage): Shape[];
+  /**
+   * One of the petals this bloom sheds as it goes to seed, for a bloom of size `s`: drawn in its own frame, base at
+   * the origin and tip along +y, in centimetres. A bloom without it sheds none.
+   */
+  petal?(rng: Rng, s: number): Shape[];
 }
 
 /**
@@ -74,7 +79,7 @@ export interface PlantForm {
   leafProxy: number;
   leaf(rng: Rng, length: number, bend: number): Shape[];
   leaflet(rng: Rng, length: number, bend: number): Shape[];
-  terminal: { size: [number, number]; r(s: number): number; off(s: number): number; draw(rng: Rng, s: number, stage: Stage): Shape[] };
+  terminal: { size: [number, number]; r(s: number): number; off(s: number): number; draw(rng: Rng, s: number, stage: Stage): Shape[]; petal?(rng: Rng, s: number): Shape[] };
   motifs: MotifRow[];
   /**
    * What the fruit leaves once its seed has fallen, such as the chestnut's empty burr, drawn in the motif's
