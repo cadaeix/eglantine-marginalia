@@ -61,7 +61,7 @@ The tests hold most of these. Keep them holding rather than loosening a test.
 
 - `src/calendar/names.ts` keeps Fabre d'Églantine's 360 day names with their articles as he printed them, then the complementary days. `gallery/english.ts` holds the English names in the same order, from Wikipedia's tables.
 - `PLANTS` has one row for each of the 288 plant days and none for animal or tool days, which grow the day before's plant.
-- Year XV and every fourth year after are sextile, with no exception for centuries. The README explains this rule.
+- Each year begins on the day the true autumn equinox falls at the Paris Observatory, as the decree of 4 frimaire an II has it, so sextile years follow from the equinoxes. The equinoxes are reckoned to 3000. The README explains this rule.
 - **Complementary days hold festivals.** `calendarDay` gives each of them the year's last plant, le marron (the plant 30 fructidor grows), and `festival`, the day's festival. Every day has a plant.
 
 ## Festivals

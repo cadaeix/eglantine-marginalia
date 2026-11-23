@@ -35,13 +35,13 @@ describe("the playground's settings", () => {
   });
 
   it("names each calendar day in English beside its French name", () => {
-    expect(resolveSelection({ ...fallback, date: "2026-09-24" })).toMatchObject({ title: "Le raisin", gloss: "grape" });
-    expect(resolveSelection({ ...fallback, date: "2026-11-03" })).toMatchObject({ title: "Le salsifis", gloss: "salsify" });
-    expect(resolveSelection({ ...fallback, date: "2026-09-18" })).toMatchObject({ title: "Le panier", gloss: "pack basket" });
+    expect(resolveSelection({ ...fallback, date: "2026-09-23" })).toMatchObject({ title: "Le raisin", gloss: "grape" });
+    expect(resolveSelection({ ...fallback, date: "2026-11-02" })).toMatchObject({ title: "Le salsifis", gloss: "salsify" });
+    expect(resolveSelection({ ...fallback, date: "2026-09-16" })).toMatchObject({ title: "Le panier", gloss: "pack basket" });
   });
 
   it("grows the year's last plant under a complementary day's festival, and its website code asks for the festival too", async () => {
-    const state = { ...fallback, date: "2027-09-22", mode: "margin" as const };
+    const state = { ...fallback, date: "2027-09-21", mode: "margin" as const };
     const selection = resolveSelection(state);
     expect(selection).toMatchObject({ title: "Jour de l'opinion", gloss: "the day of convictions", form: "arbre-fruitier", festival: "opinion", guest: null });
     const geometry = { column: 6, height: 22, text: 10, below: 6, measure: 9 };
@@ -53,7 +53,7 @@ describe("the playground's settings", () => {
 
   it("lets the day's animal float among the stems, as every animal once did, and its website code asks for that too", async () => {
     // Le cochon stands on a shoot of his own unless the visitors float.
-    const state = { ...fallback, date: "2026-11-27", mode: "margin" as const };
+    const state = { ...fallback, date: "2026-11-26", mode: "margin" as const };
     const geometry = { column: 6, height: 30, text: 10, below: 6, measure: 9 };
     expect((await createGarden(state, geometry)).garden.guests.every(guest => guest.stance === "shoot")).toBe(true);
     const floating = { ...state, visitors: "floating" as const };
@@ -80,7 +80,7 @@ describe("the playground's settings", () => {
 
   it("grows a headpiece as wide as the text and keeps the day's animal, and its website code grows the same band", async () => {
     // Le cochon visits on a shoot of his own.
-    const state = { ...fallback, date: "2026-11-27", mode: "bandeau" as const };
+    const state = { ...fallback, date: "2026-11-26", mode: "bandeau" as const };
     const geometry: Geometry = { column: 6, height: 25, text: 18.5, below: 0, measure: 17.5 };
     const { garden } = await createGarden(state, geometry);
     expect([garden.width, garden.height]).toEqual([17.5, ORNAMENTS.bandeau.height]);

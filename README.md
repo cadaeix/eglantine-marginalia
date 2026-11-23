@@ -187,7 +187,7 @@ A wash in one brown, madder or blue suits every day. The green washes of `olive`
 import { calendarDay, figureURL } from "eglantine-marginalia/calendar";
 import { growGarden, renderGarden } from "eglantine-marginalia";
 
-const day = calendarDay("2026-10-31");
+const day = calendarDay("2026-10-30");
 // day.dateline: "8 brumaire an CCXXXV"; day.name: "la scorsonère"
 const garden = growGarden({
   seed: 1793, form: day.plant.form, variant: day.plant.variant,
@@ -243,7 +243,7 @@ The French Republican calendar was in use from 1793 to 1805. It divides the year
 
 Fabre named the complementary days for festivals instead: of Genius, Labour, good Actions, Rewards and Opinion, and in a sextile year a sixth day of national games. On the festival of Opinion, [his report](https://fr.wikisource.org/wiki/Rapport_sur_le_calendrier_r%C3%A9publicain) has it, anyone could say what they liked of a public official, in songs, caricatures and pasquinades: "on corrompt les tribunaux, on ne corrompt pas l'opinion". The Convention renamed the festival of Actions for Virtue and put it first, and moved Opinion to the fourth day; the library follows that order, and names the sixth day for the Revolution, as later calendars did. Fabre and the Convention left the festivals' ceremonies to be settled, and none of the days names a plant, so on each of them the garden grows the year's last plant, le marron, which the year's last day grows too, and the festival does something to it.
 
-The Republic declared years III, VII and XI sextile before it abolished the calendar, and later readings disagree on the years after. `republicanDate` keeps the four-year rhythm those years set: year XV and every fourth year after are sextile, with no exception for centuries. By this rule 31 October 2026 is 8 brumaire an CCXXXV, a day later than a reading that follows the autumn equinox.
+The decree of 4 frimaire an II that set up the calendar begins each year at midnight on the day the true autumn equinox falls for the Paris Observatory. `republicanDate` follows the decree. It reckons the September equinox after Meeus's *Astronomical Algorithms* and reads it on the Observatory's true solar clock, and a year is sextile when the next equinox falls 366 days later. This gives the new years the Republic kept, with years III, VII and XI sextile and year XII opening on 24 September 1803, and it keeps the calendar to the seasons since: 22 November 2026 is 1er frimaire an CCXXXV. The equinoxes are reckoned to the year 3000, and later dates raise a RangeError. Until November 2026 the library kept instead to a four-year rhythm with no exception for centuries, which by then ran a day or two behind the equinox.
 
 The figures are ink masks cut from engravings of the period, in public-domain scans by the Smithsonian Libraries, the Bibliothèque interuniversitaire de santé in Paris, the University of Seville, Naturalis, the Getty Research Institute and other libraries, served through the Internet Archive, and by the Rijksmuseum. [figures/PROVENANCE.md](figures/PROVENANCE.md) lists the work, plate and scan for each of the 72 figures, one for every animal and tool day.
 
