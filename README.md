@@ -227,6 +227,7 @@ npm run gallery          # playground at http://localhost:5210
 npm run build            # library in dist/
 npm run gallery:build    # static website in site-dist/
 npm run gallery:preview  # serve the built website at http://localhost:5210
+npm run sweep            # grow every plant across sizes and layouts; see scripts/README.md
 ```
 
 `npm run check` runs typechecking, tests, and both builds. Stop the development server before running the preview server on the same port.

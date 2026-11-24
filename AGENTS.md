@@ -16,6 +16,7 @@ npm run typecheck
 npm run check            # typecheck, tests, library build and site build: run before a commit
 npm run gallery          # playground at http://localhost:5210
 npm run gallery:preview  # the built site on the same port; stop the dev server first
+npm run sweep            # grows every plant across sizes and layouts, listing any that throw (scripts/README.md)
 ```
 
 `dist/` and `site-dist/` are build outputs and are not committed. `npm run build` also writes `dist/palettes.css` through `scripts/palettes-css.mjs`.
