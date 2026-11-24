@@ -28,7 +28,7 @@ npm run sweep            # grows every plant across sizes and layouts, listing a
 | `src/garden.ts` | the growth loop, after florilegium; loads no forms |
 | `src/grow.ts`, `src/index.ts` | the main entry: `growGarden` by registered form id |
 | `src/lite.ts`, `src/load-form.ts` | the light entry: forms loaded one at a time |
-| `src/render.ts`, `src/paint.ts` | a garden at one moment as SVG, in a manner: `taille-douce`, `lavis` or `pointille`, each a row of the manners table in `paint.ts` |
+| `src/render.ts`, `src/paint.ts` | a garden at one moment as SVG, in a manner: `taille-douce`, `lavis`, `pointille` or `crayon`, each a row of the manners table in `paint.ts` |
 | `src/form.ts`, `src/kit.ts`, `src/toolkit.ts` | what a form is, and the shared kit forms are built with |
 | `src/forms/<id>.form.ts` | the thirteen plant forms |
 | `src/festival.ts`, `src/festivals/<id>.ts` | the six festivals of the complementary days, each done to a plant |

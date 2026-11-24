@@ -2,7 +2,7 @@
 // bloom and seed and their leaf drawn large, so a form's author can judge it by eye; and today's garden
 // from the calendar through the day. `#form=<id>` opens one form, `#all` shows every example small,
 // `#today` shows the calendar's day (`&date=YYYY-MM-DD` another day's), and `#festivals` the six complementary
-// days of a sextile year through the day; `&manner=lavis` or `&manner=pointille` and `&paper=night` change the plate.
+// days of a sextile year through the day; `&manner=<manner>` and `&paper=night` change the plate.
 // `&palette=<id>-light` or `-dark` draws everything in one of the library's palettes.
 import { calendarDay, figureURL, localDate } from "../src/calendar/index.js";
 import type { FormModule, Variant } from "../src/form.js";

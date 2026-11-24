@@ -1,11 +1,13 @@
-// Three manners for the same shapes. Taille-douce is the copperplate: paper-white forms with a fine
+// Four manners for the same shapes. Taille-douce is the copperplate: paper-white forms with a fine
 // outline, shade cut as hatching, stems in solid ink. Lavis is the wash: soot-brown bistre laid in
 // transparent layers, darker in the shade and pooled at the edges, veins lifted out in paper. Pointillé is
 // stipple engraving, as the plates after Redouté's lilies and roses were engraved: each form is modelled in dots
 // of the wash's colour, thick in its shadow and at its rim and sparse across its lit side, inside a contour of
-// finer dots. Each manner is a row of STYLES, so another is another row.
+// finer dots. Crayon is the chalk manner François and Demarteau made in the 1750s to print chalk drawings: loose
+// hatching along each form, a contour that is heavy on the shadowed side and skips on the lit one, and the
+// paper's tooth showing through every stroke. Each manner is a row of STYLES, so another is another row.
 // Colours are CSS custom properties with fallbacks (see inks.ts), so a page's stylesheet can retint them.
-import { fine, inside, num, pointsPath, polyPath, type Pt, smoothPath, smoothstep } from "./geometry.js";
+import { fine, inside, lerp, num, pointsPath, polyPath, type Pt, smoothPath, smoothstep } from "./geometry.js";
 import { inkRef } from "./inks.js";
 import type { Body, Shape } from "./shapes.js";
 
@@ -232,6 +234,38 @@ function stippleBody(body: Body, sheet: Sheet): string {
   return out;
 }
 
+/** Chalk's hatching is this wide on the lightest form and on the heaviest, in centimetres. */
+const CHALK_HATCH = [0.016, 0.026] as const;
+/** The contour's width on a form's lit side and on its shadowed one, in centimetres. */
+const CHALK_LIT = 0.014, CHALK_SHADE = 0.04;
+/** On the lit side the contour breaks as the chalk skips over the paper: its strokes and gaps, in centimetres. */
+const CHALK_SKIP = "0.24 0.05 0.11 0.04";
+/** How deeply an accented form is coloured, as a pastel. */
+const PASTEL = 0.6;
+
+function chalkBody(body: Body, sheet: Sheet): string {
+  const outline = outlineOf(body, sheet);
+  // An accented form, a hip or a berry, is laid in colour, as the pastel manner printed it.
+  if (body.tone === "accent") return `<use href="#${outline}" fill="${PAPER}"/><use href="#${outline}" fill="${ACCENT}" fill-opacity="${num(PASTEL)}" stroke="${ACCENT}" stroke-width="${fine(CHALK_LIT)}"/>`;
+  let out = `<use href="#${outline}" fill="${PAPER}"/>`;
+  if (body.shadow.length > 0) {
+    const shade = sheet.id("s");
+    sheet.defs.push(`<clipPath id="${shade}"><path d="${rings(body.shadow)}" clip-rule="evenodd"/></clipPath>`);
+    let strokes = "";
+    if (body.grain.length > 0) {
+      const clip = sheet.id("c");
+      sheet.defs.push(`<clipPath id="${clip}"><use href="#${outline}"/></clipPath>`);
+      strokes += `<g clip-path="url(#${clip})"><path d="${cuts(body.grain)}" fill="none" stroke="${WASH}" stroke-opacity="0.85" stroke-width="${fine(lerp(...CHALK_HATCH, body.weight))}" stroke-linecap="round"/></g>`;
+    }
+    // The contour weighs on the shadowed side, as a draughtsman presses there.
+    strokes += `<use href="#${outline}" fill="none" stroke="${WASH}" stroke-width="${fine(CHALK_SHADE)}" stroke-linejoin="round"/>`;
+    out += `<g clip-path="url(#${shade})">${strokes}</g>`;
+  }
+  out += `<use href="#${outline}" fill="none" stroke="${WASH}" stroke-width="${fine(CHALK_LIT)}" stroke-dasharray="${CHALK_SKIP}" stroke-linecap="round"/>`;
+  if (body.veins.length > 0) out += `<path d="${curves(body.veins)}" fill="none" stroke="${WASH}" stroke-opacity="0.7" stroke-width="0.01" stroke-linecap="round"/>`;
+  return out;
+}
+
 /** How a manner paints: its modelled forms, and the ink its solids, lines and dots take when they are not accented. */
 export interface MannerStyle {
   body(body: Body, sheet: Sheet): string;
@@ -253,6 +287,7 @@ const STYLES = {
   },
   // Stems are eased back a little, as the wash's are, so they sit with the dots rather than over them.
   pointille: { body: stippleBody, solid: ` fill="${WASH}" fill-opacity="0.85"`, line: ` stroke="${WASH}" stroke-opacity="0.85"`, dots: ` fill="${WASH}"`, figure: `fill="${WASH}"` },
+  crayon: { body: chalkBody, solid: ` fill="${WASH}" fill-opacity="0.9"`, line: ` stroke="${WASH}" stroke-opacity="0.9"`, dots: ` fill="${WASH}"`, figure: `fill="${WASH}"`, filter: chalkFilter },
 } as const satisfies Record<string, MannerStyle>;
 
 export type Manner = keyof typeof STYLES;
@@ -308,5 +343,22 @@ export function paintShapes(shapes: readonly Shape[], manner: Manner, sheet: She
 function washFilter(sheet: Sheet, seed: number): string {
   const id = sheet.id("bleed");
   sheet.defs.push(`<filter id="${id}" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="3.2" numOctaves="2" seed="${seed % 1000}"/><feDisplacementMap in="SourceGraphic" scale="0.05" xChannelSelector="R" yChannelSelector="G"/></filter>`);
+  return id;
+}
+
+/** The paper's tooth: how fine its grain is, in cycles a centimetre, and how much of it shows through the chalk. */
+const TOOTH = 18, TOOTH_GAIN = 6, TOOTH_OFFSET = -2.8;
+
+/**
+ * The paper's tooth showing through the chalk: specks of the paper, from noise as fine as a sheet's grain, laid
+ * over everything drawn and nowhere else. One filter per sheet; a paper-white form shows no specks on itself.
+ */
+function chalkFilter(sheet: Sheet, seed: number): string {
+  const id = sheet.id("tooth");
+  sheet.defs.push(`<filter id="${id}" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">`
+    + `<feTurbulence type="fractalNoise" baseFrequency="${TOOTH}" numOctaves="2" seed="${seed % 1000}" result="noise"/>`
+    + `<feColorMatrix in="noise" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${TOOTH_GAIN} 0 0 0 ${TOOTH_OFFSET}" result="tooth"/>`
+    + `<feFlood flood-color="${PAPER}"/><feComposite in2="tooth" operator="in"/><feComposite in2="SourceAlpha" operator="in" result="specks"/>`
+    + `<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="specks"/></feMerge></filter>`);
   return id;
 }

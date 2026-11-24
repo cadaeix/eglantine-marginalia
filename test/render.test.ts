@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { inside, pointsPath, polyPath, type Pt, smoothPath } from "../src/geometry.js";
 import { growGarden } from "../src/grow.js";
 import { DEFAULT_INKS, withInks } from "../src/inks.js";
-import { type Manner, paintShapes, Sheet } from "../src/paint.js";
+import { type Manner, MANNERS, paintShapes, Sheet } from "../src/paint.js";
 import { createRng } from "../src/random.js";
 import { renderGarden } from "../src/render.js";
 import { bladeBody } from "../src/shapes.js";
@@ -128,13 +128,15 @@ describe("rendering", () => {
     if (last > first) expect(uses(drawn((first + last) / 2))).toBe(1);
   });
 
-  it("keeps SVG ids and their references valid with punctuation in the prefix", () => {
-    const svg = renderGarden(garden, moment, { manner: "lavis", id: `page "one" & <two> (#) Été K ſ`, scale: 10 });
-    const ids = [...svg.matchAll(/\bid="([^"]*)"/gu)].map(match => match[1]!);
-    const references = [...svg.matchAll(/(?:href="#|url\(#)([^")]+)/gu)].map(match => match[1]!);
-    expect(ids.every(id => /^[A-Za-z0-9_-]+$/u.test(id))).toBe(true);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(references.every(id => ids.includes(id))).toBe(true);
+  it("keeps SVG ids and their references valid with punctuation in the prefix, in every manner", () => {
+    for (const manner of MANNERS) {
+      const svg = renderGarden(garden, moment, { manner, id: `page "one" & <two> (#) Été K ſ`, scale: 10 });
+      const ids = [...svg.matchAll(/\bid="([^"]*)"/gu)].map(match => match[1]!);
+      const references = [...svg.matchAll(/(?:href="#|url\(#)([^")]+)/gu)].map(match => match[1]!);
+      expect(ids.every(id => /^[A-Za-z0-9_-]+$/u.test(id)), manner).toBe(true);
+      expect(new Set(ids).size, manner).toBe(ids.length);
+      expect(references.filter(id => !ids.includes(id)), manner).toEqual([]);
+    }
     const quoted = new Sheet(`page"one`).id(`shape"`);
     const literal = new Sheet("page_22_one").id(`shape"`);
     expect(quoted).toMatch(/^[a-z0-9_-]+$/iu);
