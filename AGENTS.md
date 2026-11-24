@@ -28,7 +28,7 @@ npm run sweep            # grows every plant across sizes and layouts, listing a
 | `src/garden.ts` | the growth loop, after florilegium; loads no forms |
 | `src/grow.ts`, `src/index.ts` | the main entry: `growGarden` by registered form id |
 | `src/lite.ts`, `src/load-form.ts` | the light entry: forms loaded one at a time |
-| `src/render.ts`, `src/paint.ts` | a garden at one moment as SVG, in a manner: `taille-douce`, `lavis`, `pointille` or `crayon`, each a row of the manners table in `paint.ts` |
+| `src/render.ts`, `src/paint.ts` | a garden at one moment as SVG, in a manner: `taille-douce`, `lavis`, `pointille`, `crayon` or `bois`, each a row of the manners table in `paint.ts` |
 | `src/form.ts`, `src/kit.ts`, `src/toolkit.ts` | what a form is, and the shared kit forms are built with |
 | `src/forms/<id>.form.ts` | the thirteen plant forms |
 | `src/festival.ts`, `src/festivals/<id>.ts` | the six festivals of the complementary days, each done to a plant |
@@ -73,7 +73,7 @@ A festival does something to a plant: `growGarden({ …, festival })`, for any p
 - `context.compose(items)` makes a garden from items laid out in the column. It numbers them, ripens them as the loop does, and sets the column on the page.
 - In a bandeau or a cul-de-lampe, `context.ornament`, the band's `width` and `height`, `footWidth` and `laid` say where the plant stands. A festival fits itself to the band from these, never by copying the loop's layout. In a column shorter than 22 cm, `context.columnScale` says how much the loop shrinks the foot.
 
-`test/festivals.test.ts` holds every festival to the garden invariants, on a grain, a flower, a climber, a footed plant and a stemless one, in the column, on a page and in both bands. Only Opinion's marks (layer 7 and up) may write over a page's text. A form can offer the festivals its `husk` and `kernel`, which only `arbre-fruitier`'s chestnut draws so far. Code shared by a form and a festival but not by most forms, such as the oak leaf in `src/leaves.ts`, stays out of `kit.ts`, which every form loads and the toolkit exports.
+`test/festivals.test.ts` holds every festival to the garden invariants, on a grain, a flower, a climber, a footed plant and a stemless one, in the column, on a page and in both bands. Only Opinion's marks (layer 7 and up) may write over a page's text. A form can offer the festivals its `husk` and `kernel`, as `arbre-fruitier` (husked nuts and cotton), `feuillage` (acorns, beechnuts, conkers, hazelnuts), `conifere` (woody cones) and `capitule` draw them. Code shared by a form and a festival but not by most forms, such as the oak leaf in `src/leaves.ts`, stays out of `kit.ts`, which every form loads and the toolkit exports.
 
 ## Guest figures
 

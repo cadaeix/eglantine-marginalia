@@ -59,7 +59,7 @@ const MODE_NOTES: Readonly<Record<Mode, string>> = {
   "cul-de-lampe": "One root sprays the plant both ways, as a cul-de-lampe ends a chapter.",
 };
 /** How the garden's description names the manner it is drawn in. */
-const MANNER_PHRASES: Readonly<Record<Manner, string>> = { "taille-douce": "engraved", lavis: "in wash", pointille: "in stipple", crayon: "in chalk" };
+const MANNER_PHRASES: Readonly<Record<Manner, string>> = { "taille-douce": "engraved", lavis: "in wash", pointille: "in stipple", crayon: "in chalk", bois: "in woodcut" };
 /** The garden's tallest column, in centimetres: a long page keeps its garden at its foot. */
 const TALLEST = 30;
 /** The proof's detail view, in pixels per centimetre, twice the playground's largest drawing scale. */

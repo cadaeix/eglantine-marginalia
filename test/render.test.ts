@@ -83,6 +83,20 @@ describe("rendering", () => {
     expect(() => renderGarden(garden, moment, { manner: "mezzotint" as Manner, id: "m", scale: 10 })).toThrow(RangeError);
   });
 
+  it("cuts heavy woodcut forms in solid ink with white-line gouges and light petals in open ink cuts", () => {
+    const leaf = bladeBody({ spine: v => [0.2 * v * v, 2.5 * v], halfWidth: v => 0.6 * Math.sin(Math.PI * v), shade: 1, spacing: 0.055, grain: "across", weight: 0.6, midrib: true }, createRng(1793));
+    const petal = bladeBody({ spine: v => [0.1 * v * v, 1.5 * v], halfWidth: v => 0.4 * Math.sin(Math.PI * v), shade: 1, spacing: 0.055, grain: "across", weight: 0.25 }, createRng(1793));
+    const leafSvg = paintShapes([leaf], "bois", new Sheet("leaf"));
+    const petalSvg = paintShapes([petal], "bois", new Sheet("petal"));
+    // The heavy leaf fills its shadow in solid ink and carves white-line grain and veins back in paper.
+    expect(leafSvg).toContain(`fill="var(--eglantine-ink,`);
+    expect(leafSvg).toContain(`stroke="var(--eglantine-paper,`);
+    // The light petal stays paper-white inside its outline, shaded with ink cuts rather than solid ink.
+    expect(petalSvg).not.toContain(`fill="var(--eglantine-ink,`);
+    expect(petalSvg).not.toContain(`stroke="var(--eglantine-paper,`);
+    expect(petalSvg).toContain(`stroke="var(--eglantine-ink,`);
+  });
+
   it("lays decorations under the garden, among its layers inside the wash, and over it", () => {
     const svg = renderGarden(garden, moment, {
       manner: "lavis", id: "d", scale: 10,

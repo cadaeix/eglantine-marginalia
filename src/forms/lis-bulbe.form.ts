@@ -131,6 +131,26 @@ function flower(rng: Rng, L: number, lily: Lily): Shape[] {
   return lift > 0 ? [perianthTube(rng, L, lift), ...head] : head;
 }
 
+/**
+ * One tepal of a lily or tulip as it falls, along +y from its base: keeping the shape's curve, tip and pattern,
+ * scaled to the size of a single flower in its cluster.
+ */
+function fallenTepal(rng: Rng, s: number, lily: Lily): Shape[] {
+  const shape = SHAPES[lily.flower] ?? SHAPES.cup!;
+  const flowerSize = lily.cluster === "solitary" ? s * 0.8 : lily.cluster === "umbel" ? s * 0.42 : s * 0.36;
+  const len = flowerSize * rng.range(0.92, 1.05);
+  const [p0, p1, p2, p3] = shape.path.map(([r, h]) => [r * len, h * len] as Pt) as [Pt, Pt, Pt, Pt];
+  const curve = bezier3(p0, p1, p2, p3);
+  const [r0, h0] = curve(0), [r1, h1] = curve(1);
+  const dr = r1 - r0, dh = h1 - h0, span = Math.hypot(dr, dh) || 1;
+  const c = dr / span, d = dh / span;
+  return petal(rng, Math.PI, rng.range(0.8, Math.PI / 2), {
+    path: v => { const [r, h] = curve(v); const rx = r - r0, hx = h - h0; return [rx * c + hx * d, hx * c - rx * d]; },
+    width: tepalWidth(len * (lily.flower === "corona" ? 0.55 : 1), lily.tepalWidth, shape.tip),
+    tip: shape.tip, weight: lily.pattern === "checkered" ? 0.8 : 0.35, pattern: lily.pattern, samples: 12,
+  }).shapes;
+}
+
 /** A closed bud along +y: a pointed egg with its tepals' seams; in a papery spathe if the plant has one. */
 function closedBud(rng: Rng, L: number, lily: Lily): Shape[] {
   const length = L * (lily.flower === "trumpet" || lily.flower === "tube" ? 0.8 : 0.6), width = L * (lily.flower === "bell" ? 0.3 : 0.22);
@@ -397,6 +417,9 @@ export const form: FormModule = {
       ? (rng, length, bend) => whorl(rng, length).map(shape => turnShape(shape, -Math.sign(bend || 1) * Math.PI / 2))
       : (rng, length, bend) => bulbKind !== "none" && length >= BULB_LEAF ? [...plain(rng, length, bend), ...bulb(rng, bulbKind, bulbSize)] : plain(rng, length, bend);
     const draw = (rng: Rng, s: number, stage: Stage): Shape[] => inflorescence(rng, s, stage, lily);
+    // Free-tepal lilies and tulips shed their tepals as the capsule or berry sets; allium balls and fused bells do not.
+    const sheds = lily.flower !== "star" && !(lily.flower === "bell" && lily.tepals === 6)
+      ? { petal: (rng: Rng, s: number): Shape[] => fallenTepal(rng, s, lily) } : {};
     const tall = lily.cluster === "raceme" || lily.cluster === "spike";
     const blade = kind === "strap" || kind === "rush" ? (rng: Rng, s: number) => plain(rng, s, rng.sym(0.3)) : (rng: Rng, s: number) => strapLeaf(rng, s, rng.sym(0.3), 0.8);
     const basalCount: [number, number] = kind === "broad" ? [2, 3] : kind === "rush" ? [7, 10] : kind === "heart" ? [3, 4] : [5, 8];
@@ -411,10 +434,10 @@ export const form: FormModule = {
       leafProxy: whorled ? 0.45 : 0.14,
       leaf,
       leaflet: (rng, length, bend) => strapLeaf(rng, length, bend, 0.7),
-      terminal: { size: [1.3 * size, 1.6 * size], r: s => (tall ? 0.5 : 0.42) * s, off: () => 0, draw },
+      terminal: { size: [1.3 * size, 1.6 * size], r: s => (tall ? 0.5 : 0.42) * s, off: () => 0, draw, ...sheds },
       motifs: [
         { name: "bloom", w: 3, smin: 0.95 * size, smax: 1.35 * size, max: 5, hard: true, layer: LAYER.bloom, upright: 0.9, staged: true,
-          r: s => (tall ? 0.5 : 0.42) * s, off: s => 0.45 * s, draw },
+          r: s => (tall ? 0.5 : 0.42) * s, off: s => 0.45 * s, draw, ...sheds },
         { name: "leaf", w: 1.5, smin: 1.4, smax: 2.2, max: 2, hard: true, layer: LAYER.leaf, upright: 0.6,
           r: s => 0.16 * s, off: s => 0.5 * s, draw: (rng, s) => blade(rng, s) },
       ],

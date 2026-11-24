@@ -140,6 +140,61 @@ function head(rng: Rng, s: number, stage: Stage, shape: Head): Shape[] {
   return finish(shapes);
 }
 
+/** One fallen ray floret (ligule) along +y from its claw, shed when a clock head goes to seed. */
+function fallenLigule(rng: Rng, s: number, shape: Head): Shape[] {
+  const length = s * shape.rayLength * rng.range(0.85, 1.05);
+  const width = s * 0.042 * Math.min(1.4, 22 / Math.max(8, shape.rays)) ** 0.5;
+  return [ligule(rng, [0, 0], Math.PI / 2, length, width, 1, rng.chance(0.5) ? 1 : -1)];
+}
+
+/** The bare pitted receptacle over its reflexed involucre once every seed has flown. */
+function emptyReceptacle(rng: Rng, s: number, shape: Head): Shape[] {
+  const r = s * Math.max(0.18, shape.disc * 1.15);
+  const centre: Pt = [0, s * 0.34];
+  const shapes: Shape[] = [...involucre(rng, s * 0.82, s * 0.34, 0.52, 0.22)];
+  const dome = sample(v => [centre[0] + Math.cos(v * Math.PI * 2) * r, centre[1] + Math.sin(v * Math.PI * 2) * r * 0.48], 24).slice(0, -1);
+  shapes.push(roundBody(dome, centre, r, HATCH * 0.7, 0.45));
+  const pits: Pt[] = [];
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let k = 0; k < 32; k += 1) {
+    const rr = r * 0.85 * Math.sqrt(k / 32), a = k * golden;
+    pits.push([centre[0] + Math.cos(a) * rr, centre[1] + Math.sin(a) * rr * 0.48]);
+  }
+  shapes.push({ type: "dots", points: pits, radius: s * 0.01 });
+  return shapes;
+}
+
+/** A single composite achene: a striped sunflower seed for dry heads, or a plumed seed for clock heads, tip at (0, s). */
+function compositeKernel(rng: Rng, s: number, dry: boolean): Shape[] {
+  if (dry) {
+    const w = s * 0.26;
+    const hw = (v: number): number => w * Math.sin(Math.PI * Math.min(1, 0.14 + v * 0.86)) ** 0.65 * (1 - 0.65 * v ** 1.4);
+    const right = sample(v => [hw(v), s * v], 20);
+    const left = right.slice().reverse().map(([x, y]): Pt => [-x, y]);
+    const body = roundBody([...right, ...left], [0, s * 0.42], s * 0.48, HATCH * 0.55, 0.82);
+    body.veins = [-0.45, 0, 0.45].map(q => sample(v => [hw(v) * q * 0.9, s * v], 10, 0.08, 0.92));
+    return [body];
+  }
+  // Pappus parachute at the base (0..0.38s), slender beak (0.38..0.62s), ribbed achene tapering to (0, s).
+  const hub: Pt = [0, s * 0.36];
+  const shapes: Shape[] = [];
+  for (let k = 0; k < 15; k += 1) {
+    const u = k / 14 * 2 - 1;
+    const a = Math.PI + u * 1.15;
+    const len = s * (0.34 - 0.06 * Math.abs(u)) * rng.range(0.92, 1.05);
+    const tip: Pt = [hub[0] + Math.sin(a) * len, hub[1] + Math.cos(a) * len];
+    shapes.push(line([hub, [hub[0] + Math.sin(a) * len * 0.5, hub[1] + Math.cos(a) * len * 0.6], tip], s * 0.008));
+  }
+  shapes.push(line([hub, [0, s * 0.62]], s * 0.018));
+  const hw = (v: number): number => s * 0.095 * Math.sin(Math.PI * Math.min(1, 0.15 + v * 0.85)) ** 0.7 * (1 - 0.55 * v ** 1.6);
+  const right = sample(v => [hw(v), s * (0.6 + 0.4 * v)], 14);
+  const left = right.slice().reverse().map(([x, y]): Pt => [-x, y]);
+  const achene = roundBody([...right, ...left], [0, s * 0.8], s * 0.2, HATCH * 0.55, 0.78);
+  achene.veins = [-0.35, 0.35].map(q => sample(v => [hw(v) * q, s * (0.64 + 0.32 * v)], 6));
+  shapes.push(achene);
+  return shapes;
+}
+
 function leafOf(kind: string): PlantForm["leaf"] {
   switch (kind) {
     case "toothed": return (rng, length, bend) => toothedLeaf(rng, length, bend);
@@ -172,6 +227,8 @@ export const form: FormModule = {
     const shape: Head = { rays: numberOf(variant, "rays"), rayLength: numberOf(variant, "rayLength"), disc: numberOf(variant, "disc"), seed: textOf(variant, "seed") };
     const size = numberOf(variant, "size");
     const draw = (rng: Rng, s: number, stage: Stage): Shape[] => head(rng, s, stage, shape);
+    // A clock head loses all its rays as it goes to seed; a dry head keeps withered rays hanging.
+    const sheds = shape.rays > 0 && shape.seed === "clock" ? { petal: (rng: Rng, s: number): Shape[] => fallenLigule(rng, s, shape) } : {};
     const leaf = leafOf(textOf(variant, "leaf"));
     return {
       id: "capitule",
@@ -181,15 +238,17 @@ export const form: FormModule = {
       leafProxy: textOf(variant, "leaf") === "strap" ? 0.14 : 0.24,
       leaf,
       leaflet: (rng, length, bend) => leaf(rng, length * 0.9, bend),
-      terminal: { size: [1.25 * size, 1.5 * size], r: s => 0.6 * s, off: () => 0, draw },
+      terminal: { size: [1.25 * size, 1.5 * size], r: s => 0.6 * s, off: () => 0, draw, ...sheds },
       motifs: [
         { name: "bloom", w: 3, smin: 0.85 * size, smax: 1.3 * size, max: size < 0.8 ? 7 : 4, hard: true, layer: LAYER.bloom, upright: 0.9, staged: true,
-          r: s => 0.58 * s, off: s => 0.3 * s, draw },
+          r: s => 0.58 * s, off: s => 0.3 * s, draw, ...sheds },
         { name: "bud", w: 1.2, smin: 0.6 * size, smax: 0.9 * size, max: 4, layer: LAYER.bloom, upright: 0.9,
           r: s => 0.34 * s, off: s => 0.3 * s, draw: (rng, s) => head(rng, s, "bud", shape) },
         { name: "leaf", w: 1.6, smin: 1.2, smax: 2.4, max: 6, layer: LAYER.leaf, upright: 0.5,
           r: s => 0.28 * s, off: s => 0.5 * s, draw: (rng, s) => leaf(rng, s, rng.sym(0.25)) },
       ],
+      husk: (rng: Rng, s: number) => emptyReceptacle(rng, s, shape),
+      kernel: (rng: Rng, s: number) => compositeKernel(rng, s, shape.seed === "dry"),
     };
   },
 };

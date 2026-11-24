@@ -416,6 +416,56 @@ const POSTURES: Record<string, Posture> = {
   low: { count: 3, amplitude: 0.2, width: 0.09, tops: [0.74, 0.62, 0.5], every: [0.9, 1.3], length: h => lerp(2.1, 1.5, h), angle: [40, 66], upright: 0.2 },
 };
 
+/** A spent woody cone without its seeds, for the festivals of Virtue and Genius. */
+function emptyCone(rng: Rng, s: number, k: Kind): Shape[] {
+  const stalk = s * 0.1;
+  const base: Pt = [0, stalk];
+  const stem = line([[0, 0], base], s * 0.032);
+  if (k.shatter) {
+    // Only the upright cone axis and the last scales clinging at its foot remain.
+    const r = s * 0.24, len = r * 2 * Math.min(k.coneLength, 1.8);
+    const stump = profile(len * 0.26, v => r * 0.9 * Math.min(1, v / 0.25) ** 0.5 * (1 - 0.3 * v), stalk);
+    return [stem, line([base, [0, stalk + len * 0.9]], r * 0.14), roundBody(stump, [0, stalk + len * 0.13], r * 0.72, HATCH * 0.6, 0.85)];
+  }
+  if (k.cone === "pine") {
+    // A gaping spent pine cone, without loose nuts beside it.
+    const len = s * 0.85, r = s * 0.33;
+    const hw = (v: number): number => r * Math.sin(Math.PI * Math.min(1, v ** 0.8 * 0.96 + 0.04)) ** 0.7 * (1.1 + 0.1 * Math.abs(Math.sin(Math.PI * v * 7)));
+    const body = roundBody(profile(len, hw, stalk, 28), [0, stalk + len * 0.45], r * 1.1, HATCH * 0.55, 0.9);
+    const n = 13, c = 6 * Math.PI / n;
+    const lattice: Pt[][] = [];
+    for (const dir of [1, -1]) for (let j = 0; j < n; j += 1) {
+      let run: Pt[] = [];
+      for (let i = 0; i <= 20; i += 1) {
+        const v = 0.04 + 0.92 * i / 20, theta = 2 * Math.PI * j / n + dir * c * v;
+        if (Math.cos(theta) > 0.08) run.push([hw(v) * 0.97 * Math.sin(theta), stalk + len * v - len * 0.04 * Math.cos(theta)]);
+        else if (run.length > 0) { if (run.length > 1) lattice.push(run); run = []; }
+      }
+      if (run.length > 1) lattice.push(run);
+    }
+    return [stem, body, ...lattice.map(points => line(points, s * 0.014))];
+  }
+  if (k.cone === "round") return [stem, ...roundCone(rng, s * 1.15, "seed", base)];
+  return [stem, ...scaledCone(rng, s * 0.95, { ...k, coneLength: Math.min(k.coneLength, 1.7) }, "seed", base)];
+}
+
+/** A single conifer seed: a stone-pine nut for pine, or a winged samara seed with its pointed nutlet at (0, s). */
+function coniferKernel(rng: Rng, s: number, pine: boolean): Shape[] {
+  if (pine) {
+    const rx = s * 0.28, ry = s * 0.49;
+    const body = roundBody(profile(s * 0.98, v => rx * Math.sin(Math.PI * Math.min(1, v ** 0.78)) ** 0.72, 0, 24), [0, ry], ry, HATCH * 0.5, 0.82);
+    body.veins = [-0.35, 0.25].map(q => sample(v => [rx * q * Math.sin(Math.PI * v) ** 0.7, s * 0.12 + s * 0.76 * v], 8));
+    return [body];
+  }
+  // Papery veined wing trailing from the origin, dark pointed seed at the germinating tip (0, s).
+  const wing = bladeBody({ spine: v => [s * 0.04 * Math.sin(Math.PI * v), s * 0.72 * v],
+    halfWidth: v => s * 0.22 * Math.sin(Math.PI * Math.min(1, v * 0.9 + 0.08)) ** 0.65 * (1 - 0.25 * v),
+    shade: 1, spacing: HATCH * 0.9, grain: "along", reach: [0.15, 0.4], weight: 0.28, samples: 16 }, rng);
+  wing.veins = [-0.45, 0, 0.45].map(q => sample(v => [s * 0.14 * q * Math.sin(Math.PI * v), s * (0.1 + 0.55 * v)], 6));
+  const seed = roundBody(profile(s * 0.44, v => s * 0.15 * Math.sin(Math.PI * Math.min(1, v ** 0.75)) ** 0.7, s * 0.56, 18), [0, s * 0.78], s * 0.22, HATCH * 0.5, 0.82);
+  return [wing, seed];
+}
+
 export const form: FormModule = {
   id: "conifere",
   name: "conifère",
@@ -470,6 +520,10 @@ export const form: FormModule = {
         { name: "spray", w: 2.4, smin: 0.9, smax: 1.7, max: 16, hard: true, layer: LAYER.leaf, upright: posture.upright,
           r: s => 0.3 * s, off: s => 0.5 * s, draw: (rng, s) => spray(rng, s, rng.sym(0.2), k) },
       ],
+      ...(k.cone !== "berry" && k.cone !== "aril" ? {
+        husk: (rng: Rng, s: number) => emptyCone(rng, s, k),
+        kernel: (rng: Rng, s: number) => coniferKernel(rng, s, k.cone === "pine"),
+      } : {}),
     };
   },
 };

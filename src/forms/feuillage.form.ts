@@ -723,6 +723,77 @@ function leafyTwig(rng: Rng, s: number, leaf: LeafDraw, opposite: boolean, leafL
   return shapes;
 }
 
+/** An empty scaly acorn cupule on its stalk, hollowed at the rim; shaggy for the cork oak. */
+function emptyAcornCup(rng: Rng, s: number, shaggy: boolean): Shape[] {
+  const stalk = s * 0.16, r = s * 0.42;
+  const shapes: Shape[] = [line([[0, 0], [rng.sym(0.02) * s, stalk * 0.5], [0, stalk + r * 0.1]], s * 0.025)];
+  const cup = roundBody(profile(r * 0.9, v => r * 0.85 * (0.48 + 0.52 * Math.sin(Math.PI * Math.min(1, v * 0.72 + 0.25))), stalk, 16), [0, stalk + r * 0.45], r * 0.78, HATCH * 0.5, 0.75);
+  cup.veins = [0.22, 0.48, 0.74].map(f => sample(u => [(u * 2 - 1) * r * 0.78, stalk + r * 0.9 * f + Math.abs(Math.sin(u * Math.PI * 5)) * r * 0.08], 14));
+  const rim = darkBody(circle([0, stalk + r * 0.88], r * 0.7, r * 0.18, 16), [0, stalk + r * 0.88], r * 0.5);
+  if (shaggy) {
+    for (const q of [-0.95, -0.5, 0, 0.5, 0.95]) shapes.push(line([[q * r * 0.78, stalk + r * 0.82], [q * r * 1.15, stalk + r * 1.1]], r * 0.06));
+  }
+  shapes.push(rim, cup);
+  return shapes;
+}
+
+/** A single ripe acorn out of its cup: pale scar at the origin, striped glossy shell, pointed tip at (0, s). */
+function looseAcorn(_rng: Rng, s: number): Shape[] {
+  const rx = s * 0.34, ry = s * 0.47;
+  const body = nut([0, ry], rx, ry, 0, 0.78);
+  body.veins = [
+    ...[-0.45, 0, 0.45].map(q => sample(v => [rx * q * Math.sin(Math.PI * v) ** 0.7, s * 0.14 + s * 0.76 * v], 8)),
+    sample(t => [rx * 0.62 * (2 * t - 1), s * 0.08 + s * 0.06 * (1 - (2 * t - 1) ** 2)], 6),
+  ];
+  return [body, line([[0, s * 0.92], [0, s]], s * 0.024)];
+}
+
+/** An empty spiny beech or horse-chestnut husk on its stalk, splayed open without its nut. */
+function emptySpinyHusk(rng: Rng, s: number, kind: "beechnuts" | "conker"): Shape[] {
+  const r = s * 0.33, at: Pt = [0, s * 0.45];
+  const shapes: Shape[] = [line([[0, 0], [0, at[1] - r * 0.25]], s * 0.028)];
+  for (const a of kind === "conker" ? [-1.9, 0, 1.9] : [-2.0, -0.75, 0.75, 2.0]) {
+    const valve = bladeBody({ spine: v => [0, r * 1.05 * v], halfWidth: v => r * 0.42 * Math.sin(Math.PI * Math.min(1, v * 0.9 + 0.1)) ** 0.7, shade: a < 0 ? -1 : 1, spacing: HATCH * 0.6, grain: "along", reach: [0.3, 0.7], weight: 0.58, samples: 10 }, rng);
+    const spines: Pt[] = Array.from({ length: 6 }, (_, k): Pt[] => { const v = 0.2 + 0.13 * k; return [[r * 0.4 * Math.sin(Math.PI * v), r * v], [r * 0.62 * Math.sin(Math.PI * v), r * v + r * 0.08]]; }).flat();
+    shapes.push(turnShape(valve, a, at), turnShape(line(spines, r * 0.04, false), a, at));
+  }
+  return shapes;
+}
+
+/** A single triangular beechnut, flat base at the origin and sharp point at (0, s). */
+function looseBeechnut(_rng: Rng, s: number): Shape[] {
+  const w = s * 0.34;
+  const outline: Pt[] = [[-w, s * 0.06], [0, 0], [w, s * 0.06], [w * 0.72, s * 0.42], [0, s], [-w * 0.72, s * 0.42]];
+  const body = roundBody(outline, [0, s * 0.42], s * 0.48, HATCH * 0.5, 0.8);
+  body.veins = [[[0, s * 0.04], [0, s * 0.96]]];
+  return [body];
+}
+
+/** A single horse-chestnut conker: glossy dark shell with its broad pale scar at the origin and crown at (0, s). */
+function looseConker(_rng: Rng, s: number): Shape[] {
+  const rx = s * 0.52, ry = s * 0.5;
+  const c: Pt = [0, ry];
+  const conker = darkBody(circle(c, rx, ry, 20), c, rx);
+  const scar = roundBody(oval([0, s * 0.2], rx * 0.52, ry * 0.26), [0, s * 0.2], rx * 0.45, HATCH, 0.15);
+  return [conker, scar];
+}
+
+/** An empty ragged leafy hazel cup on its stalk. */
+function emptyHazelCup(rng: Rng, s: number): Shape[] {
+  const stalk = s * 0.14;
+  const husk = bladeBody({ spine: v => [0, stalk + s * 0.68 * v], halfWidth: v => s * 0.36 * Math.sin(Math.PI * Math.min(1, v * 0.8 + 0.2)) ** 0.5,
+    edge: v => s * 0.06 * Math.abs(Math.sin(v * 14)) * v, shade: 1, spacing: HATCH * 0.65, grain: "along", reach: [0.3, 0.7], weight: 0.48, samples: 16 }, rng);
+  return [line([[0, 0], [0, stalk + s * 0.06]], s * 0.025), husk];
+}
+
+/** A single hazelnut out of its leafy cup: scar at the origin, point at (0, s). */
+function looseHazel(_rng: Rng, s: number): Shape[] {
+  const rx = s * 0.38, ry = s * 0.48;
+  const body = nut([0, ry], rx, ry, 0, 0.72);
+  body.veins = [-0.4, 0.15, 0.55].map(q => sample(v => [rx * q * Math.sin(Math.PI * v) ** 0.7, s * 0.12 + s * 0.78 * v], 8));
+  return [body, line([[0, s * 0.92], [0, s]], s * 0.022)];
+}
+
 export const form: FormModule = {
   id: "feuillage",
   name: "feuillage",
@@ -801,6 +872,19 @@ export const form: FormModule = {
           r: s => (compound ? 0.42 : 0.34) * s, off: s => 0.5 * s,
           draw: habit.twig && !compound ? (rng, s) => leafyTwig(rng, s, single, opposite, leafLength * 0.75) : (rng, s) => single(rng, s, rng.sym(0.25)) },
       ],
+      ...(textOf(variant, "fruit") === "acorn" ? {
+        husk: (rng: Rng, s: number) => emptyAcornCup(rng, s, textOf(variant, "catkin") === "shaggy"),
+        kernel: looseAcorn,
+      } : textOf(variant, "fruit") === "beechnut" ? {
+        husk: (rng: Rng, s: number) => emptySpinyHusk(rng, s, "beechnuts"),
+        kernel: looseBeechnut,
+      } : textOf(variant, "fruit") === "candle" ? {
+        husk: (rng: Rng, s: number) => emptySpinyHusk(rng, s, "conker"),
+        kernel: looseConker,
+      } : textOf(variant, "fruit") === "hazelnut" ? {
+        husk: emptyHazelCup,
+        kernel: looseHazel,
+      } : {}),
     };
   },
 };

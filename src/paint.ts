@@ -1,13 +1,16 @@
-// Four manners for the same shapes. Taille-douce is the copperplate: paper-white forms with a fine
+// Five manners for the same shapes. Taille-douce is the copperplate: paper-white forms with a fine
 // outline, shade cut as hatching, stems in solid ink. Lavis is the wash: soot-brown bistre laid in
 // transparent layers, darker in the shade and pooled at the edges, veins lifted out in paper. Pointillé is
 // stipple engraving, as the plates after Redouté's lilies and roses were engraved: each form is modelled in dots
 // of the wash's colour, thick in its shadow and at its rim and sparse across its lit side, inside a contour of
 // finer dots. Crayon is the chalk manner François and Demarteau made in the 1750s to print chalk drawings: loose
 // hatching along each form, a contour that is heavy on the shadowed side and skips on the lit one, and the
-// paper's tooth showing through every stroke. Each manner is a row of STYLES, so another is another row.
+// paper's tooth showing through every stroke. Bois is the relief woodcut, the taille d'épargne Jean-Michel
+// Papillon cut for eighteenth-century ornaments and almanacs: bold keyblock contours in letterpress ink,
+// solid ink shadows cut back in white line with the gouge, white veins across the dark, and open black cuts
+// on pale petals. Each manner is a row of STYLES, so another is another row.
 // Colours are CSS custom properties with fallbacks (see inks.ts), so a page's stylesheet can retint them.
-import { fine, inside, lerp, num, pointsPath, polyPath, type Pt, smoothPath, smoothstep } from "./geometry.js";
+import { clamp, fine, inside, lerp, num, pointsPath, polyPath, type Pt, smoothPath, smoothstep } from "./geometry.js";
 import { inkRef } from "./inks.js";
 import type { Body, Shape } from "./shapes.js";
 
@@ -289,6 +292,80 @@ function chalkBody(body: Body, sheet: Sheet): string {
   return out;
 }
 
+/** Woodcut's contour on the lit side and its heavier keyblock edge on the shadowed side, in centimetres. */
+const WOOD_LIT = 0.02, WOOD_SHADE = 0.036;
+/** Forms at least this heavy print solid ink in their shadow, cut back in white line with the gouge. */
+const WOOD_SOLID = 0.48;
+/** Flat faces without a separate shadow go solid ink and white-line above this weight. */
+const WOOD_FLAT_DARK = 0.68;
+/** Width of white-line gouge cuts from medium to darkest forms, and of black cuts on light forms, in centimetres. */
+const WOOD_GOUGE = [0.026, 0.013] as const;
+const WOOD_CUT = [0.014, 0.021] as const;
+
+/** A woodblock cannot hold copperplate's close spacing: keep every other cut when a form has many. */
+const spacedGrain = (grain: readonly Pt[][]): readonly Pt[][] =>
+  grain.length > 5 ? grain.filter((_, index) => index % 2 === 0) : grain;
+
+function woodcutBody(body: Body, sheet: Sheet): string {
+  const stroke = ` stroke="${INK}" stroke-width="${fine(WOOD_LIT)}" stroke-linejoin="round"`;
+  // An accented form is printed from a second rubricated block inside the ink keyblock, with black cuts in its shade.
+  if (body.tone === "accent") {
+    if (body.shadow.length === 0 || body.grain.length === 0) {
+      return `<path d="${smoothPath(body.outline, true, 0.9)}" fill="${ACCENT}"${stroke}/>`;
+    }
+    const outline = outlineOf(body, sheet);
+    const clip = sheet.id("c"), shade = sheet.id("s");
+    sheet.defs.push(`<clipPath id="${clip}"><use href="#${outline}"/></clipPath>`);
+    sheet.defs.push(`<clipPath id="${shade}"><path d="${rings(body.shadow)}" clip-rule="evenodd"/></clipPath>`);
+    const hatching = `<path d="${cuts(spacedGrain(body.grain))}" fill="none" stroke="${INK}" stroke-width="${fine(WOOD_CUT[0])}" stroke-linecap="round"/>`;
+    return `<use href="#${outline}" fill="${ACCENT}"/><g clip-path="url(#${clip})"><g clip-path="url(#${shade})">${hatching}</g></g><use href="#${outline}" fill="none"${stroke}/>`;
+  }
+  if (body.shadow.length === 0) {
+    if (body.grain.length === 0) {
+      let out = `<path d="${smoothPath(body.outline, true, 0.9)}" fill="${PAPER}"${stroke}/>`;
+      if (body.veins.length > 0) out += `<path d="${curves(body.veins)}" fill="none" stroke="${INK}" stroke-width="0.013" stroke-linecap="round"/>`;
+      return out;
+    }
+    const outline = outlineOf(body, sheet);
+    const clip = sheet.id("c");
+    sheet.defs.push(`<clipPath id="${clip}"><use href="#${outline}"/></clipPath>`);
+    if (body.weight >= WOOD_FLAT_DARK) {
+      const gouge = lerp(...WOOD_GOUGE, clamp((body.weight - WOOD_FLAT_DARK) / (1 - WOOD_FLAT_DARK), 0, 1));
+      let insideBlock = `<path d="${cuts(spacedGrain(body.grain))}" fill="none" stroke="${PAPER}" stroke-width="${fine(gouge)}" stroke-linecap="round"/>`;
+      if (body.veins.length > 0) insideBlock += `<path d="${curves(body.veins)}" fill="none" stroke="${PAPER}" stroke-width="0.015" stroke-linecap="round"/>`;
+      return `<use href="#${outline}" fill="${INK}"/><g clip-path="url(#${clip})">${insideBlock}</g><use href="#${outline}" fill="none"${stroke}/>`;
+    }
+    const width = lerp(...WOOD_CUT, clamp(body.weight / WOOD_FLAT_DARK, 0, 1));
+    let out = `<use href="#${outline}" fill="${PAPER}"/><g clip-path="url(#${clip})"><path d="${cuts(spacedGrain(body.grain))}" fill="none" stroke="${INK}" stroke-width="${fine(width)}" stroke-linecap="round"/></g><use href="#${outline}" fill="none"${stroke}/>`;
+    if (body.veins.length > 0) out += `<path d="${curves(body.veins)}" fill="none" stroke="${INK}" stroke-width="0.013" stroke-linecap="round"/>`;
+    return out;
+  }
+  const outline = outlineOf(body, sheet);
+  const clip = sheet.id("c"), shade = sheet.id("s");
+  sheet.defs.push(`<clipPath id="${clip}"><use href="#${outline}"/></clipPath>`);
+  sheet.defs.push(`<clipPath id="${shade}"><path d="${rings(body.shadow)}" clip-rule="evenodd"/></clipPath>`);
+  if (body.weight >= WOOD_SOLID) {
+    // Leaves, fruits and dark forms keep a solid black shadow cut back with white gouge strokes and white veins.
+    const gouge = lerp(...WOOD_GOUGE, clamp((body.weight - WOOD_SOLID) / (1 - WOOD_SOLID), 0, 1));
+    let lit = `<use href="#${outline}" fill="${PAPER}"/>`;
+    if (body.veins.length > 0) lit += `<path d="${curves(body.veins)}" fill="none" stroke="${INK}" stroke-width="0.013" stroke-linecap="round"/>`;
+    let dark = `<use href="#${outline}" fill="${INK}"/>`;
+    if (body.grain.length > 0) dark += `<path d="${cuts(spacedGrain(body.grain))}" fill="none" stroke="${PAPER}" stroke-width="${fine(gouge)}" stroke-linecap="round"/>`;
+    if (body.veins.length > 0) dark += `<path d="${curves(body.veins)}" fill="none" stroke="${PAPER}" stroke-width="0.015" stroke-linecap="round"/>`;
+    return `${lit}<g clip-path="url(#${clip})"><g clip-path="url(#${shade})">${dark}</g></g><use href="#${outline}" fill="none"${stroke}/>`;
+  }
+  // Light petals and pale forms keep their paper white, shaded with open black woodcut cuts and a heavier shadowed rim.
+  let shaded = "";
+  if (body.grain.length > 0) {
+    const width = lerp(...WOOD_CUT, clamp(body.weight / WOOD_SOLID, 0, 1));
+    shaded += `<g clip-path="url(#${clip})"><path d="${cuts(spacedGrain(body.grain))}" fill="none" stroke="${INK}" stroke-width="${fine(width)}" stroke-linecap="round"/></g>`;
+  }
+  shaded += `<use href="#${outline}" fill="none" stroke="${INK}" stroke-width="${fine(WOOD_SHADE)}" stroke-linejoin="round"/>`;
+  let out = `<use href="#${outline}" fill="${PAPER}"/><g clip-path="url(#${shade})">${shaded}</g><use href="#${outline}" fill="none"${stroke}/>`;
+  if (body.veins.length > 0) out += `<path d="${curves(body.veins)}" fill="none" stroke="${INK}" stroke-width="0.012" stroke-linecap="round"/>`;
+  return out;
+}
+
 /** How a manner paints: its modelled forms, and the ink its solids, lines and dots take when they are not accented. */
 export interface MannerStyle {
   body(body: Body, sheet: Sheet): string;
@@ -311,6 +388,7 @@ const STYLES = {
   // Stems are eased back a little, as the wash's are, so they sit with the dots rather than over them.
   pointille: { body: stippleBody, solid: ` fill="${WASH}" fill-opacity="0.85"`, line: ` stroke="${WASH}" stroke-opacity="0.85"`, dots: ` fill="${WASH}"`, figure: `fill="${WASH}"` },
   crayon: { body: chalkBody, solid: ` fill="${WASH}" fill-opacity="0.9"`, line: ` stroke="${WASH}" stroke-opacity="0.9"`, dots: ` fill="${WASH}"`, figure: `fill="${WASH}"`, filter: chalkFilter },
+  bois: { body: woodcutBody, solid: ` fill="${INK}"`, line: ` stroke="${INK}"`, dots: ` fill="${INK}"`, figure: `fill="${INK}"`, filter: woodFilter },
 } as const satisfies Record<string, MannerStyle>;
 
 export type Manner = keyof typeof STYLES;
@@ -383,5 +461,23 @@ function chalkFilter(sheet: Sheet, seed: number): string {
     + `<feColorMatrix in="noise" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${TOOTH_GAIN} 0 0 0 ${TOOTH_OFFSET}" result="tooth"/>`
     + `<feFlood flood-color="${PAPER}"/><feComposite in2="tooth" operator="in"/><feComposite in2="SourceAlpha" operator="in" result="specks"/>`
     + `<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="specks"/></feMerge></filter>`);
+  return id;
+}
+
+/** The pearwood block's faint press bite and wood grain showing through heavy ink. */
+const WOOD_GRAIN_X = 4.5, WOOD_GRAIN_Y = 20, WOOD_GAIN = 5.5, WOOD_OFFSET = -3.35;
+
+/**
+ * The slight irregularity of a carved woodblock inked on laid paper: a tiny displacement gives strokes the
+ * knife's edge, and faint horizontal wood-grain specks break the broadest solids without softening the cut.
+ */
+function woodFilter(sheet: Sheet, seed: number): string {
+  const id = sheet.id("wood");
+  sheet.defs.push(`<filter id="${id}" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">`
+    + `<feTurbulence type="fractalNoise" baseFrequency="${WOOD_GRAIN_X} ${WOOD_GRAIN_Y}" numOctaves="2" seed="${seed % 1000}" result="grain"/>`
+    + `<feDisplacementMap in="SourceGraphic" in2="grain" scale="0.022" xChannelSelector="R" yChannelSelector="G" result="cut"/>`
+    + `<feColorMatrix in="grain" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${WOOD_GAIN} 0 0 0 ${WOOD_OFFSET}" result="speckMask"/>`
+    + `<feFlood flood-color="${PAPER}"/><feComposite in2="speckMask" operator="in"/><feComposite in2="cut" operator="in" result="specks"/>`
+    + `<feMerge><feMergeNode in="cut"/><feMergeNode in="specks"/></feMerge></filter>`);
   return id;
 }

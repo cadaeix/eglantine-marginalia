@@ -632,6 +632,76 @@ function involucred(rng: Rng, s: number, stage: Stage, f: Fruiting, tube: boolea
   return shapes;
 }
 
+/** An empty hazelnut cupule or filbert tube on its stalk, without the nut inside. */
+function emptyCupule(rng: Rng, s: number, f: Fruiting, tube: boolean): Shape[] {
+  const g = grown("seed");
+  const r = s * 0.24 * f.size * g, ry = r * 1.12 * f.elong;
+  const stalk = s * 0.1 * f.stalk;
+  const base = stalk;
+  const reach = tube ? ry * 2.4 : ry * 1.25;
+  const width = (v: number): number => tube
+    ? r * 1.06 * (v < 0.55 ? Math.min(1, 0.55 + v * 3) : lerp(1, 0.55, smoothstep(0.55, 0.78, v)) + 0.38 * smoothstep(0.82, 1, v))
+    : r * (0.72 + 0.62 * v ** 0.8);
+  const left: Pt[] = [], right: Pt[] = [];
+  for (let k = 0; k <= 10; k += 1) { const v = k / 10; left.push([-width(v), base + reach * v]); right.push([width(v), base + reach * v]); }
+  const fringe: Pt[] = [];
+  const teeth = tube ? 7 : 9;
+  for (let k = 0; k <= teeth * 2; k += 1) {
+    const q = -1 + 2 * k / (teeth * 2);
+    fringe.push([q * width(1) * 1.05, base + reach * (k % 2 === 1 ? 1.08 + 0.12 * rng.u() : 0.94)]);
+  }
+  const hollow = modelled(circle([0, base + reach * 0.94], width(1) * 0.82, r * 0.24, 16), [0, base + reach * 0.94], width(1) * 0.82, r * 0.24, 0.85, 0.75);
+  const husk = modelled([...left, ...fringe, ...right.reverse()], [0, base + reach * 0.45], width(0.5), reach * 0.5, 0.55, 0.35);
+  husk.veins.push(...[-0.65, -0.2, 0.25, 0.7].map(q => sample(v => [q * width(v), base + reach * v] as Pt, 6, 0.08, 0.95)));
+  return [line([[0, 0], [rng.sym(0.02) * s, stalk * 0.6], [0, base + r * 0.05]], s * 0.026), hollow, husk];
+}
+
+/** A single hazelnut out of its cupule: glossy and striped, its pale scar at the origin and its point at (0, s). */
+function looseHazelnut(rng: Rng, s: number, f: Fruiting): Shape[] {
+  const ry = s / (2.06 + f.tip * 0.22), rx = ry * 0.84;
+  const centre: Pt = [0, ry * 0.94];
+  const body = modelled(polar(centre, rx, ry, phi => (1 + (0.16 + f.tip * 0.25) * dip(phi, 0, 0.3)) * (1 - 0.12 * dip(phi, Math.PI, 0.65)), 24),
+    centre, rx, ry, 0.72, 0.65);
+  const base = centre[1] - ry * 0.88;
+  body.veins.push(...[-0.6, -0.15, 0.25, 0.65].map(l => meridian(centre, rx, ry, l, 0.18, 0.88)));
+  body.veins.push(sample(t => [rx * 0.65 * (2 * t - 1), base + ry * 0.12 * (1 - (2 * t - 1) ** 2) + ry * 0.06] as Pt, 6));
+  return [body, dots(stipple(rng, [0, base + ry * 0.05], rx * 0.55, ry * 0.07, 10, 0), s * 0.008)];
+}
+
+/** An empty split walnut hull on its stalk, its two torn halves curled apart without the shell. */
+function emptyHull(rng: Rng, s: number, f: Fruiting): Shape[] {
+  const r = s * 0.32 * f.size * grown("seed"), ry = r * 1.05 * f.elong;
+  const stalk = s * 0.07 * f.stalk;
+  const centre: Pt = [0, stalk + ry];
+  const shapes: Shape[] = [line([[0, 0], [rng.sym(0.02) * s, stalk + ry * 0.1]], s * 0.035)];
+  for (const sd of [-1, 1]) {
+    const sweep = rng.range(1.6, 2.0);
+    const arc: Pt[] = sample(t => {
+      const phi = Math.PI - sd * sweep * t;
+      return [Math.sin(phi) * r * 1.08 + sd * r * 0.35 * t * t, centre[1] + Math.cos(phi) * ry * 1.06 - ry * 0.08 * t * t] as Pt;
+    }, 10);
+    const end = arc[arc.length - 1]!, start: Pt = [sd * r * 0.08, stalk + ry * 0.08];
+    const tear: Pt[] = [0.8, 0.6, 0.4, 0.2].map((t, index) => [lerp(start[0], end[0], t) - sd * r * (index % 2 === 0 ? 0.2 : 0.07), lerp(start[1], end[1], t) + ry * 0.08]);
+    shapes.push(modelled([...arc, ...tear, start], [sd * r * 0.72, centre[1] - ry * 0.25], r * 0.52, ry * 0.62, 0.68, 0.58));
+  }
+  return shapes;
+}
+
+/** A single walnut shell out of its hull: seam down the middle, wrinkled halves, base at the origin and point at (0, s). */
+function looseWalnut(rng: Rng, s: number): Shape[] {
+  const ry = s / 2.1, rx = ry * 0.84;
+  const centre: Pt = [0, ry * 0.98];
+  const shell = modelled(polar(centre, rx, ry, phi => 1 + 0.12 * dip(phi, 0, 0.22), 26), centre, rx, ry, 0.62, 0.25);
+  shell.veins.push(meridian(centre, rx, ry, 0.04, 0.02, 0.98));
+  for (let j = 0; j < 14; j += 1) {
+    const at: Pt = [centre[0] + rng.range(-0.75, 0.75) * rx, centre[1] + rng.range(-0.75, 0.75) * ry];
+    if ((at[0] / rx) ** 2 + ((at[1] - centre[1]) / ry) ** 2 > 0.62 || Math.abs(at[0]) < rx * 0.09) continue;
+    const a = rng.range(0, Math.PI);
+    shell.veins.push(sample(t => [at[0] + Math.cos(a) * rx * 0.32 * (t - 0.5) + Math.sin(t * 9) * rx * 0.035, at[1] + Math.sin(a) * rx * 0.32 * (t - 0.5)] as Pt, 6));
+  }
+  return [shell];
+}
+
 /** The walnut: a speckled green hull that splits and peels back from the wrinkled shell. */
 function walnut(rng: Rng, s: number, stage: Stage, f: Fruiting): Shape[] {
   const g = grown(stage);
@@ -736,6 +806,40 @@ const boll: FruitMaker = f => (rng, s, stage) => {
   }
   return shapes;
 };
+
+/** An empty burst cotton boll: its dry fringed bracts and open woody valves, once the fibre has gone. */
+function emptyBoll(rng: Rng, s: number, f: Fruiting): Shape[] {
+  const r = s * 0.24 * f.size * grown("seed");
+  const stalk = s * 0.12 * f.stalk;
+  const centre: Pt = [0, stalk + r * 1.1];
+  const bract = (sd: number, reach: number): Shape => {
+    const dir = unit(sd * 0.6, 1);
+    const spine = (v: number): Pt => [dir[0] * reach * v + sd * r * 0.25 * v * v, stalk + dir[1] * reach * v];
+    return bladeBody({ spine, halfWidth: v => r * 0.4 * Math.sin(Math.PI * v ** 0.6) ** 0.7,
+      edge: v => -r * 0.18 * ((v * 6) % 1) * smoothstep(0.35, 0.6, v), shade: sd < 0 ? -1 : 1, spacing: HATCH * 0.7,
+      grain: "across", weight: 0.65, midrib: true, samples: 14 }, rng);
+  };
+  const shapes: Shape[] = [line([[0, 0], [0, stalk + r * 0.1]], s * 0.03), bract(-1, r * 1.3), bract(1, r * 1.3)];
+  for (const a of [-1.7, 1.7, -0.6, 0.6]) {
+    const dir: Pt = [Math.sin(a), Math.cos(a)];
+    const spine = (v: number): Pt => [centre[0] + dir[0] * r * 1.2 * v, centre[1] - r * 0.3 + dir[1] * r * 1.2 * v - r * 0.15 * v * v];
+    shapes.push(bladeBody({ spine, halfWidth: v => r * 0.28 * Math.sin(Math.PI * v ** 0.8) ** 0.8, shade: a < 0 ? -1 : 1, spacing: HATCH * 0.6, grain: "across", weight: 0.75, samples: 12 }, rng));
+  }
+  return shapes;
+}
+
+/** A single cotton seed: dark and egg-shaped with a few wisps of lint, base at the origin and tip at (0, s). */
+function looseCottonSeed(rng: Rng, s: number): Shape[] {
+  const ry = s / 2.04, rx = ry * 0.62;
+  const centre: Pt = [0, ry * 0.96];
+  const body = modelled(polar(centre, rx, ry, phi => 1 + 0.16 * dip(phi, 0, 0.35), 22), centre, rx, ry, 0.85, 0.75);
+  const wisps: Shape[] = Array.from({ length: 7 }, (_, k) => {
+    const a = -0.9 + k * 0.3 + rng.sym(0.15);
+    const p: Pt = [Math.sin(a) * rx * 0.95, centre[1] - Math.cos(a) * ry * 0.95];
+    return line(sample(t => [p[0] + Math.sin(a + t) * rx * 0.45 * t, p[1] - Math.cos(a) * ry * 0.35 * t] as Pt, 5), s * 0.008);
+  });
+  return [body, ...wisps];
+}
 
 /** The water chestnut's nut: a woody top with two big horns and two small, barbed when ripe. */
 const caltrop: FruitMaker = f => (rng, s, stage) => {
@@ -1365,10 +1469,19 @@ export const form: FormModule = {
         { name: "leaf", w: 2.2, smin: 1.2, smax: 2.0, max: 8, layer: LAYER.leaf, upright: 0.3,
           r: s => (palmate ? 0.5 : 0.33) * s, off: s => (palmate ? 0.62 : 0.5) * s, draw: (rng, s) => leaf(rng, s, rng.sym(0.25)) },
       ],
-      // A chestnut's burr empties, and its nut, alone, is the seed: the chestnut's tip, where its root comes out, at the top.
+      // Husked nuts and cotton bolls offer an empty husk and a single seed to the festivals.
       ...(kind === "nut" && fruiting.husk === "burr" ? {
         husk: (rng: Rng, s: number) => splitBurr(rng, s, fruiting).shapes,
         kernel: looseChestnut,
+      } : kind === "nut" && fruiting.husk === "hull" ? {
+        husk: (rng: Rng, s: number) => emptyHull(rng, s, fruiting),
+        kernel: looseWalnut,
+      } : kind === "nut" && (fruiting.husk === "cupule" || fruiting.husk === "tube") ? {
+        husk: (rng: Rng, s: number) => emptyCupule(rng, s, fruiting, fruiting.husk === "tube"),
+        kernel: (rng: Rng, s: number) => looseHazelnut(rng, s, fruiting),
+      } : kind === "boll" ? {
+        husk: (rng: Rng, s: number) => emptyBoll(rng, s, fruiting),
+        kernel: looseCottonSeed,
       } : {}),
     };
   },

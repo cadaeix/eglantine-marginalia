@@ -267,7 +267,7 @@ describe("falling petals", () => {
       }
     }
     expect(astray).toEqual([]);
-    expect([...shedding]).toEqual(expect.arrayContaining(["rosacee-coupe", "arbre-fruitier"]));
+    expect([...shedding]).toEqual(expect.arrayContaining(["rosacee-coupe", "arbre-fruitier", "lis-bulbe", "capitule"]));
   }, HEAVY);
 
   it("sheds without moving any other part of the garden", () => {

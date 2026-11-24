@@ -172,6 +172,26 @@ describe("festivals", () => {
     }
   });
 
+  it("offers empty husks and sprouting kernels to Virtue, Genius and the Revolution across nuts, oaks, conifers and composites", () => {
+    const husked: Plant[] = [
+      { name: "noix", form: "arbre-fruitier", variant: { fruit: "nut", husk: "hull", tip: 0.3, leaf: "pinnate", pinnae: 3, breadth: 1.2 } },
+      { name: "coton", form: "arbre-fruitier", variant: { fruit: "boll", leaf: "palmate", shoot: "herb" } },
+      { name: "chêne", form: "feuillage", variant: { leaf: "oak", width: 0.6, margin: "entire", fruit: "acorn", catkin: "slender" } },
+      { name: "hêtre", form: "feuillage", variant: { leaf: "elliptic", width: 0.55, margin: "wavy", fruit: "beechnut" } },
+      { name: "pignon", form: "conifere", variant: { needles: "paired", needle: 0.95, cone: "pine", coneSize: 1.5, posture: "spreading" } },
+      { name: "sapin", form: "conifere", variant: { bracts: true, shatter: true } },
+      { name: "pissenlit", form: "capitule", variant: { rays: 40, rayLength: 0.42, disc: 0.07, leaf: "toothed" } },
+    ];
+    for (const plant of husked) {
+      const vertu = growGarden({ seed: 1793, form: plant.form, variant: plant.variant, festival: "vertu" });
+      expect(vertu.items.some(item => item.kind === "motif" && item.name === "husk"), `${plant.name} vertu`).toBe(true);
+      const genie = growGarden({ seed: 1793, form: plant.form, variant: plant.variant, festival: "genie" });
+      expect(genie.items.some(item => item.kind === "motif" && item.name === "husk"), `${plant.name} genie`).toBe(true);
+      const revolution = growGarden({ seed: 1793, form: plant.form, variant: plant.variant, festival: "revolution" });
+      expect(revolution.items.filter(item => item.kind === "stem").length, `${plant.name} revolution root`).toBe(1);
+    }
+  });
+
   it("the Revolution leaves one seed in the middle of the column or band, whose root comes out towards evening", () => {
     for (const ornament of [null, ...ORNAMENTS]) for (const seed of SEEDS) {
       const garden = growGarden({ seed, form: MARRON.form, variant: MARRON.variant, festival: "revolution", ...(ornament ? { ornament } : {}) });
