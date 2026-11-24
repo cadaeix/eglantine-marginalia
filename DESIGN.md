@@ -89,6 +89,8 @@ Palette swatches show each palette's paper with its wash and accent. The note be
 
 The plant chooser and the code are plates: native dialogs over the page, closed with their close word or Escape. Their headers stay visible while their contents scroll. The plant chooser draws each plant by its telling part, its bloom, a leaf or the foot it stands on.
 
+The printer's proof opens the current garden on a double-ruled plate, with its French name, English name, calendar date when present, manner, palette and seed beneath it. A column has a narrow plate; a page garden or band has a wider one. "look closer" enlarges the drawing in a scrollable window, centred on its detail, and "whole plate" fits it back. The proof pauses playback and borrows the page's SVG without copying it or regrowing the plant. Closing the dialog returns the drawing and focus to the page; resizing while it is open leaves the proof alone and remeasures the page on close.
+
 ## Do's and Don'ts
 
 - Do show the garden on a page with real text, in a real margin.

@@ -18,8 +18,9 @@ On phones and narrower tablets, the garden and its playback button stay in view 
 
 The playground loads its plant forms one at a time, as the light entry does. A visit fetches the engine, the calendar and the one form the day's garden draws, a guest's engraving only on its own day, and the plant chooser loads the other forms when it opens.
 
-The settings choose another day or one of nineteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page, whether the animals stand on shoots or float among the stems, and the seed. "random plant" picks a day named for a plant, and "random visitor" a day whose animal visits the garden or whose tool lies at its foot. Three settings keep the result:
+The settings choose another day or one of nineteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page, whether the animals stand on shoots or float among the stems, and the seed. The last line offers:
 
+- "view a proof" opens a framed plate of the garden, with its French and English names beneath it. "look closer" enlarges the drawing, which scrolls to show its detail.
 - "save as SVG" writes the garden with its inks, and embeds and credits any engraving.
 - "copy a link" keeps the settings in the URL's fragment.
 - "use it on a website" shows the code that grows the same garden.

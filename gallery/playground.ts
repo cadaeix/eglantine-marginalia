@@ -41,6 +41,10 @@ const timeControls = timeInput.parentElement!;
 const fullnessInput = element<HTMLInputElement>("fullness");
 const playButton = element<HTMLButtonElement>("play");
 const download = element<HTMLButtonElement>("download");
+const proofButton = element<HTMLButtonElement>("show-proof");
+const proofDialog = element<HTMLDialogElement>("proof-dialog");
+const proofArt = element("proof-art");
+const proofCloser = element<HTMLButtonElement>("proof-closer");
 const plantDialog = element<HTMLDialogElement>("plant-dialog");
 const codeDialog = element<HTMLDialogElement>("code-dialog");
 const copyDialog = element<HTMLDialogElement>("copy-dialog");
@@ -58,6 +62,8 @@ const MODE_NOTES: Readonly<Record<Mode, string>> = {
 const MANNER_PHRASES: Readonly<Record<Manner, string>> = { "taille-douce": "engraved", lavis: "in wash", pointille: "in stipple", crayon: "in chalk" };
 /** The garden's tallest column, in centimetres: a long page keeps its garden at its foot. */
 const TALLEST = 30;
+/** The proof's detail view, in pixels per centimetre, twice the playground's largest drawing scale. */
+const PROOF_SCALE = 72;
 /**
  * The room the page always leaves under the text's last line when the garden grows round the text, in
  * centimetres. The text is as long in a short window as in a tall one, so a page fitted to the window alone
@@ -248,7 +254,8 @@ function place(svgWidth: number, svgHeight: number): void {
 }
 
 function drawGarden(): void {
-  if (!geometry) return;
+  if (!geometry || proofDialog.open) return;
+  proofButton.disabled = true;
   download.disabled = exporting;
   // A band grows for its own room alone, so the page's height and the side never regrow it.
   const ornament = ornamentOf(state.mode);
@@ -274,6 +281,7 @@ function drawGarden(): void {
   // A hanging garden's drawing is shorter than the garden by the root it crops away; the SVG gives its size.
   const drawing = gardenElement.querySelector("svg")!;
   place(Number(drawing.getAttribute("width")), Number(drawing.getAttribute("height")));
+  proofButton.disabled = false;
 }
 
 /** Grows the garden `key` names once its form has loaded, and draws it if it is still the garden last asked for. */
@@ -293,6 +301,7 @@ async function grow(key: string, settings: PlaygroundState, measured: Geometry):
 
 /** Everything the settings show: the inks, the text, the controls, then the page measured and its garden. */
 function refresh(): void {
+  if (proofDialog.open) return;
   try {
     applyInks();
     showText();
@@ -391,6 +400,32 @@ function openPlants(): void {
   plantDialog.showModal();
 }
 
+/** Lends the proof the drawing already on the page, without regrowing it or copying its dots and SVG ids. */
+function openProof(): void {
+  stopDay();
+  refresh();
+  if (proofButton.disabled || !grown) return;
+  const drawing = gardenElement.querySelector("svg");
+  if (!drawing) return;
+  const { selection } = grown.preview;
+  element("proof-name").textContent = state.source === "calendar" ? selection.title : selection.gloss;
+  element("proof-gloss").textContent = state.source === "calendar" ? selection.gloss : selection.title;
+  const day = element("proof-day");
+  day.textContent = selection.dateline;
+  day.hidden = selection.dateline === "";
+  const palette = PALETTES.find(candidate => candidate.id === state.palette)!;
+  element("proof-process").textContent = `${MANNER_PHRASES[state.manner]} · ${palette.name} · seed ${state.seed}`;
+  proofArt.style.setProperty("--proof-width", `${drawing.viewBox.baseVal.width * PROOF_SCALE}px`);
+  proofDialog.classList.toggle("proof-column", state.mode === "margin" || state.mode === "hanging");
+  proofArt.dataset.close = "false";
+  proofCloser.setAttribute("aria-pressed", "false");
+  proofCloser.textContent = "look closer";
+  element("proof-hint").hidden = true;
+  proofArt.append(drawing);
+  proofDialog.showModal();
+  proofArt.scrollTo(0, 0);
+}
+
 async function copy(value: string, success: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(value);
@@ -451,6 +486,20 @@ element("today").addEventListener("click", () => update({ source: "calendar", da
 element("calendar-plant").addEventListener("click", () => update({ source: "calendar", date: today() }, true));
 element("choose-plant").addEventListener("click", openPlants);
 element("another-plant").addEventListener("click", openPlants);
+proofButton.addEventListener("click", openProof);
+proofCloser.addEventListener("click", () => {
+  const closer = proofCloser.getAttribute("aria-pressed") !== "true";
+  proofCloser.setAttribute("aria-pressed", String(closer));
+  proofCloser.textContent = closer ? "whole plate" : "look closer";
+  proofArt.dataset.close = String(closer);
+  element("proof-hint").hidden = !closer;
+  proofArt.scrollTo(closer ? (proofArt.scrollWidth - proofArt.clientWidth) / 2 : 0, closer ? (proofArt.scrollHeight - proofArt.clientHeight) / 2 : 0);
+});
+proofDialog.addEventListener("close", () => {
+  const drawing = proofArt.querySelector("svg");
+  if (drawing) gardenElement.append(drawing);
+  refresh();
+});
 for (const button of document.querySelectorAll<HTMLButtonElement>(".random-plant")) {
   button.addEventListener("click", () => update({ source: "calendar", date: randomDay("plant", today(), Math.random, state.date) }, true));
 }
@@ -466,6 +515,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>(".random-visit
 const SECRETS = ["usagi", "hanami"];
 let typed = "";
 document.addEventListener("keydown", event => {
+  if (proofDialog.open) return;
   if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
   if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
   typed = (typed + event.key.toLowerCase()).slice(-12);

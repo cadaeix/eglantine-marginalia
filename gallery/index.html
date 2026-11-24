@@ -94,7 +94,7 @@
             <div class="setting">
               <span class="label">Keep it</span>
               <div class="value">
-                <span class="words"><button type="button" class="word" id="download">save as SVG</button><button type="button" class="word" id="share">copy a link</button><button type="button" class="word" id="show-code" aria-haspopup="dialog">use it on a website</button></span>
+                <span class="words"><button type="button" class="word" id="show-proof" aria-haspopup="dialog" disabled>view a proof</button><button type="button" class="word" id="download">save as SVG</button><button type="button" class="word" id="share">copy a link</button><button type="button" class="word" id="show-code" aria-haspopup="dialog">use it on a website</button></span>
               </div>
             </div>
             <p class="status" id="status" role="status" aria-live="polite"></p>
@@ -106,6 +106,22 @@
     <footer class="foot">
       <p>Églantine is made by <a href="https://github.com/cadaeix">Cad</a>. Its animals and tools are cut from engravings of the period, from the <a href="https://github.com/cadaeix/eglantine-marginalia/blob/main/figures/PROVENANCE.md">scans listed here</a>. Set in <a id="font-license" href="./fonts/OFL.txt">Baskervville</a>.</p>
     </footer>
+    <dialog class="plate proof" id="proof-dialog" aria-labelledby="proof-dialog-title">
+      <form method="dialog" class="plate-head">
+        <h2 id="proof-dialog-title">Printer’s proof</h2>
+        <span class="words"><button type="button" class="word" id="proof-closer" aria-pressed="false">look closer</button><button class="word" autofocus>close</button></span>
+      </form>
+      <figure class="proof-sheet">
+        <div class="proof-art" id="proof-art" role="region" aria-label="The garden's drawing" tabindex="0"></div>
+        <p class="proof-hint" id="proof-hint" hidden>Scroll to explore the detail.</p>
+        <figcaption>
+          <p class="proof-day" id="proof-day" lang="fr"></p>
+          <h3 id="proof-name" lang="fr"></h3>
+          <p class="proof-gloss" id="proof-gloss" lang="en"></p>
+          <p class="proof-process" id="proof-process"></p>
+        </figcaption>
+      </figure>
+    </dialog>
     <dialog class="plate" id="plant-dialog" aria-labelledby="plant-dialog-title">
       <form method="dialog" class="plate-head"><h2 id="plant-dialog-title">Plants</h2><button class="word">close</button></form>
       <div class="plants" id="plants"></div>
