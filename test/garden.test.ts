@@ -223,6 +223,23 @@ describe("printer's ornaments", () => {
   });
 });
 
+describe("columns of other heights", () => {
+  it("grows every plant from 4 cm to 30 cm tall, each main stem rising from its root, and a short column shrinks a foot with it", () => {
+    for (const plant of PLANTS) for (const height of [4, 14, 30]) {
+      const garden = growGarden({ seed: 1793, form: plant.form, variant: plant.variant, height });
+      expect(renderGarden(garden, { t: 1, fullness: 1 }, { manner: "lavis", id: "tall", scale: 10 })).toContain("<svg");
+      for (const points of garden.mains) {
+        expect(points.length, `${plant.name} at ${height} cm`).toBeGreaterThan(1);
+        expect(points[points.length - 1]![1], `${plant.name} at ${height} cm`).toBeGreaterThan(points[0]![1]);
+      }
+      const foot = plantForm(plant.form, plant.variant).foot;
+      if (!foot) continue;
+      expect(garden.foot!.scale, plant.name).toBe(Math.min(1, height / 22));
+      if (garden.mains.length > 0) expect(garden.mains[0]![0]![1], `${plant.name} at ${height} cm`).toBeCloseTo(foot.crown[1] * garden.foot!.scale, 6);
+    }
+  }, HEAVY);
+});
+
 /** Each form as it would be with no blooms that shed, for comparing a garden with and without its petals. */
 const BARE = new Map([...FORM_MODULES.values()].map((module): [string, FormModule] => [module.id, {
   ...module,

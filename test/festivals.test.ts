@@ -219,6 +219,17 @@ describe("festivals", () => {
     }
   });
 
+  it("Genius pushes its quill into a root's crown in a column shorter than the forms' own, which shrinks the root", () => {
+    const carrot = PLANTS.find(plant => plant.name === "carotte")!;
+    for (const height of [10, 14, 22]) {
+      const garden = growGarden({ seed: 1793, form: carrot.form, variant: carrot.variant, festival: "genie", height });
+      const quill = garden.items.find((item): item is MotifItem => item.kind === "motif" && item.name === "quill")!;
+      const crown = garden.mains[0]![0]![1];
+      expect(quill.at[1], `${height} cm`).toBeLessThan(crown);
+      expect(quill.at[1], `${height} cm`).toBeGreaterThan(crown - 1);
+    }
+  });
+
   it("Rewards ties a crown of oak and the plant's leaves with a ribbon at dawn, and a quiet day still crowns the whole ring", () => {
     const garden = growGarden({ seed: 1793, form: MARRON.form, variant: MARRON.variant, festival: "recompenses" });
     const motifs = garden.items.filter((item): item is MotifItem => item.kind === "motif");

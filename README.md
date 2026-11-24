@@ -41,7 +41,7 @@ const garden = growGarden({ seed: 1793, form: "capitule", variant: { rays: 21 } 
 const svg = renderGarden(garden, { t: 0.6, fullness: 0.4 }, { manner: "taille-douce", id: "margin", scale: 36 });
 ```
 
-`growGarden` lays the whole garden out once from its seed. `renderGarden` draws it at a moment and returns an SVG string. The garden fills a column 6 cm wide and 22 cm tall unless `width` and `height` say otherwise. With `ornament`, it grows instead as a headpiece or a tailpiece (see [Headpieces and tailpieces](#headpieces-and-tailpieces)). `scale` sets the pixels per centimetre. `id` prefixes the SVG's internal ids, so several gardens can share a page. The renderer encodes characters other than ASCII letters, digits and hyphens in internal SVG ids.
+`growGarden` lays the whole garden out once from its seed. `renderGarden` draws it at a moment and returns an SVG string. The garden fills a column 6 cm wide and 22 cm tall unless `width` and `height` say otherwise. A column shorter than 22 cm shrinks the root study, rock section or bed of earth a plant stands on with it, so the stems keep their share of the room above it. With `ornament`, it grows instead as a headpiece or a tailpiece (see [Headpieces and tailpieces](#headpieces-and-tailpieces)). `scale` sets the pixels per centimetre. `id` prefixes the SVG's internal ids, so several gardens can share a page. The renderer encodes characters other than ASCII letters, digits and hyphens in internal SVG ids.
 
 A moment has two values between 0 and 1:
 

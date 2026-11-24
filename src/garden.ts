@@ -188,6 +188,8 @@ export interface GrowSpec {
 const REACH = 3.0, BAND_REACH = { bandeau: 1.8, "cul-de-lampe": 2.4 } as const;
 /** The top of the column stays open sky. */
 const SKY = 0.2;
+/** However short the column, a main stem rises at least this far above its root, in centimetres. */
+const LEAST_STEM = 0.5;
 /** A band leaves less of its height as sky: its plants are short, and an ornament is filled nearly to its edge. */
 const BAND_SKY = 0.12;
 /** Above a band's foot only this share of the band's height shows; the rest of a deep foot lies under the band's edge. */
@@ -272,6 +274,14 @@ function footColumn(form: PlantForm, ornament: Ornament | null, W: number): { wi
 }
 
 /**
+ * How much the column shrinks the foot a plant stands on, and the crown its stems leave: a column shorter than the
+ * forms' own shrinks them with its main stems' tops, so the stems keep their share of the room above the crown.
+ */
+function columnScale(ornament: Ornament | null, H: number): number {
+  return ornament ? 1 : Math.min(1, H / COLUMN.height);
+}
+
+/**
  * The garden a plant grows without a festival; `shaping`, when given, lays its main stems, and with `shed` its
  * blooms let their petals fall as they go to seed.
  */
@@ -289,22 +299,23 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   let order = 0;
   const column: Rect = [0.15, 0.3, W - 0.15, G];
   const foot = form.foot ?? null;
-  // Where the foot is drawn. In the column it fills the column's width; a right-hand page is drawn as the mirror
-  // of this layout, but its foot is drawn as it is, so the room it fills is mirrored here to land under the drawing.
+  // Where the foot is drawn. In the column it fills the column's width and shrinks as `columnScale` says; a
+  // right-hand page is drawn as the mirror of this layout, but its foot is drawn as it is, so the room it fills is
+  // mirrored here to land under the drawing.
   // A bed's foot runs the band's width. A cul-de-lampe's foot, and in either band a foot that is the whole plant, a
   // single specimen such as a dead birch, is a column's width, `span`, centred in the band. A foot that is the whole
   // plant is shrunk until it fits the band; a cul-de-lampe shrinks a deep foot a little, so more of it shows as the
   // tailpiece's point. What is still too deep is lowered until only its top shows, as a section would be cut by the
   // band's edge.
   const footTop = foot ? Math.max(foot.crown[1], ...foot.room.map(rect => rect[3])) : 0;
-  const footScale = !foot || !ornament ? 1
+  const footScale = !foot || !ornament ? columnScale(ornament, H)
     : form.stems.count === 0 ? Math.min(1, H * 0.9 / footTop)
     : ornament === "cul-de-lampe" ? clamp(H * BAND_FOOT[ornament] / footTop, 0.6, 1) : 1;
   const { width: span, centred } = footColumn(form, ornament, W);
   const footX = foot && centred ? W / 2 - foot.crown[0] * span : 0;
   const drop = foot && ornament && form.stems.count > 0 ? Math.max(0, footTop * footScale - H * BAND_FOOT[ornament]) : 0;
   const footRooms: Rect[] = foot ? foot.room.map(([x0, y0, x1, y1]): Rect => mirrored
-    ? [(1 - x1) * W, y0, (1 - x0) * W, y1]
+    ? [(1 - x1) * W, y0 * footScale, (1 - x0) * W, y1 * footScale]
     : [footX + x0 * span, y0 * footScale - drop, footX + x1 * span, y1 * footScale - drop]) : [];
   // A foot that spans the column, such as a bed of strata, is the ground the guest stands or lies on, and fallen petals lie on.
   const floor = foot ? Math.max(0, ...foot.room.flatMap((rect, index) => rect[2] - rect[0] > 0.5 ? [footRooms[index]![3]] : [])) : 0;
@@ -399,10 +410,11 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   const bloom = Math.min(form.terminal.size[1], G * 0.32);
   const bloomReach = form.terminal.r(bloom) * 1.5;
   if (!ornament) {
-    const rootAt: Pt = crownX !== null ? [crownX, foot!.crown[1]] : [W * layout.range(0.22, 0.3), 0.75];
+    const rootAt: Pt = crownX !== null ? [crownX, foot!.crown[1] * footScale] : [W * layout.range(0.22, 0.3), 0.75];
     roots = [rootAt];
     const centre = W * 0.47, amplitude = W * form.stems.amplitude * 2.2;
-    const tops = form.stems.tops.map((top, index) => G * (index === 0 ? top : top * layout.range(0.92, 1.06)));
+    // However short the column, a main stem rises a little above its root, so it has a tip for its bloom.
+    const tops = form.stems.tops.map((top, index) => Math.max(rootAt[1] + LEAST_STEM, G * (index === 0 ? top : top * layout.range(0.92, 1.06))));
     for (let k = 0; k < form.stems.count; k += 1) {
       const sway = fbm1(layout, 2);
       const phase = layout.range(0, 10), lambda = layout.range(...form.stems.lambda);
@@ -887,6 +899,7 @@ function festivalContext(form: PlantForm, formId: string, spec: GrowSpec): Festi
   const { page: _page, ...alone } = spec;
   return {
     form, spec, width: W, height: H, ornament, ground: H * (1 - (ornament ? BAND_SKY : SKY)), footWidth: footColumn(form, ornament, W).width,
+    columnScale: columnScale(ornament, H),
     rng: createRng(Math.imul(spec.seed, 7919) + 503),
     grow: (options = {}) => growPlain(options.form ?? form, formId, options.page === false ? alone : spec, options.mains ?? null, false),
     compose: (items, options = {}) => compose(form, formId, spec, items, options),

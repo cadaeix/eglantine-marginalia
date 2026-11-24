@@ -61,7 +61,7 @@ function grow(context: FestivalContext): Garden {
   const sways = Array.from({ length: form.stems.count }, () => noise1(rng));
   const swayOf = (k: number): (x: number) => number => sways[k] ??= noise1(rng);
   const quillSeed = Math.floor(rng.u() * 4294967295), potSeed = Math.floor(rng.u() * 4294967295);
-  const { footWidth } = context;
+  const { footWidth, columnScale } = context;
 
   // What the quill stands in: the plant's own foot, or a husk or mound drawn over the quill's buried end.
   let pot: { draw: MotifItem["draw"]; size: number; name: string; at: number } | null = null;
@@ -69,8 +69,8 @@ function grow(context: FestivalContext): Garden {
   let base: number, clear: number, share: number;
   if (form.foot) {
     foot = form.foot;
-    base = Math.max(0.05, foot.crown[1] - 0.8);
-    clear = foot.crown[1] + 0.4;
+    base = Math.max(0.05, foot.crown[1] * columnScale - 0.8);
+    clear = foot.crown[1] * columnScale + 0.4;
     share = foot.crown[0];
     // With no stems to twine round it, the quill stands behind what the foot draws, a little to the side of
     // its crown where the column is wider, as a stake pushed into the ground behind a stump. A band places it
@@ -94,7 +94,10 @@ function grow(context: FestivalContext): Garden {
       pot = { draw: mound, size: MOUND_WIDTH, name: "earth", at: SOIL };
       top = SOIL + height; half = MOUND_WIDTH / 2; crown = SOIL + height * 0.7; base = SOIL + height * 0.3;
     }
-    clear = top + 0.1;
+    // The loop shrinks the pot's foot with a short column, and the pot is drawn as much smaller, so the quill is
+    // stood in it at the same scale.
+    base *= columnScale;
+    clear = top * columnScale + 0.1;
     // A bed's plants stand on bare ground, the quill's among them, its root hidden in the pot drawn over it, and
     // the bed's outer plants curl their roots as they would on any day.
     if (bed) crown = BED_ROOT;

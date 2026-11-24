@@ -41,6 +41,12 @@ export interface FestivalContext {
    * width a cul-de-lampe centres under its root. A foot's crown and room give x as shares of it.
    */
   readonly footWidth: number;
+  /**
+   * How much a column shorter than the forms' own 22 cm shrinks the foot the plant stands on, the plant's own or one
+   * the festival gives it, and the crown its stems leave: 1 in a column at least as tall, and in a band, which
+   * measures each foot for itself and gives how much it shrank it as its garden's `foot.scale`.
+   */
+  readonly columnScale: number;
   /** The festival's own stream, apart from the plant's, seeded from the garden's seed. */
   readonly rng: Rng;
   /**
