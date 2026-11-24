@@ -232,6 +232,8 @@ npm run sweep            # grow every plant across sizes and layouts; see script
 
 `npm run check` runs typechecking, tests, and both builds. Stop the development server before running the preview server on the same port.
 
+The renderer writes SVG paths without temporary coordinate lists and shares common coordinate strings. Stipple reuses each nearby edge's measurements rather than calculating them for every dot. Both shortcuts preserve the SVG path data, dot placement and chalk grain.
+
 ### Static hosting
 
 Upload the contents of `site-dist/` to a static host after `npm run gallery:build`. Relative asset URLs support a site root or a subdirectory on a personal website. The build includes the playground, the specimen gallery, fonts and their licence, and guest figures.

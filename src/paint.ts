@@ -118,38 +118,52 @@ function cellValue(i: number, j: number, salt: number): number {
 /** The height of the bands a form's edges are sorted into, in centimetres. */
 const EDGE_BAND = 0.1;
 
+interface Edge {
+  ax: number;
+  ay: number;
+  by: number;
+  dx: number;
+  dy: number;
+  lengthSquared: number;
+  left: number;
+  right: number;
+}
+
 /**
  * The edges of a form's rings sorted into bands across the page, so a point is measured against only the edges
  * near its height rather than every edge of the form: most cells of the stipple's grid lie far from any.
  */
 class Edges {
-  /** Each band's edges, four numbers to an edge: its start's x and y, then its end's. */
-  readonly #bands: number[][] = [];
+  /** Bands share their edges, including the measurements reused by every stipple cell near them. */
+  readonly #bands: Edge[][] = [];
   readonly #first: number;
   constructor(rings: readonly (readonly Pt[])[], reach: number) {
-    const ys = rings.flatMap(ring => ring.map(p => p[1]));
-    this.#first = Math.floor((Math.min(...ys) - reach) / EDGE_BAND);
+    let bottom = Infinity;
+    for (const ring of rings) for (const point of ring) bottom = Math.min(bottom, point[1]);
+    this.#first = Math.floor((bottom - reach) / EDGE_BAND);
     for (const ring of rings) {
       for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
         const [ax, ay] = ring[j]!, [bx, by] = ring[i]!;
+        const dx = bx - ax, dy = by - ay;
+        const edge: Edge = { ax, ay, by, dx, dy, lengthSquared: dx * dx + dy * dy, left: Math.min(ax, bx), right: Math.max(ax, bx) };
         // An edge goes into every band within `reach` of it, so a point finds every edge it is measured against.
         const from = Math.floor((Math.min(ay, by) - reach) / EDGE_BAND) - this.#first, to = Math.floor((Math.max(ay, by) + reach) / EDGE_BAND) - this.#first;
-        for (let band = from; band <= to; band += 1) (this.#bands[band] ??= []).push(ax, ay, bx, by);
+        for (let band = from; band <= to; band += 1) (this.#bands[band] ??= []).push(edge);
       }
     }
   }
 
-  #near(y: number): readonly number[] {
-    return this.#bands[Math.floor(y / EDGE_BAND) - this.#first] ?? [];
+  #near(y: number): readonly Edge[] | undefined {
+    return this.#bands[Math.floor(y / EDGE_BAND) - this.#first];
   }
 
   /** Whether a point lies inside the rings, by the even-odd rule. */
   inside(x: number, y: number): boolean {
     const edges = this.#near(y);
+    if (!edges) return false;
     let hit = false;
-    for (let k = 0; k < edges.length; k += 4) {
-      const ax = edges[k]!, ay = edges[k + 1]!, bx = edges[k + 2]!, by = edges[k + 3]!;
-      if ((ay > y) !== (by > y) && x < (bx - ax) * (y - ay) / (by - ay) + ax) hit = !hit;
+    for (const { ax, ay, by, dx, dy } of edges) {
+      if ((ay > y) !== (by > y) && x < dx * (y - ay) / dy + ax) hit = !hit;
     }
     return hit;
   }
@@ -157,15 +171,16 @@ class Edges {
   /** How far a point lies from the nearest edge, up to the reach the edges were sorted for. */
   distance(x: number, y: number, reach: number): number {
     const edges = this.#near(y);
-    let least = reach;
-    for (let k = 0; k < edges.length; k += 4) {
-      const ax = edges[k]!, ay = edges[k + 1]!, bx = edges[k + 2]!, by = edges[k + 3]!;
-      if (Math.min(ax, bx) - x > least || x - Math.max(ax, bx) > least) continue;
-      const dx = bx - ax, dy = by - ay, length = dx * dx + dy * dy;
-      const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / length));
-      least = Math.min(least, Math.hypot(x - ax - dx * t, y - ay - dy * t));
+    if (!edges) return reach;
+    let leastSquared = reach * reach;
+    for (const { ax, ay, dx, dy, lengthSquared, left, right } of edges) {
+      const gap = Math.max(left - x, x - right, 0);
+      if (gap * gap > leastSquared) continue;
+      const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / lengthSquared));
+      const ex = x - ax - dx * t, ey = y - ay - dy * t;
+      leastSquared = Math.min(leastSquared, ex * ex + ey * ey);
     }
-    return least;
+    return Math.sqrt(leastSquared);
   }
 }
 
@@ -177,14 +192,19 @@ class Edges {
  */
 function stipple(body: Body): { lit: Pt[]; dark: Pt[] } {
   const lit: Pt[] = [], dark: Pt[] = [];
-  const ys = body.outline.map(p => p[1]);
+  let bottom = Infinity, topmost = -Infinity;
+  for (const point of body.outline) {
+    bottom = Math.min(bottom, point[1]);
+    topmost = Math.max(topmost, point[1]);
+  }
   const salt = Math.floor(variance(body) * 1e6);
   const w = body.weight;
   const outline = new Edges([body.outline], STIPPLE_RIM);
   const shadow = body.shadow.length > 0 ? new Edges(body.shadow, STIPPLE_SOFT) : null;
+  const maximumTone = 0.05 + 0.12 * w + (shadow ? 0.22 + 0.4 * w : 0) + RIM_TONE;
   // Each row of cells is walked only across the stretch the outline reaches within it, since a long form lying
   // aslant fills little of the box round it.
-  const top = Math.floor(Math.min(...ys) / STIPPLE_CELL), rows = Math.ceil(Math.max(...ys) / STIPPLE_CELL) - top + 1;
+  const top = Math.floor(bottom / STIPPLE_CELL), rows = Math.ceil(topmost / STIPPLE_CELL) - top + 1;
   const from = new Array<number>(rows).fill(Infinity), to = new Array<number>(rows).fill(-Infinity);
   for (let k = 0, m = body.outline.length - 1; k < body.outline.length; m = k, k += 1) {
     const [ax, ay] = body.outline[m]!, [bx, by] = body.outline[k]!;
@@ -196,6 +216,9 @@ function stipple(body: Body): { lit: Pt[]; dark: Pt[] } {
   for (let row = 0; row < rows; row += 1) {
     const j = top + row;
     for (let i = Math.floor(from[row]! / STIPPLE_CELL); i <= Math.floor(to[row]! / STIPPLE_CELL); i += 1) {
+      const value = cellValue(i, j, salt + 2);
+      // Even the deepest shadow and rim cannot keep this cell, so neither needs measuring.
+      if (value >= maximumTone) continue;
       const x = (i + 0.1 + 0.8 * cellValue(i, j, salt)) * STIPPLE_CELL, y = (j + 0.1 + 0.8 * cellValue(i, j, salt + 1)) * STIPPLE_CELL;
       if (!outline.inside(x, y)) continue;
       // How deep in shade the point lies, graded in either side of the shadow's edge rather than stepping at it.
@@ -205,7 +228,7 @@ function stipple(body: Body): { lit: Pt[]; dark: Pt[] } {
         shade = shadow.inside(x, y) ? 0.5 + 0.5 * edge : 0.5 - 0.5 * edge;
       }
       // The tone without the rim, which adds up to RIM_TONE more: the rim is measured only where it decides.
-      const tone = 0.05 + 0.12 * w + shade * (0.22 + 0.4 * w), value = cellValue(i, j, salt + 2);
+      const tone = 0.05 + 0.12 * w + shade * (0.22 + 0.4 * w);
       if (value >= tone + RIM_TONE) continue;
       if (value >= tone && value >= tone + RIM_TONE * (1 - smoothstep(0, STIPPLE_RIM, outline.distance(x, y, STIPPLE_RIM)))) continue;
       (shade > 0.5 ? dark : lit).push([x, y]);

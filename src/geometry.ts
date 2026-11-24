@@ -122,7 +122,6 @@ export const fine = (value: number): string => trim(value.toFixed(4));
 // Path data is written in hundredths of a centimetre, finer than a pixel at screen sizes. Each subpath
 // starts at an absolute point and steps from point to point in relative commands, so most numbers are
 // small; the steps are taken between rounded points, so rounding never drifts along a path.
-const hundredthsOf = (point: Pt): [number, number] => [Math.round(point[0] * 100), Math.round(point[1] * 100)];
 
 /** A whole number of hundredths written as briefly as path data allows: "3", "-1.2", ".05". */
 function hundredths(value: number): string {
@@ -130,36 +129,56 @@ function hundredths(value: number): string {
   const whole = Math.trunc(magnitude / 100), part = magnitude % 100;
   const sign = value < 0 ? "-" : "";
   if (part === 0) return `${sign}${whole}`;
-  return `${sign}${whole === 0 ? "" : whole}.${part < 10 ? `0${part}` : `${part}`.replace(/0$/u, "")}`;
+  return `${sign}${whole === 0 ? "" : whole}.${part < 10 ? `0${part}` : part % 10 === 0 ? part / 10 : part}`;
 }
 
-/** Numbers of hundredths as path data, with a separator only where one number would run into the next. */
-function numbers(values: readonly number[]): string {
-  let out = "", dotted = false;
-  for (const value of values) {
-    const text = hundredths(value);
-    if (out !== "" && text[0] !== "-" && !(text[0] === "." && dotted)) out += " ";
-    out += text;
-    dotted = text.includes(".");
+// Most relative steps fit within a centimetre. Their spellings are shared by every path rather than allocated
+// again for every coordinate of every dot, hatch and curve.
+const SMALL_STEP = 100;
+const smallHundredths = Array.from({ length: 2 * SMALL_STEP + 1 }, (_, index) => hundredths(index - SMALL_STEP));
+
+/** Writes rounded coordinates directly, without temporary point and command arrays. */
+class PathData {
+  text = "";
+  #first = true;
+  #dotted = false;
+
+  command(command: string): void {
+    this.text += command;
+    this.#first = true;
   }
-  return out;
+
+  pair(x: number, y: number): void {
+    this.#number(x);
+    this.#number(y);
+  }
+
+  #number(value: number): void {
+    const text = value >= -SMALL_STEP && value <= SMALL_STEP ? smallHundredths[value + SMALL_STEP]! : hundredths(value);
+    if (!this.#first && text[0] !== "-" && !(text[0] === "." && this.#dotted)) this.text += " ";
+    this.text += text;
+    this.#first = false;
+    this.#dotted = value % 100 !== 0;
+  }
 }
 
 /** A straight polyline or polygon as SVG path data. */
 export function polyPath(points: readonly Pt[], closed = false): string {
   if (points.length === 0) return "";
-  let [x, y] = hundredthsOf(points[0]!);
-  let d = `M${numbers([x, y])}`;
+  const path = new PathData();
+  let x = Math.round(points[0]![0] * 100), y = Math.round(points[0]![1] * 100);
+  path.command("M");
+  path.pair(x, y);
   if (points.length > 1) {
-    const steps: number[] = [];
+    path.command("l");
     for (let index = 1; index < points.length; index += 1) {
-      const [nx, ny] = hundredthsOf(points[index]!);
-      steps.push(nx - x, ny - y);
+      const point = points[index]!;
+      const nx = Math.round(point[0] * 100), ny = Math.round(point[1] * 100);
+      path.pair(nx - x, ny - y);
       x = nx; y = ny;
     }
-    d += `l${numbers(steps)}`;
   }
-  return closed ? `${d}z` : d;
+  return closed ? `${path.text}z` : path.text;
 }
 
 /**
@@ -167,13 +186,16 @@ export function polyPath(points: readonly Pt[], closed = false): string {
  * placed absolutely and each after it is stepped to from the one before, so most numbers are small.
  */
 export function pointsPath(points: readonly Pt[]): string {
-  let d = "", x = 0, y = 0;
+  const path = new PathData();
+  let x = 0, y = 0;
   for (const point of points) {
-    const [nx, ny] = hundredthsOf(point);
-    d += d === "" ? `M${numbers([nx, ny])}h0` : `m${numbers([nx - x, ny - y])}h0`;
+    const nx = Math.round(point[0] * 100), ny = Math.round(point[1] * 100);
+    path.command(path.text === "" ? "M" : "m");
+    path.pair(nx - x, ny - y);
+    path.command("h0");
     x = nx; y = ny;
   }
-  return d;
+  return path.text;
 }
 
 /**
@@ -188,22 +210,23 @@ export function smoothPath(points: readonly Pt[], closed = false, tension = 1): 
   const at = (index: number): Pt => closed ? points[(index + count) % count]! : points[clamp(index, 0, count - 1)]!;
   const k = tension / 6 * 100;
   const segments = closed ? count : count - 1;
-  const knots: [number, number][] = [], tangents: [number, number][] = [];
-  for (let index = 0; index <= segments; index += 1) {
-    knots.push(hundredthsOf(at(index)));
-    const next = at(index + 1), previous = at(index - 1);
-    tangents.push([Math.round((next[0] - previous[0]) * k), Math.round((next[1] - previous[1]) * k)]);
+  const path = new PathData();
+  let previous = at(-1), point = at(0), next = at(1);
+  let x = Math.round(point[0] * 100), y = Math.round(point[1] * 100);
+  path.command("M");
+  path.pair(x, y);
+  path.command("c");
+  path.pair(Math.round((next[0] - previous[0]) * k), Math.round((next[1] - previous[1]) * k));
+  for (let index = 0; index < segments; index += 1) {
+    previous = point;
+    point = next;
+    next = at(index + 2);
+    const nx = Math.round(point[0] * 100), ny = Math.round(point[1] * 100);
+    const tx = Math.round((next[0] - previous[0]) * k), ty = Math.round((next[1] - previous[1]) * k);
+    if (index === 1) path.command("s");
+    path.pair(nx - tx - x, ny - ty - y);
+    path.pair(nx - x, ny - y);
+    x = nx; y = ny;
   }
-  // A segment's second control point and its end, relative to its start.
-  const segment = (index: number): number[] => {
-    const [x, y] = knots[index]!, [nx, ny] = knots[index + 1]!, [tx, ty] = tangents[index + 1]!;
-    return [nx - tx - x, ny - ty - y, nx - x, ny - y];
-  };
-  let d = `M${numbers(knots[0]!)}c${numbers([...tangents[0]!, ...segment(0)])}`;
-  if (segments > 1) {
-    const rest: number[] = [];
-    for (let index = 1; index < segments; index += 1) rest.push(...segment(index));
-    d += `s${numbers(rest)}`;
-  }
-  return closed ? `${d}z` : d;
+  return closed ? `${path.text}z` : path.text;
 }
