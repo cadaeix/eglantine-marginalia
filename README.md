@@ -1,33 +1,25 @@
 # Églantine
 
-Églantine (`eglantine-marginalia`) grows a plant in the margin of a page and draws it in the manner of eighteenth-century French engraving, in copperplate line, in bistre wash, in stipple, in chalk or in woodcut. The plant keeps time with the day. Its stems lengthen and its buds open, and towards evening its flowers go to seed. Its leaves come in as the day fills, with words written, pages read or whatever else the page counts.
+Églantine (`eglantine-marginalia`) grows a plant procedurally in the margin of a page and renders it as SVG in the manner of eighteenth-century French printmaking: copperplate (`taille-douce`), bistre wash (`lavis`), stipple (`pointille`), chalk (`crayon`) or relief woodcut (`bois`). Stems lengthen, buds open, and towards evening flowers shed their petals and go to seed (`t`); foliage fills in with whatever the page measures—words written, pages read, tasks done (`fullness`).
 
-![Gardens for five days of an CCXXXV, in the two manners: la carotte, l'amaryllis, l'oie, le fléau and l'amadouvier](docs/showcase.webp)
+![Gardens for five days of an CCXXXV in copperplate and wash: la carotte, l'amaryllis, l'oie, le fléau and l'amadouvier](docs/showcase.webp)
 
-A garden grows from one of thirteen plant forms, each tuned by a variant to a particular plant: carrots, pears, tulips and so on. A page can choose its own plants from these and never touch the calendar, or build new forms with the toolkit.
+Gardens grow from thirteen botanical forms, each tuned by variant parameters to specific plants, or from custom forms built with the toolkit. A separate `./calendar` entry maps every day of the [French Republican calendar](https://en.wikipedia.org/wiki/French_Republican_calendar#Gallery) to its plant, adds period-engraving guests on animal and tool days, and applies the six complementary-day festivals at the year's end.
 
-The calendar, a separate entry point, can choose instead: a plant for each day of the year, after the [French Republican calendar](https://en.wikipedia.org/wiki/French_Republican_calendar#Gallery). On animal and tool days, the plant has company, cut from engravings of the period. The complementary days at the year's end are named for festivals, and on each of them the day's festival does something to the year's last plant.
-
-The library is TypeScript with no runtime dependencies. It grows each garden procedurally from a seed and a plant form, then draws it as an SVG string at any moment of the day. Growing and rendering use no DOM, so a garden can be drawn in a browser, a web worker or Node.
+The core is strict TypeScript with zero runtime dependencies and no DOM access, so gardens grow and render identically in a browser, a web worker or Node.
 
 ## Playground
 
-The playground is online at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/), and `npm run gallery` serves it at `http://localhost:5210`. It is a page with Églantine in its own margin. It opens on the day's plant from the calendar, with the day's French name and its English one, and grows from the morning to the hour of the visit. The garden keeps to the margin, reaches round the text, or hangs from the top of the margin. As a headpiece it stands over the entry, and as a tailpiece it closes the entry's opening paragraphs. It is grown for the page as the window lays it out, so a narrower or shorter window gives it another room to fill. Round the text, the page always leaves at least six centimetres under the text's last line, since the text is as long in a short window as in a tall one; a taller window leaves more. The page takes the chosen palette's paper and inks.
+The live playground is at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/), or locally via `npm run gallery` (`http://localhost:5210`). It grows today's Republican calendar plant in its own margin, re-laying out as the window resizes and switching cleanly between margin, round-the-text, hanging, headpiece (`bandeau`) and tailpiece (`cul-de-lampe`) modes.
 
-On phones and narrower tablets, the garden and its playback button stay in view above the settings. Touch controls have hit areas at least 44px high. With reduced motion enabled, the page skips the opening animation and offers "show the evening" instead of "watch the day".
+Forms load on demand via the light entry—a visit fetches only the engine, the calendar and the single form on screen, plus a guest PNG on animal or tool days. The page takes the active palette's paper and inks, uses 44 px minimum touch targets on mobile, and skips the opening growth animation under `prefers-reduced-motion`. Controls let you switch date or pick from nineteen familiar plants, scrub time and fullness, change palette, manner, light/dark reading, margin side, visitor stance or seed, and:
 
-The playground loads its plant forms one at a time, as the light entry does. A visit fetches the engine, the calendar and the one form the day's garden draws, a guest's engraving only on its own day, and the plant chooser loads the other forms when it opens.
+- **view a proof** — open a framed plate with French/English titling and a high-scale detail zoom;
+- **save as SVG** — export a standalone file with inks inlined and any guest engraving embedded and credited;
+- **copy a link** — encode the current garden settings in the URL fragment;
+- **use it on a website** — generate ready-to-paste code for the exact garden on screen.
 
-The settings choose another day or one of nineteen familiar plants, the time and fullness of the day, the palette, the manner and the light, the side of the page, whether the animals stand on shoots or float among the stems, and the seed. The last line offers:
-
-- "view a proof" opens a framed plate of the garden, with its French and English names beneath it. "look closer" enlarges the drawing, which scrolls to show its detail.
-- "save as SVG" writes the garden with its inks, and embeds and credits any engraving.
-- "copy a link" keeps the settings in the URL's fragment.
-- "use it on a website" shows the code that grows the same garden.
-
-The English day names come from the tables in Wikipedia's article on the French Republican calendar.
-
-For those who love rabbits, typing "usagi" or "hanami" anywhere on the page outside a field brings le lapin to see the cherry in blossom, and a link keeps him there.
+Typing `usagi` or `hanami` anywhere outside an input brings *le lapin* to watch the cherry blossom fall, and a copied link keeps him there.
 
 ## Usage
 
@@ -42,16 +34,18 @@ const garden = growGarden({ seed: 1793, form: "capitule", variant: { rays: 21 } 
 const svg = renderGarden(garden, { t: 0.6, fullness: 0.4 }, { manner: "taille-douce", id: "margin", scale: 36 });
 ```
 
-`growGarden` lays the whole garden out once from its seed. `renderGarden` draws it at a moment and returns an SVG string. The garden fills a column 6 cm wide and 22 cm tall unless `width` and `height` say otherwise. A column shorter than 22 cm shrinks the root study, rock section or bed of earth a plant stands on with it, so the stems keep their share of the room above it. With `ornament`, it grows instead as a headpiece or a tailpiece (see [Headpieces and tailpieces](#headpieces-and-tailpieces)). `scale` sets the pixels per centimetre. `id` prefixes the SVG's internal ids, so several gardens can share a page. The renderer encodes characters other than ASCII letters, digits and hyphens in internal SVG ids.
+`growGarden` lays out the entire garden once from its seed; `renderGarden` draws it at a moment and returns an SVG string. Changing `t`, `fullness`, palette or manner never requires regrowing.
 
-A moment has two values between 0 and 1:
+By default a garden fills a 6 × 22 cm column (`width` and `height` override this in centimetres; columns shorter than 22 cm proportionally shrink any root study, rock section or soil bed so stems keep their headroom). `scale` sets pixels per centimetre, and `id` prefixes internal SVG ids so multiple gardens can coexist on a page (non-alphanumeric characters are safely encoded).
 
-- `t` is the time of day. It brings the stems, then the buds, which open and, near the end of the day, go to seed.
-- `fullness` measures how full the day is, in whatever sense the page chooses: words written, pages read, tasks done. It brings the leaves, the mycelium of the fungi and the crystals in the rock. A garden at fullness 0 already shows 30% of its leaves, and a quiet day keeps the same flowers as a full one.
+A moment has two values in `[0, 1]`:
 
-Neither value takes back what it has shown: a leaf or bloom present at some moment stays present at every later time and greater fullness.
+- `t` — time of day: lengthens stems, opens buds, and turns blooms to seed towards evening.
+- `fullness` — how full the day is: brings in leaves, fungal mycelium and rock crystals. At `0`, a garden still shows 30% of its leaves and all of its blooms.
 
-Towards evening, a bloom that sheds lets its petals fall as it goes to seed. A few hang in the air below it, further aside the further they have fallen, and the rest lie on the ground at the garden's foot. In a cul-de-lampe they gather round its root. A petal stays where it appears, so the day still takes nothing back. Roses and the other cupped flowers of `rosacee-coupe` shed, and so do the cherry in blossom, the free-tepal lilies and tulips of `lis-bulbe`, and the clock-headed composites of `capitule`. A form's bloom sheds when it draws a `petal` (see `MotifRow` in `src/form.ts`), and the petals come from streams of their own, so a garden that sheds grows every other part as it would without them.
+Both parameters are strictly monotonic: nothing shown at an earlier `t` or lower `fullness` ever disappears later.
+
+Towards evening, shedding blooms drop petals as they go to seed—some suspended in the air below the flower, the rest resting on the ground (or gathered around the root of a `cul-de-lampe`). Petals stay where they appear and draw from their own random streams so they never shift the rest of the layout. Cupped flowers of `rosacee-coupe`, cherry in blossom (`arbre-fruitier`), free-tepal lilies and tulips (`lis-bulbe`), and clock-headed composites (`capitule`) all shed via `MotifRow.petal`.
 
 ## Round the text
 
@@ -60,11 +54,9 @@ const garden = growGarden({ seed: 1793, form: "rosacee-coupe", page: { side: "ri
 const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "lavis", id: "page", scale: 36 });
 ```
 
-Given the text beside its column, a garden reaches round it, as florilegium's does. `side` says which side of the text the column stands on, `text` how wide the text is, and `below` how much free room lies under the text's last line, down to the page's foot, all in centimetres. With two centimetres or more below the text, a runner leaves the root along the foot of the page. With about four centimetres or more, arcs leave the main stems for the room under the text, each ending in a bloom, and the garden fills whatever room it reaches. A right-hand page is drawn as the mirror image of a left-hand one.
+Pass `page` to let a garden reach around a block of text, as in *florilegium*: `side` places the column left or right of the text, `text` is the text measure, and `below` is the clear height beneath the last line, all in centimetres. With at least 2 cm below the text, unfooted plants send a runner along the page's foot; with roughly 4 cm or more above any foot, flowering arcs leave the main stems to fill the space below the text. Right-hand pages mirror left-hand ones.
 
-The SVG covers the column and the text together, with the column at `garden.column`, so it lies under the text on the page. The garden keeps below the text's last line, but leaves on the column's edge overhang it by up to a centimetre, so leave a centimetre of gutter between the column and the text.
-
-A plant with a foot stands on its root study, rock section or bed of earth in the column and sends out no runner, since the room beside its foot lies underground. Its arcs leave the stems above the foot.
+The returned SVG spans column and text together (with the column rect at `garden.column`) so it can sit behind the text. Leaves on the column edge may overhang by up to 1 cm, so allow a 1 cm gutter.
 
 ## Hanging
 
@@ -73,22 +65,21 @@ const garden = growGarden({ seed: 1793, form: "grimpante", variant: { woody: tru
 const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "taille-douce", id: "header", scale: 36, hanging: true });
 ```
 
-With `hanging`, the garden hangs upside down from the top of its column, for a margin that begins under a page's header. The root, and any foot the plant stands on, is cropped away above, so the SVG is shorter than the garden by that much and needs no transform or clipping from the page. A hanging garden draws no guest, which would hang upside down with it: grow it without one, and its leaves fill the room the guest would take, with no empty shoots left where animals would have stood. Nor does it draw fallen petals, which would fall upwards. A garden grown round a page cannot hang, since its runner and arcs would turn over onto the text.
+`hanging: true` turns a column garden upside down to hang beneath a page header, cropping the root and any foot above the top edge so no CSS transform or clipping is needed. Hanging gardens omit fallen petals and guests (grow without a guest so foliage fills that space instead). Page gardens and ornaments cannot hang.
 
 ## Headpieces and tailpieces
 
 ```ts
 const garden = growGarden({ seed: 1793, form: "rosacee-coupe", ornament: "cul-de-lampe" });
-const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "taille-douce", id: "tailpiece", scale: 24 });
+const svg = renderGarden(garden, { t: 0.7, fullness: 0.6 }, { manner: "bois", id: "tailpiece", scale: 24 });
 ```
 
-With `ornament`, a garden grows in a wide, short band as one of the ornaments that eighteenth-century printers set over and under a text, instead of in the margin's column. As a `bandeau`, the headpiece over a chapter, the plant grows as a bed of short plants that stand side by side along the band's foot, about 3 cm apart. The bed's outer two plants curl their roots into scrolls. As a `cul-de-lampe`, the tailpiece at a chapter's end, the plant sprays out to both sides from one root in the middle of the band's foot. The band's lower corners stay empty, so the spray narrows to its root as the tailpiece's inverted triangle does.
+With `ornament`, a garden grows in a wide horizontal band as an eighteenth-century printer's ornament instead of a margin column:
 
-A bandeau grows in 18 × 6 cm and a cul-de-lampe in 12 × 8 cm unless `width` and `height` say otherwise, and `ORNAMENTS` holds these sizes. The plants keep the sizes they have in the column, so a smaller drawing of a band comes from a smaller `scale`. A narrower band holds fewer plants. The growth loop keeps a band's drawing inside its top and its foot: it shrinks or leaves out any leaf or bloom whose drawing would run out. Leaves reach no more than about 3 mm past a band's ends.
+- `bandeau` (default 18 × 6 cm) — a chapter headpiece: a row of short plants spaced roughly 3 cm apart along the foot, the outer two curling their roots into scrolls.
+- `cul-de-lampe` (default 12 × 8 cm) — a chapter tailpiece: stems spraying outward from one centred root, keeping the lower corners clear to form the classic inverted triangle.
 
-A plant with a foot stands on it in a band as well. A bed's foot runs the band's width, with one plant of the bed on the foot's crown, and a deep foot such as a rock section is lowered until only its top shows above the band's lower edge. A cul-de-lampe's foot is a column's width, centred under its root and shrunk to as little as 60%, so that a carrot's root or a turnip's swelling shows as the tailpiece's point. A longer root runs on past the band's lower edge. A foot that is the whole plant, such as the dead birch of l'amadouvier, is shrunk until it fits.
-
-The day's guest comes into a band as it does into the column: an animal stands on a shoot of its own where the band leaves room for one, and a tool lies among the plants. A figure taller than the band allows, such as the incubator of le couvoir, is drawn smaller. A band cannot hang, since it stands on its foot. Nor can it reach round a page, since it lies over or under the text rather than beside it.
+`ORNAMENTS` holds the default dimensions. Plants keep their natural centimetre sizes (adjust `scale` to draw smaller), and the growth loop shrinks or omits motifs that would exceed the band's top or foot (allowing about 3 mm of overhang at the ends). Footed plants adapt to the band—deep sections lower so only their crown shows, tailpiece roots centre and shrink down to 60%, and stemless feet such as *l'amadouvier*'s birch stub scale to fit. Guests enter bands as usual, scaling down if taller than the band allows. Ornaments cannot hang or wrap around a page.
 
 ## Festivals
 
@@ -96,22 +87,20 @@ The day's guest comes into a band as it does into the column: an animal stands o
 const garden = growGarden({ seed: 1793, form: "capitule", variant: { rays: 21 }, festival: "opinion" });
 ```
 
-The French Republican calendar names its complementary days for festivals rather than plants. With `festival`, a garden keeps one of them, and since a festival names no plant, it does something to the plant the garden grows: it strips it, stakes it, binds it, mocks it, crowns it or leaves one seed of it. The calendar gives each complementary day its festival and the year's last plant, le marron. A festival garden has no guest and sheds no petals, and a page round it works as it does for any garden.
+The Republican calendar's complementary days are named for festivals rather than plants. Passing `festival` transforms whatever plant the garden grows (on complementary days, the calendar pairs each festival with the year's last plant, *le marron*). Festival gardens omit guests and fallen petals, and work in columns, pages, headpieces and tailpieces.
 
-| Festival | Day | What it does to the plant |
+| Festival | Day | Transformation |
 |---|---|---|
-| `vertu` | jour de la vertu | leaves the stem alone, without flower or leaf; where a bloom was, the husk its seed has left hangs empty |
-| `genie` | jour du génie | plants a quill at its foot as a stake, in its empty husk if it has one, and twines the stems up the quill |
-| `travail` | jour du travail | cuts it and binds it in a sheaf, standing on its cut stalks |
-| `opinion` | jour de l'opinion | defaces it in the accent ink, with caricatures and moustaches on its blooms and scrawl in the sky above, and on a page under the text and over it |
-| `recompenses` | jour des récompenses | braids it with oak into a civic crown, tied with a ribbon |
-| `revolution` | jour de la révolution | leaves a single seed in the middle of the column, whose root comes out towards evening |
+| `vertu` | jour de la vertu | strips foliage and blooms to bare stems, hanging empty seed husks where blooms stood |
+| `genie` | jour du génie | plants a cut goose quill as a stake (in the empty husk if present) and twines the stems up its shaft |
+| `travail` | jour du travail | cuts the plant and binds it in a sheaf standing on its cut stalks (or a row of small sheaves in a bandeau) |
+| `opinion` | jour de l'opinion | defaces blooms with red-chalk caricatures and fills empty sky—and on full pages, the text itself—with cursive scrawl |
+| `recompenses` | jour des récompenses | braids the plant with oak into a civic crown tied with ribbon (adding corner-hung festoons in a bandeau) |
+| `revolution` | jour de la révolution | leaves a single seed centred in the blank, sprouting a root towards evening |
 
-Time and fullness bring a festival garden as they bring any other, and still never take back what they have shown. Virtue, which has no foliage, does not answer to fullness, and Opinion's marks come in with it: the more the page writes, the more the margin writes back. A form can draw two things for the festivals, `husk` and `kernel` (see `PlantForm` in `src/form.ts`): husked nuts and cotton bolls of `arbre-fruitier` (such as le marron's burr and chestnut, walnut hulls, hazel cupules), the acorns, beechnuts, conkers and hazelnuts of `feuillage`, the woody cones and seeds of `conifere`, and the receptacles and achenes of `capitule`. A plant without them keeps its stems bare under Virtue, stakes its quill in a mound of earth under Genius, and leaves its bloom gone to seed under the Revolution.
+Forms can supply custom `husk` and `kernel` drawings (`PlantForm` in `src/form.ts`) for `vertu`, `genie` and `revolution`: husked nuts and cotton bolls in `arbre-fruitier`, acorns, beechnuts, conkers and hazelnuts in `feuillage`, woody cones and seeds in `conifere`, and empty receptacles and achenes in `capitule`. Other forms fall back cleanly to bare stems, an earth mound, and their seed-stage bloom.
 
-A festival keeps its idea in a headpiece or a tailpiece. Virtue and the Revolution grow in a band as they do in the column. Genius stakes a single quill in the middle of a bed, where the middle plant climbs it and the others lean towards it. In a cul-de-lampe the quill stands at the root, and every stem of the spray winds up its shaft before it arches out. Labour binds each plant of a bed in a small sheaf of its own, and a cul-de-lampe in a single sheaf that tapers to its cut ends. Opinion writes a line of scrawl along a band's thin sky and more lines where the band is emptiest, a cul-de-lampe's lower corners among them. Rewards keeps its crown in a cul-de-lampe, with the ribbon's ends hanging to the tailpiece's point. In a bandeau it hangs a festoon of oak and leaves from each side of the crown, caught up by bows at the band's top corners.
-
-## In a browser, lightly
+## Light entry (code splitting)
 
 ```ts
 import { growGarden, loadForm, renderGarden } from "eglantine-marginalia/lite";
@@ -121,41 +110,47 @@ const garden = growGarden({ seed: 1793, form, variant: { leaf: "pinnate" } });
 const svg = renderGarden(garden, { t: 0.6, fullness: 0 }, { manner: "taille-douce", id: "margin", scale: 36 });
 ```
 
-The plant forms are most of the library's weight. The `eglantine-marginalia/lite` entry is the main entry without them or the festivals: `loadForm` loads one form on its own and `loadFestival` one festival, and `growGarden` grows from the form and festival it is given rather than from their ids. A bundler splits each form and festival into its own chunk, so a page fetches about 9 KB of engine, the shared drawing kit and the one form it draws, from 0.2 to 21 KB gzipped, instead of 117 KB for every form. A festival adds 0.2 to 4 KB.
+Plant forms make up most of the package weight. `eglantine-marginalia/lite` omits the registry so bundlers split each form and festival into its own chunk: `loadForm` and `loadFestival` fetch one at a time, and `growGarden` accepts the loaded modules directly. A page loads ~9 KB gzipped for the engine plus the shared kit and one form (0.2–21 KB gzipped) instead of ~117 KB for all thirteen. Festivals add 0.2–4 KB each.
 
 ## Forms
 
-A form describes what a plant is made of and how it stands: its stems, leaves, bloom and what the bloom becomes. A variant tunes a form to a particular plant, such as a pear rather than a fig. Each form documents its variant keys, and `resolveVariant` rejects unknown keys and values out of range.
+Each form defines stems, foliage, blooms and seed stages; variants tune it to individual species, and `resolveVariant` rejects unknown keys or out-of-range values.
 
 | Form | Name | Draws | Calendar days |
 |---|---|---|---|
-| `arbre-fruitier` | arbre fruitier | trees, shrubs and fruiting shoots, shown by fruit that buds, swells and ripens, or by blossom that sheds its petals | 39 |
-| `capitule` | capitule | composite flower heads, going to a clock of plumed seeds or a dry head | 17 |
-| `conifere` | conifère | needled or scaled sprays and their cones, berry-like cones or arils | 8 |
-| `cryptogame` | cryptogame | fungi from soil and dead wood over their mycelium, mosses, lichens, ferns and horsetails | 10 |
+| `arbre-fruitier` | arbre fruitier | trees, shrubs and fruiting shoots, from bud to ripe or splitting fruit, or shedding cherry blossom | 39 |
+| `capitule` | capitule | composite flower heads going to plumed seed clocks or dry heads | 17 |
+| `conifere` | conifère | needled or scaled sprays with woody cones, berry-like cones or arils | 8 |
+| `cryptogame` | cryptogame | fungi over mycelium, mosses, lichens, ferns and horsetails | 10 |
 | `epi-aromatique` | épi aromatique | upright stems of small flowers in spikes, whorls, heads or panicles | 45 |
 | `epi-graminee` | épi de graminée | grasses and grains under their ears and panicles | 15 |
-| `feuillage` | feuillage | plants shown by their leaves, with catkins, nuts or berries | 36 |
+| `feuillage` | feuillage | plants known by their leaves, with catkins, nuts, samaras or berries | 36 |
 | `grimpante` | grimpante | climbers held by tendrils, twining stems or rootlets | 15 |
-| `hiver` | hiver | winter: rocks, earths and metals in an engraved geological section with their period chemical signs, under bare twigs | 26 |
+| `hiver` | hiver | winter rocks, earths and metals in an engraved geological section with period chemical signs under bare twigs | 26 |
 | `lis-bulbe` | lis et bulbe | scape-and-strap plants with six tepals over a bulb or corm | 18 |
 | `ombelle-corymbe` | ombelle et corymbe | flat-topped clusters: corymbs and compound umbels | 17 |
-| `racine-tubercule` | racine et tubercule | plants known by a root or tuber at the foot of the column, some of them very long | 18 |
-| `rosacee-coupe` | rosacée en coupe | radial and cupped flowers in perspective, going to hips, haws and capsules | 24 |
+| `racine-tubercule` | racine et tubercule | plants known by a root or tuber at the column's foot | 18 |
+| `rosacee-coupe` | rosacée en coupe | radial and cupped flowers in perspective going to hips, haws and capsules | 24 |
 
-The forms carry French names, like the calendar's days, and plain lowercase ASCII ids.
-
-The playground's Specimens link opens the technical gallery at `specimens.html#all`. It shows every form's examples at bloom and at seed, with their flowers and leaves drawn large, the calendar's garden for any date, and every palette.
-
-On narrow screens, figures scale to fit and variant tables scroll horizontally.
+The specimen gallery at `specimens.html#all` renders every form's examples at bloom and seed alongside enlarged motifs, calendar dates, festivals and palettes.
 
 ## Manners
 
-`taille-douce` is the copperplate: paper-white forms with a fine outline, shade cut as hatching and stems in solid ink. `lavis` is the wash: transparent layers of bistre, darker in the shade and pooled at the edges, with veins lifted out in paper. `pointille` is stipple engraving, the manner of the plates engraved after Pierre-Joseph Redouté's lilies and roses. He saw colour stipple in London in 1787, and from 1793 drew for the new Muséum national d'histoire naturelle. Each form is modelled in dots of the wash's colour, thick in its shadow and at its rim and sparse across its lit side, inside a contour of finer dots. A hip or a berry in the accent is tinted with its colour under its dots, as a colour stipple was inked on the plate à la poupée. `crayon` is the chalk manner, which Jean-Charles François and Gilles Demarteau made in the 1750s to print chalk drawings, pitting the copper with roulettes so each stroke broke as chalk does over paper. Each form is hatched loosely in the wash's colour, its contour heavy on its shadowed side and skipping on its lit one, and the paper's tooth shows through every stroke. A hip or a berry is laid in its colour, as the pastel manner printed it. `bois` is the relief woodcut, the *taille d'épargne* Jean-Michel Papillon cut for eighteenth-century headpieces, tailpieces and almanacs. Printed in letterpress ink with a bold keyblock contour, leaves, fruits and dark forms keep solid ink in their shadow, cut back in white line with the gouge and crossed by white veins, while pale petals keep their paper with open black cuts and a heavier shadowed edge. A hip or a berry is laid in solid accent ink as a second block inside the keyblock, and a faint pearwood grain shows through the heaviest ink. `MANNERS` lists the manners.
+![The same rose garden and a rose, hip and fig leaf drawn in all five manners: taille-douce, lavis, pointillé, crayon and bois](docs/manners.webp)
 
-The SVG refers to four inks through CSS custom properties, each with a fallback colour: `--eglantine-ink`, `--eglantine-paper`, `--eglantine-accent` and `--eglantine-wash`. A page's stylesheet can set them to match a theme. A garden shown as an image or saved as a file has no stylesheet, so `withInks(svg, { ink: "#1b1b1b" })` writes the colours into the SVG and keeps the fallbacks for the inks left out.
+`MANNERS` lists all five printmaking styles supported by `renderGarden`:
 
-A theme sets the four inks with a few needs in mind. The forms are cut out of `--eglantine-paper`, so the paper has to match the surface the garden lies on: in a sidebar of another colour, set the paper to that colour, or the forms show as patches of the page. The lavis manner lays the wash in layers of 14% to 38% opacity, and the default bistre stands 8.4:1 in contrast from the default cream; a much lighter wash fades out. The accent marks pistils that sit on washed petals, so it should stand apart from the wash.
+- **`taille-douce`** — copperplate line engraving: paper-white forms, fine ink contours, hatched shadows and solid ink stems.
+- **`lavis`** — bistre wash: translucent layers of wash darker in shadow and pooled at the edges, paper-lifted veins, and a soft bled edge.
+- **`pointille`** — stipple engraving after the plates from Pierre-Joseph Redouté's lilies and roses (London 1787; Muséum national d'histoire naturelle from 1793): modelled in wash-coloured dots dense in shadow and rim and sparse on the lit side inside a dotted contour, with accented hips and berries tinted underneath *à la poupée*.
+- **`crayon`** — the chalk manner developed by Jean-Charles François and Gilles Demarteau in the 1750s: loose wash hatching, a contour heavy in shadow and skipping on the lit side, pastel-tinted accents, and paper tooth breaking through every stroke.
+- **`bois`** — relief woodcut after Jean-Michel Papillon's *taille d'épargne*: bold letterpress keyblock contours, solid ink shadows cut back in white line with the gouge and crossed by white veins on foliage and fruit, open black cuts on pale petals, solid second-block accents, and a faint pearwood grain.
+
+### Inks
+
+SVGs reference four CSS custom properties with built-in fallbacks: `--eglantine-ink`, `--eglantine-paper`, `--eglantine-accent` and `--eglantine-wash`. For standalone SVGs or `<img>` tags where no stylesheet applies, `withInks(svg, inks)` bakes colours directly into the markup (keeping defaults for omitted inks).
+
+When writing custom themes: match `--eglantine-paper` to the surface behind the garden (forms are cut out of paper), keep `--eglantine-wash` dark enough to hold up at 14–38% opacity in `lavis` (default bistre sits at 8.4:1 contrast), and separate `--eglantine-accent` clearly from the wash.
 
 ## Palettes
 
@@ -167,11 +162,11 @@ import { paletteInks, withInks } from "eglantine-marginalia";
 const print = withInks(svg, paletteInks("iron-gall", "dark"));
 ```
 
-Eight palettes come with the library, after colours inspired by eighteenth-century France. Each has a light reading, by daylight on a pale page, and a dark one, by candlelight on a dark page. In the stylesheet, `data-eglantine-palette="madder"` follows the system's colour scheme, and `madder-light` or `madder-dark` fixes a reading. Every wash stands between 6:1 and 10:1 from its paper and every line at least 7:1.
+Eight palettes inspired by eighteenth-century France ship with both light (daylight) and dark (candlelight) readings. In CSS, `data-eglantine-palette="madder"` follows `prefers-color-scheme`, while `madder-light` or `madder-dark` pins a reading. Every wash holds 6:1–10:1 contrast against its paper and every ink at least 7:1.
 
 | Palette | Name | Period | Wash and accent |
 |---|---|---|---|
-| `puce` | Couleur de puce | 1775 | flea's-back brown, with the rose of cuisse de nymphe émue |
+| `puce` | Couleur de puce | 1775 | flea's-back brown, with the rose of *cuisse de nymphe émue* |
 | `olive` | Boue de Paris | 1775 to 1781 | toad green, with Dutch-cheese orange |
 | `cockade` | Palais-Royal | 12 July 1789 | cockade green, with the red of Paris |
 | `iron-gall` | Le Vieux Cordelier | winter 1793 to 1794 | aged iron-gall ink, with sealing-wax red |
@@ -180,7 +175,7 @@ Eight palettes come with the library, after colours inspired by eighteenth-centu
 | `madder` | Toile de Jouy | 1770 to the 1790s | madder, with pencilled indigo |
 | `red-chalk` | Aux trois crayons | about 1715 to 1720 | bistre on chamois, with red chalk |
 
-A wash in one brown, madder or blue suits every day. The green washes of `olive` and `cockade` suit flowers but turn rock sections and dead wood green as well.
+Brown, madder and blue washes suit every day; the green washes (`olive`, `cockade`) also tint geological sections and dead wood green.
 
 ## The calendar
 
@@ -199,9 +194,9 @@ const svg = renderGarden(garden, { t: 0.5, fullness: 0.5 }, {
 });
 ```
 
-On a complementary day, `day.plant` is the year's last plant and `day.festival` names the day's festival; [History](#history) explains the days, their guests and their festivals. An animal stands where its figure asks, most of them on a shoot of their own. To let it float among the stems instead, as every animal once did, grow the garden with `{ ...day.guest, stance: "stems" }` as its guest.
+On animal days, visitors stand where their figure asks—most on a coiled shoot grown out of a main stem, the bee, fish and silkworm among the stems, and the otter on the ground. Pass `{ ...day.guest, stance: "stems" }` to let any visitor float among the stems instead.
 
-`figureGuest` brings any figure to any plant as the guest its own day brings: `growGarden({ seed, form: "rosacee-coupe", guest: figureGuest("chat") })` lets le chat visit a rose, and its engraving is `figureURL("chat")`. `HANAMI` is a day outside the calendar, for those who love rabbits. Hanami is the viewing of the cherry blossom, and on it le lapin comes to see the calendar's cherry in flower and stays to watch its petals fall. It has a `plant` and a `guest` as a calendar day has, so it grows as one does:
+`figureGuest` pairs any of the 72 engravings with any plant (`growGarden({ seed, form: "rosacee-coupe", guest: figureGuest("chat") })` with `figureURL("chat")`). `HANAMI` is a bonus non-calendar entry pairing *le lapin* with the flowering cherry:
 
 ```ts
 import { figureURL, HANAMI } from "eglantine-marginalia/calendar";
@@ -212,55 +207,45 @@ const svg = renderGarden(garden, { t: 0.95, fullness: 0.8 }, { manner: "lavis", 
 
 ## Extending
 
-`growGarden` also accepts a `FormModule` object in place of a registered id. The `eglantine-marginalia/toolkit` entry point exports what the bundled forms are built with: plane geometry, seeded randomness, engraved bodies and the shared leaves and flowers. A form can grow out of a foot, such as a root, a stump or a bed of strata drawn at the column's base, and can ink its stems as threads or bark (see `Foot` and `StemInk` in `src/form.ts`).
+`growGarden` accepts any `FormModule` object in place of a registered id. `eglantine-marginalia/toolkit` exports the geometry, seeded RNG, body builders and shared foliage used by the bundled forms. Forms can stand on a custom `Foot` (roots, strata, stumps) and ink stems via `StemInk` (see `src/form.ts`).
 
-`renderGarden` takes a `decorate` option that lays further marks on a garden. An inlay lies at a numbered layer among the plant's parts, inside the wash, and the `under` and `over` marks lie beneath and above the whole garden. Decoration strings are raw SVG and must come from trusted sources.
+`renderGarden` also accepts a `decorate(garden, sheet)` callback returning raw SVG `under`, `over`, or numbered `inlays` (which sit among the plant's layers inside any manner filter). Decoration strings are injected verbatim and must come from trusted callers.
 
-The forms are drawn for the 6 × 22 cm column. Their sizes are in centimetres and a foot is placed within that column, so a much narrower or shorter column crowds the plants and a much larger one spreads them out. A garden on a page or in a band holds more of each motif in proportion to its room, at the same sizes, so it fills the room rather than thinning out. A larger drawing of the same garden comes from a larger `scale`.
+Forms are authored in centimetres for the 6 × 22 cm column; pages and ornaments scale motif counts proportionally to their area while keeping botanical parts at their natural size. Use `scale` to draw the same garden larger or smaller.
 
 ## Development
 
 ```sh
 npm install
-npm test                 # garden invariants, form examples, and calendar
+npm test                 # garden invariants, form examples, calendar and festivals
 npm run typecheck
 npm run gallery          # playground at http://localhost:5210
 npm run build            # library in dist/
 npm run gallery:build    # static website in site-dist/
-npm run gallery:preview  # serve the built website at http://localhost:5210
-npm run sweep            # grow every plant across sizes and layouts; see scripts/README.md
+npm run gallery:preview  # serve built site on http://localhost:5210
+npm run check            # typecheck, tests, library build and site build
+npm run sweep            # stress-test every plant across sizes, layouts and festivals
 ```
 
-`npm run check` runs typechecking, tests, and both builds. Stop the development server before running the preview server on the same port.
-
-The renderer writes SVG paths without temporary coordinate lists and shares common coordinate strings. Stipple reuses each nearby edge's measurements rather than calculating them for every dot. Both shortcuts preserve the SVG path data, dot placement and chalk grain.
-
-### Static hosting
-
-Upload the contents of `site-dist/` to a static host after `npm run gallery:build`. Relative asset URLs support a site root or a subdirectory on a personal website. The build includes the playground, the specimen gallery, fonts and their licence, and guest figures.
-
-The playground at [cadaeic.space/eglantine](https://cadaeic.space/eglantine/) is such a build, copied into that site.
+Stop the dev server before running `gallery:preview` on the same port. `site-dist/` uses relative asset URLs (`base: "./"`), so it deploys cleanly at a site root or subdirectory such as [cadaeic.space/eglantine](https://cadaeic.space/eglantine/).
 
 ## History
 
-The French Republican calendar was in use from 1793 to 1805. It divides the year into twelve months of thirty days, followed by five complementary days, or six in a sextile year. In his report to the National Convention in 1793, Fabre d'Églantine gave each day of a month a name: a plant for most days, an animal for every fifth day and a tool for every tenth. The library takes the names as they were printed and gives each of the 288 plant days a form and a variant (see `PLANTS`). On an animal or tool day the garden grows the previous day's plant, and an engraved figure of the animal visits it or the tool lies at rest at its foot. Most animals stand on a shoot that coils out of a stem for them, as creatures stand on the scrolls of eighteenth-century ornament; the bee, the fish and the silkworm keep among the stems, and the otter stands on the ground. In a margin taller than the standard column, an animal comes more than once.
+The French Republican calendar (1793–1805) divided the year into twelve 30-day months plus five complementary days (six in a sextile year). In his 1793 report to the National Convention, Fabre d'Églantine named every regular day for a plant, every fifth day for an animal, and every tenth for a tool. This library preserves his printed French names and assigns all 288 plant days a form and variant (`PLANTS`); animal and tool days grow the previous day's plant with an engraved period visitor or resting tool.
 
-Fabre named the complementary days for festivals instead: of Genius, Labour, good Actions, Rewards and Opinion, and in a sextile year a sixth day of national games. On the festival of Opinion, [his report](https://fr.wikisource.org/wiki/Rapport_sur_le_calendrier_r%C3%A9publicain) has it, anyone could say what they liked of a public official, in songs, caricatures and pasquinades: "on corrompt les tribunaux, on ne corrompt pas l'opinion". The Convention renamed the festival of Actions for Virtue and put it first, and moved Opinion to the fourth day; the library follows that order, and names the sixth day for the Revolution, as later calendars did. Fabre and the Convention left the festivals' ceremonies to be settled, and none of the days names a plant, so on each of them the garden grows the year's last plant, le marron, which the year's last day grows too, and the festival does something to it.
+Fabre named the complementary days for festivals—Genius, Labour, Actions, Rewards, Opinion ("on corrompt les tribunaux, on ne corrompt pas l'opinion") and, in sextile years, national games. The library follows the Convention's revised order (Virtue, Genius, Labour, Opinion, Rewards) and the later name Revolution for the sixth day, growing *le marron* under each festival.
 
-The decree of 4 frimaire an II that set up the calendar begins each year at midnight on the day the true autumn equinox falls for the Paris Observatory. `republicanDate` follows the decree. It reckons the September equinox after Meeus's *Astronomical Algorithms* and reads it on the Observatory's true solar clock, and a year is sextile when the next equinox falls 366 days later. This gives the new years the Republic kept, with years III, VII and XI sextile and year XII opening on 24 September 1803, and it keeps the calendar to the seasons since: 22 November 2026 is 1er frimaire an CCXXXV. The equinoxes are reckoned to the year 3000, and later dates raise a RangeError. Until November 2026 the library kept instead to a four-year rhythm with no exception for centuries, which by then ran a day or two behind the equinox.
+Per the decree of 4 frimaire an II, each year opens at midnight on the day of the true autumn equinox at the Paris Observatory. `republicanDate` computes the September equinox via Meeus's *Astronomical Algorithms* and the Observatory's true solar clock, matching the historical sextile years III, VII and XI and tracking the seasons through the year 3000 (later dates throw a `RangeError`).
 
-The figures are ink masks cut from engravings of the period, in public-domain scans by the Smithsonian Libraries, the Bibliothèque interuniversitaire de santé in Paris, the University of Seville, Naturalis, the Getty Research Institute and other libraries, served through the Internet Archive, and by the Rijksmuseum. [figures/PROVENANCE.md](figures/PROVENANCE.md) lists the work, plate and scan for each of the 72 figures, one for every animal and tool day.
+All 72 guest figures are ink masks cut from public-domain period engravings scanned by the Smithsonian Libraries, Bibliothèque interuniversitaire de santé (Paris), University of Seville, Naturalis, Getty Research Institute, Rijksmuseum and other institutions. See [figures/PROVENANCE.md](figures/PROVENANCE.md) for every plate and scan licence.
 
 ## Credits
 
-The growth loop follows the grown composition of Kevin Raymond's [florilegium](https://github.com/kevinraymond/florilegium), a LuaLaTeX package under the MIT licence, whose notice is in [florilegium-LICENSE.txt](florilegium-LICENSE.txt). Florilegium in turn follows Michael T. Wong, Douglas E. Zongker and David H. Salesin, "Computer-Generated Floral Ornament", SIGGRAPH 1998.
-
-The palettes were resolved after the method of [madoromi](https://github.com/the-moonwitch/madoromi), which reads historical inks at the lightness each role needs; they share no code or colours with it. Several colour names come from the children's trail [Les couleurs au 18e siècle](https://lesbateliers.namur.be/documentation-et-presse/publications/carnets-pedagogiques/les-couleurs-du-18e-siecle) (Musée Les Bateliers, Namur, 2023).
-
-Plant-only SVGs require no attribution to the scanning libraries. Six guest figures use scans by the Bibliothèque interuniversitaire de santé, Paris under the Etalab Open Licence. The licence requires attribution to the library when those images are reused or redistributed, including within the full package.
+- Growth loop adapted from Kevin Raymond's [florilegium](https://github.com/kevinraymond/florilegium) (MIT; notice in [florilegium-LICENSE.txt](florilegium-LICENSE.txt)), following Wong, Zongker & Salesin, "Computer-Generated Floral Ornament" (SIGGRAPH 1998).
+- Palette lightness method inspired by [madoromi](https://github.com/the-moonwitch/madoromi) (no shared code or colours); historical colour names draw partly on *Les couleurs au 18e siècle* (Musée Les Bateliers, Namur, 2023).
+- English calendar day names come from Wikipedia's French Republican calendar tables.
+- Plant-only SVGs require no scan attribution. Six guest figures derive from scans by the Bibliothèque interuniversitaire de santé, Paris under the Etalab Open Licence, which requires attribution when those images are reused or redistributed (including with the full package).
 
 ## Licence
 
-The code is licensed under [MIT](LICENSE). Copies or substantial portions of the code must retain its copyright and licence notices.
-
-The guest figures derive from public-domain engravings. [Figure provenance](figures/PROVENANCE.md) records their scan terms and source credits.
+Code is under the [MIT licence](LICENSE). Guest figures derive from public-domain engravings; see [figures/PROVENANCE.md](figures/PROVENANCE.md) for scan terms and credits.
