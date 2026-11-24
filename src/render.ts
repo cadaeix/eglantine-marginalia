@@ -1,8 +1,7 @@
 // A garden at one moment of the day, as one SVG.
 import { num, prefix, type Pt, ribbon, smoothstep } from "./geometry.js";
 import { type Garden, type MotifItem, stageAt, stemShown } from "./garden.js";
-import { inkRef } from "./inks.js";
-import { type Manner, paintShapes, Sheet, washFilter } from "./paint.js";
+import { type Manner, mannerStyle, paintShapes, Sheet } from "./paint.js";
 import { createRng } from "./random.js";
 import type { Shape } from "./shapes.js";
 
@@ -24,9 +23,9 @@ export interface Inlay {
 }
 
 /**
- * Marks a caller lays on the garden. Inlays take the lavis wash with the plant; `under` lies beneath the
- * whole garden and `over` above it, both outside the wash. Paint them with `paintShapes` on the sheet given,
- * so their ids stay unique within the SVG.
+ * Marks a caller lays on the garden. Inlays lie among the plant's parts and take any filter its manner lays over
+ * it, such as the lavis wash's bled edge; `under` lies beneath the whole garden and `over` above it, outside it.
+ * Paint them with `paintShapes` on the sheet given, so their ids stay unique within the SVG.
  */
 export interface Decorations {
   inlays?: readonly Inlay[];
@@ -79,6 +78,7 @@ const group = (at: Pt, angle: number, mirrored: boolean, body: string): string =
 
 export function renderGarden(garden: Garden, moment: Moment, options: RenderOptions): string {
   const hanging = options.hanging === true;
+  const style = mannerStyle(options.manner);
   if (hanging && garden.column[2] - garden.column[0] < garden.width) throw new RangeError("a garden grown round a page cannot hang");
   if (hanging && garden.ornament) throw new RangeError(`a ${garden.ornament} cannot hang`);
   const sheet = new Sheet(options.id);
@@ -120,17 +120,16 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
     const box = `x="${num(-first.width / 2)}" y="${num(-first.height / 2)}" width="${num(first.width)}" height="${num(first.height)}"`;
     // mask-type as a presentation attribute, not a style: pages with a strict content policy refuse inline styles.
     sheet.defs.push(`<mask id="${mask}" maskUnits="userSpaceOnUse" ${box} mask-type="alpha"><image href="${figure}" ${box} preserveAspectRatio="none"/></mask>`);
-    const ink = options.manner === "taille-douce" ? `fill="${inkRef("ink")}"` : `fill="${inkRef("wash")}" fill-opacity="0.85"`;
     // The page is drawn with y up; the engraving is y down, so it is flipped back, and mirrored to face the plant.
     for (const guest of arrived) {
-      add(guest.kind === "visitor" ? VISITOR_LAYER : REST_LAYER, `<g transform="translate(${num(guest.at[0])} ${num(guest.at[1])}) rotate(${num(guest.angle)}) scale(${guest.facing} -1)"><rect ${box} ${ink} mask="url(#${mask})"/></g>`);
+      add(guest.kind === "visitor" ? VISITOR_LAYER : REST_LAYER, `<g transform="translate(${num(guest.at[0])} ${num(guest.at[1])}) rotate(${num(guest.angle)}) scale(${guest.facing} -1)"><rect ${box} ${style.figure} mask="url(#${mask})"/></g>`);
     }
   }
   const marks = options.decorate?.(garden, sheet) ?? {};
   for (const inlay of marks.inlays ?? []) add(inlay.layer, inlay.svg);
 
   let body = [...layers.entries()].sort(([a], [b]) => a - b).map(([, text]) => text).join("");
-  if (options.manner === "lavis") body = `<g filter="url(#${washFilter(sheet, garden.seed)})">${body}</g>`;
+  if (style.filter) body = `<g filter="url(#${style.filter(sheet, garden.seed)})">${body}</g>`;
   body = (marks.under ?? "") + body + (marks.over ?? "");
   const w = num(garden.width);
   // The garden is laid out with y up. Standing, it is turned over into the SVG's y down; hanging, it is left

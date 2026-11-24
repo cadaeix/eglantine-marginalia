@@ -9,7 +9,7 @@ export interface Inks {
   paper: string;
   /** The pistils and other small touches of colour. */
   accent: string;
-  /** The lavis manner's wash. */
+  /** The lavis manner's wash, and the colour pointillé stipples in. */
   wash: string;
 }
 

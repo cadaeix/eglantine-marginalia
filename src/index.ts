@@ -3,7 +3,7 @@
 export { COLUMN, foliageShown, type Garden, type GardenItem, growGarden, type GrowSpec, type Guest, type GuestPlace, type GuestStance, type MotifItem, type Ornament, ORNAMENTS, type Page, stageAt, stemShown, type StemItem } from "./grow.js";
 export { type Festival, type FestivalModule, FESTIVALS } from "./festival.js";
 export { type Decorations, type Inlay, type Moment, renderGarden, type RenderOptions } from "./render.js";
-export { type Manner, paintShapes, Sheet } from "./paint.js";
+export { type Manner, MANNERS, paintShapes, Sheet } from "./paint.js";
 export { DEFAULT_INKS, INK_PROPERTIES, inkRef, type Inks, withInks } from "./inks.js";
 export { type Palette, PALETTES, paletteInks, palettesCss } from "./palettes.js";
 export { FESTIVAL_MODULES, FORM_MODULES, plantForm } from "./registry.js";

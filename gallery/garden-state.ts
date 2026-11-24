@@ -8,7 +8,7 @@ import { num } from "../src/geometry.js";
 import { withInks } from "../src/inks.js";
 import { loadFestival } from "../src/load-festival.js";
 import { loadForm } from "../src/load-form.js";
-import type { Manner } from "../src/paint.js";
+import { type Manner, MANNERS } from "../src/paint.js";
 import { PALETTES, paletteInks } from "../src/palettes.js";
 import { renderGarden } from "../src/render.js";
 import { FORM_PHRASES, PLANTS } from "./catalog.js";
@@ -108,7 +108,7 @@ function normalize(input: StateInput, fallback: PlaygroundState): PlaygroundStat
     plant: typeof input.plant === "string" && PLANTS.some(plant => plant.id === input.plant) ? input.plant : fallback.plant,
     date: validDate(input.date) ? input.date : fallback.date,
     seed: numeric(input.seed, fallback.seed, 0, 0xffff_ffff, true),
-    manner: input.manner === "lavis" || input.manner === "taille-douce" ? input.manner : fallback.manner,
+    manner: (MANNERS as readonly unknown[]).includes(input.manner) ? input.manner as Manner : fallback.manner,
     palette: typeof input.palette === "string" && PALETTES.some(palette => palette.id === input.palette) ? input.palette : fallback.palette,
     reading: input.reading === "light" || input.reading === "dark" ? input.reading : fallback.reading,
     t: numeric(input.t, fallback.t, 0, 1),

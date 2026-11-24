@@ -5,7 +5,7 @@
 // fibres, straw, cracks, drops, cells). At the end of the day the specimens take the hoarfrost: a mineral
 // has no seed, and the one thing a winter day ripens is cold; a rime fringe also reads on every material.
 import { type Foot, type FormModule, LAYER, numberOf, type PlantForm, type Stage, textOf, type Variant } from "../form.js";
-import { clamp, lerp, type Pt, ribbon, sample, smoothstep, unit } from "../geometry.js";
+import { clamp, inside, lerp, type Pt, ribbon, sample, smoothstep, unit } from "../geometry.js";
 import { HATCH, line, side, turn, turnShape } from "../kit.js";
 import { fbm1, type Rng } from "../random.js";
 import { bladeBody, type Body, type Line, type Shape } from "../shapes.js";
@@ -15,15 +15,6 @@ const TAU = Math.PI * 2;
 const LIGHT = unit(-0.6, 0.8);
 
 // ---------------------------------------------------------------- plane helpers
-
-function inside([x, y]: Pt, poly: readonly Pt[]): boolean {
-  let hit = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
-    const [xi, yi] = poly[i]!, [xj, yj] = poly[j]!;
-    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) hit = !hit;
-  }
-  return hit;
-}
 
 /** The parts of a polyline whose points pass a test, as separate runs. */
 function runsWhere(points: readonly Pt[], keep: (p: Pt) => boolean): Pt[][] {

@@ -10,6 +10,15 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 export const distance = (a: Pt, b: Pt): number => Math.hypot(a[0] - b[0], a[1] - b[1]);
+/** Whether a point lies inside a polygon, by the even-odd rule. */
+export function inside([x, y]: Pt, poly: readonly Pt[]): boolean {
+  let hit = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
+    const [xi, yi] = poly[i]!, [xj, yj] = poly[j]!;
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
 export function unit(x: number, y: number): Pt {
   const length = Math.hypot(x, y);
   return length < 1e-9 ? [0, 1] : [x / length, y / length];
@@ -151,6 +160,20 @@ export function polyPath(points: readonly Pt[], closed = false): string {
     d += `l${numbers(steps)}`;
   }
   return closed ? `${d}z` : d;
+}
+
+/**
+ * Points as path data for a round-capped stroke to draw as dots: each is a subpath of no length. The first is
+ * placed absolutely and each after it is stepped to from the one before, so most numbers are small.
+ */
+export function pointsPath(points: readonly Pt[]): string {
+  let d = "", x = 0, y = 0;
+  for (const point of points) {
+    const [nx, ny] = hundredthsOf(point);
+    d += d === "" ? `M${numbers([nx, ny])}h0` : `m${numbers([nx - x, ny - y])}h0`;
+    x = nx; y = ny;
+  }
+  return d;
 }
 
 /**

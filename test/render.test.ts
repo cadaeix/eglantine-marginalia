@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { polyPath, type Pt, smoothPath } from "../src/geometry.js";
+import { inside, pointsPath, polyPath, type Pt, smoothPath } from "../src/geometry.js";
 import { growGarden } from "../src/grow.js";
 import { DEFAULT_INKS, withInks } from "../src/inks.js";
-import { Sheet } from "../src/paint.js";
+import { type Manner, paintShapes, Sheet } from "../src/paint.js";
 import { createRng } from "../src/random.js";
 import { renderGarden } from "../src/render.js";
+import { bladeBody } from "../src/shapes.js";
 
 /** The points path data passes through, read back by SVG's number grammar, in hundredths of a centimetre. */
 function passesThrough(d: string): [number, number][] {
@@ -16,6 +17,8 @@ function passesThrough(d: string): [number, number][] {
     if (/[A-Za-z]/u.test(tokens[index]!)) command = tokens[index++]!;
     switch (command) {
       case "M": x = next(); y = next(); start = [x, y]; break;
+      case "m": x += next(); y += next(); start = [x, y]; break;
+      case "h": x += next(); break;
       case "l": x += next(); y += next(); break;
       case "c": index += 4; x += next(); y += next(); break;
       case "s": index += 2; x += next(); y += next(); break;
@@ -50,6 +53,34 @@ describe("rendering", () => {
       expected.push(...hundredths, ...(smooth && closed && count >= 3 ? [hundredths[0]!] : []));
     }
     expect(passesThrough(d)).toEqual(expected);
+  });
+
+  it("writes a dot at every point it is given, to the hundredth", () => {
+    const rng = createRng(1793);
+    const points: Pt[] = Array.from({ length: 400 }, () => [rng.range(-3, 25), rng.range(-3, 25)]);
+    // Each dot is a move to its point and a step of no length there.
+    const drawn = passesThrough(pointsPath(points)).filter((_, index) => index % 2 === 1);
+    expect(drawn).toEqual(points.map(([x, y]) => [Math.round(x * 100), Math.round(y * 100)]));
+  });
+
+  it("stipples a leaf more thickly in its shadow than across its lit side, and keeps every dot inside it", () => {
+    const leaf = bladeBody({ spine: v => [0.3 * v * v, 3 * v], halfWidth: v => 0.7 * Math.sin(Math.PI * v), shade: 1, spacing: 0.055, grain: "across", weight: 0.6 }, createRng(1793));
+    const svg = paintShapes([leaf], "pointille", new Sheet("leaf"));
+    const dots = [...svg.matchAll(/ d="(M[^"]*h0)"/gu)].flatMap(match => passesThrough(match[1]!)).map(([x, y]): Pt => [x / 100, y / 100]);
+    expect(dots.length).toBeGreaterThan(200);
+    // A dot is rounded to the hundredth, so one at the very edge may lie a hundredth outside.
+    const within = ([x, y]: Pt): boolean => [[0, 0], [0.01, 0], [-0.01, 0], [0, 0.01], [0, -0.01]].some(([dx, dy]) => inside([x + dx!, y + dy!], leaf.outline));
+    expect(dots.filter(dot => !within(dot))).toEqual([]);
+    const shaded = (p: Pt): boolean => leaf.shadow.reduce((hit, ring) => hit !== inside(p, ring), false);
+    // The leaf's area in shadow and in light, counted on a fine grid.
+    let shadeArea = 0, litArea = 0;
+    for (let x = -1; x <= 1.5; x += 0.01) for (let y = 0; y <= 3; y += 0.01) if (inside([x, y], leaf.outline)) shaded([x, y]) ? shadeArea++ : litArea++;
+    const inShade = dots.filter(shaded).length;
+    expect(inShade / shadeArea).toBeGreaterThan(1.5 * (dots.length - inShade) / litArea);
+  });
+
+  it("refuses a manner it does not know", () => {
+    expect(() => renderGarden(garden, moment, { manner: "mezzotint" as Manner, id: "m", scale: 10 })).toThrow(RangeError);
   });
 
   it("lays decorations under the garden, among its layers inside the wash, and over it", () => {

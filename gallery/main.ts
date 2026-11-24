@@ -2,12 +2,12 @@
 // bloom and seed and their leaf drawn large, so a form's author can judge it by eye; and today's garden
 // from the calendar through the day. `#form=<id>` opens one form, `#all` shows every example small,
 // `#today` shows the calendar's day (`&date=YYYY-MM-DD` another day's), and `#festivals` the six complementary
-// days of a sextile year through the day; `&manner=lavis` and `&paper=night` change the plate.
+// days of a sextile year through the day; `&manner=lavis` or `&manner=pointille` and `&paper=night` change the plate.
 // `&palette=<id>-light` or `-dark` draws everything in one of the library's palettes.
 import { calendarDay, figureURL, localDate } from "../src/calendar/index.js";
 import type { FormModule, Variant } from "../src/form.js";
 import { growGarden } from "../src/grow.js";
-import type { Manner } from "../src/paint.js";
+import { type Manner, MANNERS } from "../src/paint.js";
 import { createRng, seedFromText } from "../src/random.js";
 import { PALETTES, palettesCss } from "../src/palettes.js";
 import { FORM_MODULES, plantForm } from "../src/registry.js";
@@ -20,7 +20,7 @@ function readRoute(): Route {
   const params = new URLSearchParams(location.hash.slice(1));
   return {
     form: params.get("form"), all: params.has("all"), today: params.has("today"), festivals: params.has("festivals"), date: params.get("date"),
-    manner: params.get("manner") === "lavis" ? "lavis" : "taille-douce", paper: params.get("paper") === "night" ? "night" : "cream",
+    manner: MANNERS.find(manner => manner === params.get("manner")) ?? "taille-douce", paper: params.get("paper") === "night" ? "night" : "cream",
     palette: params.get("palette"),
   };
 }
@@ -85,7 +85,7 @@ function draw(): void {
     + READINGS.map(({ value, palette, reading }) => `<option value="${value}"${value === chosen?.value ? " selected" : ""}>${escape(palette.name)}, ${reading === "light" ? "jour" : "chandelle"} (${value})</option>`).join("") + "</select>";
   let html = `<nav><a href="./">Playground</a><a href="${link({ today: "" })}"${route.today ? " aria-current=\"page\"" : ""}>today</a><a href="${link({ festivals: "" })}"${route.festivals ? " aria-current=\"page\"" : ""}>festivals</a><a href="${link({ all: "" })}"${route.all ? " aria-current=\"page\"" : ""}>all</a>`
     + modules.map(module => `<a href="${link({ form: module.id })}"${module === selected ? " aria-current=\"page\"" : ""}>${escape(module.name)}</a>`).join("")
-    + `<span class="switch"><a href="${link(here, { manner: route.manner === "lavis" ? "taille-douce" : "lavis" })}">${route.manner === "lavis" ? "taille-douce" : "lavis"}</a>`
+    + `<span class="switch">${MANNERS.filter(manner => manner !== route.manner).map(manner => `<a href="${link(here, { manner })}">${manner}</a>`).join("")}`
     + (chosen ? "" : `<a href="${link(here, { paper: route.paper === "night" ? "cream" : "night" })}">${route.paper === "night" ? "cream paper" : "night paper"}</a>`)
     + `${chooser}</span></nav>`
     + (chosen ? `<p class="palette-note"><i>${escape(chosen.palette.name)}</i>, ${escape(chosen.palette.period)}. ${escape(chosen.palette.note)}</p>` : "");

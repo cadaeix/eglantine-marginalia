@@ -9,6 +9,7 @@ import { ORNAMENTS } from "../src/garden.js";
 import { clamp } from "../src/geometry.js";
 import { INK_PROPERTIES } from "../src/inks.js";
 import { loadForm } from "../src/load-form.js";
+import type { Manner } from "../src/paint.js";
 import { PALETTES, paletteInks } from "../src/palettes.js";
 import { createRng } from "../src/random.js";
 import { renderGarden } from "../src/render.js";
@@ -53,6 +54,8 @@ const MODE_NOTES: Readonly<Record<Mode, string>> = {
   bandeau: "A bed of the plant heads the entry, as a bandeau heads a chapter.",
   "cul-de-lampe": "One root sprays the plant both ways, as a cul-de-lampe ends a chapter.",
 };
+/** How the garden's description names the manner it is drawn in. */
+const MANNER_PHRASES: Readonly<Record<Manner, string>> = { "taille-douce": "engraved", lavis: "in wash", pointille: "in stipple" };
 /** The garden's tallest column, in centimetres: a long page keeps its garden at its foot. */
 const TALLEST = 30;
 /**
@@ -265,7 +268,7 @@ function drawGarden(): void {
     const guestFigure = garden.guests.length > 0 && selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {};
     gardenElement.innerHTML = renderGarden(garden, { t: state.t, fullness: state.fullness }, { manner: state.manner, id: "garden", scale, hanging: state.mode === "hanging", ...guestFigure });
     const where = ornament === "bandeau" ? "as a headpiece over the entry" : ornament ? "as a tailpiece under the entry" : "in the page's margin";
-    gardenElement.querySelector("svg")!.setAttribute("aria-label", `${selection.title}, ${state.manner === "lavis" ? "in wash" : "engraved"}, ${where}`);
+    gardenElement.querySelector("svg")!.setAttribute("aria-label", `${selection.title}, ${MANNER_PHRASES[state.manner]}, ${where}`);
     drawnKey = drawKey;
   }
   // A hanging garden's drawing is shorter than the garden by the root it crops away; the SVG gives its size.

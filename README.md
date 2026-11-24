@@ -1,6 +1,6 @@
 # Églantine
 
-Églantine (`eglantine-marginalia`) grows a plant in the margin of a page and draws it in the manner of eighteenth-century French engraving, in copperplate line or in bistre wash. The plant keeps time with the day. Its stems lengthen and its buds open, and towards evening its flowers go to seed. Its leaves come in as the day fills, with words written, pages read or whatever else the page counts.
+Églantine (`eglantine-marginalia`) grows a plant in the margin of a page and draws it in the manner of eighteenth-century French engraving, in copperplate line, in bistre wash or in stipple. The plant keeps time with the day. Its stems lengthen and its buds open, and towards evening its flowers go to seed. Its leaves come in as the day fills, with words written, pages read or whatever else the page counts.
 
 ![Gardens for five days of an CCXXXV, in the two manners: la carotte, l'amaryllis, l'oie, le fléau and l'amadouvier](docs/showcase.webp)
 
@@ -150,7 +150,7 @@ On narrow screens, figures scale to fit and variant tables scroll horizontally.
 
 ## Manners
 
-`taille-douce` is the copperplate: paper-white forms with a fine outline, shade cut as hatching and stems in solid ink. `lavis` is the wash: transparent layers of bistre, darker in the shade and pooled at the edges, with veins lifted out in paper.
+`taille-douce` is the copperplate: paper-white forms with a fine outline, shade cut as hatching and stems in solid ink. `lavis` is the wash: transparent layers of bistre, darker in the shade and pooled at the edges, with veins lifted out in paper. `pointille` is stipple engraving, the manner of the plates engraved after Pierre-Joseph Redouté's lilies and roses. He saw colour stipple in London in 1787, and from 1793 drew for the new Muséum national d'histoire naturelle. Each form is modelled in dots of the wash's colour, thick in its shadow and at its rim and sparse across its lit side, inside a contour of finer dots. A hip or a berry in the accent is tinted with its colour under its dots, as a colour stipple was inked on the plate à la poupée. `MANNERS` lists the manners.
 
 The SVG refers to four inks through CSS custom properties, each with a fallback colour: `--eglantine-ink`, `--eglantine-paper`, `--eglantine-accent` and `--eglantine-wash`. A page's stylesheet can set them to match a theme. A garden shown as an image or saved as a file has no stylesheet, so `withInks(svg, { ink: "#1b1b1b" })` writes the colours into the SVG and keeps the fallbacks for the inks left out.
 
