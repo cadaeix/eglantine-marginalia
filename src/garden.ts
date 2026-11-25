@@ -435,14 +435,20 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   const shedders: { bloom: MotifItem; from: { petal?(rng: Rng, s: number): Shape[] } }[] = [];
 
   /**
-   * Whether a motif drawn at `at` along `angle` would run out of a band, such as an amaranth's tassel hanging past
-   * its foot: its drawing is probed at every stage it passes through, so nothing it becomes later runs out either.
+   * Whether a motif drawn at `at` along `angle` would run out of a band, or cross a shared seam of a
+   * segmented column where the next band's viewBox would slice it flat.
    */
   const runsOut = (draw: MotifItem["draw"], size: number, at: Pt, angle: number, staged: boolean, seed: number): boolean =>
     (staged ? STAGES : ["bloom" as const]).some(stage => {
       const [left, below, right, above] = reachOf(draw(createRng(seed), size, stage), angle);
+      if (seg !== null) {
+        if (!isFoot && at[1] + below < 0.06) return true;
+        if (!isCrown && at[1] + above > H - 0.06) return true;
+        return false;
+      }
       return at[1] + below < 0 || at[1] + above > H || at[0] + left < -BAND_OVERHANG || at[0] + right > W + BAND_OVERHANG;
     });
+  const clipCheck = ornament !== null || seg !== null;
 
   // ---------------------------------------------------------------- 1. the foot, then the main stems out of it
   for (const rect of footRooms) field.block(rect);
@@ -584,7 +590,7 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
       : isLead ? Math.min(form.terminal.size[1], W * 0.27) : layout.range(...form.terminal.size) * 0.85;
     const at: Pt = [tip[0] + hx * 0.05, tip[1] + hy * 0.05];
     const angle = !ornament && isLead ? 90 : degrees(hx, hy);
-    const seed = ornament ? motifSeed() : undefined;
+    const seed = clipCheck ? motifSeed() : undefined;
     if (seed !== undefined) for (let attempt = 0; attempt < 4 && runsOut(form.terminal.draw, size, at, angle, true, seed); attempt += 1) size *= 0.85;
     const bloomItem = motif("terminal", at, angle, size, LAYER.bloom, mainItems[k]!.grown, true, form.terminal.draw, seed);
     if (form.terminal.petal) shedders.push({ bloom: bloomItem, from: form.terminal });
@@ -797,8 +803,8 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
       const angle = degrees(tx, ty) + sideOf * layout.range(...form.nodes.angle);
       const ux = Math.cos(angle * RAD), uy = Math.sin(angle * RAD);
       let length = form.nodes.length(heightFrac) * layout.range(0.85, 1.1);
-      // In a band the leaf must also keep inside it, so its bend and seed are drawn first to probe it.
-      const early = ornament ? { bend: sideOf * layout.range(0.05, 0.25), seed: motifSeed() } : null;
+      // In a band or segmented column the leaf must also keep inside shared seams, so probe it first.
+      const early = clipCheck ? { bend: sideOf * layout.range(0.05, 0.25), seed: motifSeed() } : null;
       let fits = false;
       for (let attempt = 0; attempt < 3; attempt += 1) {
         if (field.freeAt(p[0] + ux * length * 0.55, p[1] + uy * length * 0.55) >= leafProxy * length
@@ -899,8 +905,8 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
     const [dx, dy] = unit(px - from.x, py - from.y);
     const [ax, ay] = unit(dx, dy + (pick.upright ?? 0));
     const origin: Pt = [px - ax * pick.off(size), py - ay * pick.off(size)];
-    // A motif that would run out of a band is not placed there, and its hole is given up.
-    const seed = ornament ? motifSeed() : undefined;
+    // A motif that would run out of a band or cross a shared seam is not placed there, and its hole is given up.
+    const seed = clipCheck ? motifSeed() : undefined;
     if (seed !== undefined && runsOut(pick.draw, size, origin, degrees(ax, ay), pick.staged ?? false, seed)) { field.free[cell] = 0; continue; }
     let branch: StemItem | null = null;
     const leaves: MotifItem[] = [];
@@ -919,8 +925,8 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
           const length = layout.range(0.5, 0.8);
           const bend = layout.sym(0.2);
           const draw: MotifItem["draw"] = (rng, s) => form.leaflet(rng, s, bend);
-          // In a band a leaflet that would run out of it is left off the branch.
-          const leafletSeed = ornament ? motifSeed() : undefined;
+          // In a band or segmented column a leaflet that would cross its edge is left off the branch.
+          const leafletSeed = clipCheck ? motifSeed() : undefined;
           if (leafletSeed !== undefined && runsOut(draw, length, p, angle, false, leafletSeed)) continue;
           leaves.push(motif("leaflet", p, angle, length, LAYER.leaf, 0, false, draw, leafletSeed));
           field.disc(p[0] + Math.cos(angle * RAD) * length * 0.5, p[1] + Math.sin(angle * RAD) * length * 0.5, 0.25 * length, 0.7);
@@ -956,7 +962,7 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
     const length = clamp(best * 2.2, 0.35, 0.8);
     const bend = layout.sym(0.2);
     const draw: MotifItem["draw"] = (rng, s) => form.leaflet(rng, s, bend);
-    const seed = ornament ? motifSeed() : undefined;
+    const seed = clipCheck ? motifSeed() : undefined;
     if (seed !== undefined && runsOut(draw, length, [from.x, from.y], degrees(dx, dy + 0.3), false, seed)) { field.free[cell] = 0; continue; }
     fillers.push(motif("filler", [from.x, from.y], degrees(dx, dy + 0.3), length, LAYER.leaf, 0, false, draw, seed));
     field.disc(px, py, best, 0.9);
