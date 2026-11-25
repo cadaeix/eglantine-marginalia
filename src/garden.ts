@@ -68,6 +68,8 @@ export interface Garden {
   ornament: Ornament | null;
   /** Laid out for a column right of its text, as the mirror of a left-hand garden: its motifs are drawn mirrored. */
   mirrored: boolean;
+  /** Present when this garden is one band of a taller continuous column. */
+  segment?: ColumnSegment;
   items: GardenItem[];
   /** The main stems' centrelines, for whatever must thread between them. */
   mains: Pt[][];
@@ -83,6 +85,26 @@ export interface Garden {
   foot: { seed: number; draw: Foot["draw"]; x: number; width: number; drop: number; scale: number } | null;
   /** How the stems are inked, if not as plain ribbons. */
   stemInk: StemInk | null;
+}
+
+/** A vertical mark along a column (0 at its foot, 1 at its top) that attracts blooms or leaves nearby. */
+export interface Anchor {
+  /** Normalized height in the column, 0 at the bottom and 1 at the top. */
+  readonly y: number;
+  /** Whether this moment prefers a bloom/staged motif or foliage; defaults to "bloom". */
+  readonly kind?: "bloom" | "leaf";
+  /** Relative pull strength (defaults to 1). */
+  readonly weight?: number;
+}
+
+/**
+ * One vertical band of a taller continuous margin column. Band `0` carries the foot, root scroll and basal rosette;
+ * band `count - 1` carries the terminal crown and sky; every band computes independently in O(1) time from the same
+ * seed with matching main-stem positions, tangents and widths across each seam.
+ */
+export interface ColumnSegment {
+  readonly index: number;
+  readonly count: number;
 }
 
 /**
@@ -182,6 +204,10 @@ export interface GrowSpec {
    * its id; the light entry takes the module loadFestival loads. A festival garden has no guest.
    */
   festival?: Festival | FestivalModule;
+  /** One vertical band of a taller continuous margin column; cannot be combined with page, ornament or festival. */
+  segment?: ColumnSegment;
+  /** Vertical marks (0 at foot, 1 at top) that attract blooms or foliage toward specific moments beside the margin. */
+  anchors?: readonly Anchor[];
 }
 
 /** How far from a stem a hole can be and still be reached by a branch, in centimetres: in the column, and in a band. */
@@ -235,9 +261,23 @@ export function growGarden(spec: GrowSpec & { form: FormModule; festival?: Festi
   return growForm(spec.form.build(resolveVariant(spec.form, spec.variant)), spec.form.id, spec);
 }
 
+/** Refuses an invalid column segment or one combined with a page, ornament or festival. */
+function checkSegment(spec: GrowSpec): ColumnSegment | null {
+  const seg = spec.segment;
+  if (seg === undefined) return null;
+  if (!Number.isInteger(seg.count) || seg.count < 1 || !Number.isInteger(seg.index) || seg.index < 0 || seg.index >= seg.count) {
+    throw new RangeError(`A segment needs integer index 0 <= index < count (got ${seg.index}/${seg.count})`);
+  }
+  if (spec.page) throw new RangeError("A segmented column cannot grow round a page");
+  if (spec.ornament) throw new RangeError(`A ${spec.ornament} cannot be segmented`);
+  if (spec.festival) throw new RangeError("A festival garden cannot be segmented");
+  return seg.count === 1 ? null : seg;
+}
+
 /** Grows a garden from a built plant form and the id it is known by. */
 export function growForm(form: PlantForm, formId: string, spec: GrowSpec): Garden {
   checkOrnament(spec);
+  checkSegment(spec);
   if (spec.festival === undefined) return growPlain(form, formId, spec, null, true);
   const { festival, guest: _guest, ...plain } = spec;
   if (typeof festival === "string") throw new TypeError(`this growGarden holds a festival from its module, as loadFestival("${festival}") gives it`);
@@ -287,18 +327,25 @@ function columnScale(ornament: Ornament | null, H: number): number {
  */
 function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: MainsShaping | null, shed: boolean): Garden {
   const { W, H } = roomOf(spec);
+  const seg = checkSegment(spec);
+  const isFoot = seg === null || seg.index === 0;
+  const isCrown = seg === null || seg.index === seg.count - 1;
+  const yOffset = seg ? seg.index * H : 0;
+  const totalH = seg ? seg.count * H : H;
   const page = spec.page ?? null;
   checkPage(page, H);
   const ornament = spec.ornament ?? null;
   const mirrored = page?.side === "right";
   const canvas = W + (page?.text ?? 0);
-  const G = H * (1 - (ornament ? BAND_SKY : SKY));
+  const G = seg && !isCrown ? H : H * (1 - (ornament ? BAND_SKY : SKY));
+  const totalG = seg ? totalH - H * SKY : G;
   const root = createRng(Math.imul(spec.seed, 7919) + 13);
-  const layout = root.fork();
+  let layout = root.fork();
   const items: GardenItem[] = [];
   let order = 0;
-  const column: Rect = [0.15, 0.3, W - 0.15, G];
-  const foot = form.foot ?? null;
+  const column: Rect = seg ? [0.15, isFoot ? 0.3 : 0.05, W - 0.15, isCrown ? G : H - 0.05] : [0.15, 0.3, W - 0.15, G];
+  const baseFoot = form.foot ?? null;
+  const foot = isFoot ? baseFoot : null;
   // Where the foot is drawn. In the column it fills the column's width and shrinks as `columnScale` says; a
   // right-hand page is drawn as the mirror of this layout, but its foot is drawn as it is, so the room it fills is
   // mirrored here to land under the drawing.
@@ -400,35 +447,84 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   // ---------------------------------------------------------------- 1. the foot, then the main stems out of it
   for (const rect of footRooms) field.block(rect);
   const crownX = foot ? (mirrored ? W * (1 - foot.crown[0]) : footX + foot.crown[0] * span) : null;
+  const baseCrownX = baseFoot ? (mirrored ? W * (1 - baseFoot.crown[0]) : footX + baseFoot.crown[0] * span) : null;
+  const baseFootScale = !baseFoot || !ornament ? columnScale(ornament, H) : footScale;
   const mains: Pt[][] = [];
   const mainItems: StemItem[] = [];
   /** Whether each main stem leads its plant: the thickest, under the largest bloom. */
   const leads: boolean[] = [];
+  /** For segmented columns: per-stem metadata so stems continue seamlessly across band edges. */
+  const segMeta: { w0: number; w1: number; born: number; grown: number; endsHere: boolean; lead: boolean }[] = [];
   /** Where the plants stand: the column's one, a bed's several, a cul-de-lampe's one in the middle. */
   let roots: Pt[];
   /** In a band, the largest bloom that fits under the band's top, and how far beyond its stem's tip it reaches. */
   const bloom = Math.min(form.terminal.size[1], G * 0.32);
   const bloomReach = form.terminal.r(bloom) * 1.5;
   if (!ornament) {
-    const rootAt: Pt = crownX !== null ? [crownX, foot!.crown[1] * footScale] : [W * layout.range(0.22, 0.3), 0.75];
+    const rootAt: Pt = baseCrownX !== null ? [baseCrownX, baseFoot!.crown[1] * baseFootScale] : [W * layout.range(0.22, 0.3), 0.75];
     roots = [rootAt];
     const centre = W * 0.47, amplitude = W * form.stems.amplitude * 2.2;
-    // However short the column, a main stem rises a little above its root, so it has a tip for its bloom.
-    const tops = form.stems.tops.map((top, index) => Math.max(rootAt[1] + LEAST_STEM, G * (index === 0 ? top : top * layout.range(0.92, 1.06))));
-    for (let k = 0; k < form.stems.count; k += 1) {
-      const sway = fbm1(layout, 2);
-      const phase = layout.range(0, 10), lambda = layout.range(...form.stems.lambda);
-      const x0 = rootAt[0] + (k - 1) * 0.2;
-      // A festival may lay the stem itself, from the stem the loop lays; the sway's draws are made all the same, so
-      // the rest of the layout draws as it would.
-      const points: Pt[] = [];
-      for (let y = rootAt[1]; y <= tops[k]!; y += 0.25) {
-        let x = centre + amplitude * sway(y / lambda + phase) + (k - 1) * 0.4;
-        x = lerp(x0, x, smoothstep(0, 4, y - rootAt[1]));
-        points.push([clamp(x, 0.8, W - 0.8), y]);
+    if (seg === null) {
+      // However short the column, a main stem rises a little above its root, so it has a tip for its bloom.
+      const tops = form.stems.tops.map((top, index) => Math.max(rootAt[1] + LEAST_STEM, G * (index === 0 ? top : top * layout.range(0.92, 1.06))));
+      for (let k = 0; k < form.stems.count; k += 1) {
+        const sway = fbm1(layout, 2);
+        const phase = layout.range(0, 10), lambda = layout.range(...form.stems.lambda);
+        const x0 = rootAt[0] + (k - 1) * 0.2;
+        // A festival may lay the stem itself, from the stem the loop lays; the sway's draws are made all the same, so
+        // the rest of the layout draws as it would.
+        const points: Pt[] = [];
+        for (let y = rootAt[1]; y <= tops[k]!; y += 0.25) {
+          let x = centre + amplitude * sway(y / lambda + phase) + (k - 1) * 0.4;
+          x = lerp(x0, x, smoothstep(0, 4, y - rootAt[1]));
+          points.push([clamp(x, 0.8, W - 0.8), y]);
+        }
+        mains.push(shaping ? shaping(k, rootAt, tops[k]!, points) : points);
+        leads.push(k === 0);
       }
-      mains.push(shaping ? shaping(k, rootAt, tops[k]!, points) : points);
-      leads.push(k === 0);
+    } else {
+      // Every band draws the same global stem parameters from `layout` before forking its own local RNG,
+      // so x(y), tangent and tapered width match to the last bit at every seam without computing other bands.
+      const tops = form.stems.tops.map((top, index) => Math.max(rootAt[1] + LEAST_STEM, totalG * (index === 0 ? top : top * layout.range(0.92, 1.06))));
+      const bleed = 0.15;
+      for (let k = 0; k < form.stems.count; k += 1) {
+        const sway = fbm1(layout, 2);
+        const phase = layout.range(0, 10), lambda = layout.range(...form.stems.lambda);
+        const x0 = rootAt[0] + (k - 1) * 0.2;
+        const fullStart = rootAt[1], fullEnd = tops[k]!;
+        const sStart = Math.max(fullStart, yOffset - (isFoot ? 0 : bleed));
+        const sEnd = Math.min(fullEnd, yOffset + H + (isCrown ? 0 : bleed));
+        if (sEnd <= sStart + 0.05) continue;
+        const evalX = (y: number): number => {
+          let x = centre + amplitude * sway(y / lambda + phase) + (k - 1) * 0.4;
+          x = lerp(x0, x, smoothstep(0, 4, y - fullStart));
+          return clamp(x, 0.8, W - 0.8);
+        };
+        const ys: number[] = [sStart];
+        const firstGrid = fullStart + Math.ceil((sStart - fullStart) / 0.25) * 0.25;
+        for (let y = firstGrid; y < sEnd - 0.01; y += 0.25) {
+          if (y > sStart + 0.01) ys.push(y);
+        }
+        ys.push(sEnd);
+        const points: Pt[] = ys.map(y => [evalX(y), y - yOffset]);
+        const spanLen = Math.max(0.5, fullEnd - fullStart);
+        const u0 = clamp((sStart - fullStart) / spanLen, 0, 1);
+        const u1 = clamp((sEnd - fullStart) / spanLen, 0, 1);
+        const fullW0 = form.stems.width * (k === 0 ? 1 : 0.8);
+        const fullW1 = Math.max(0.025, form.stems.width * 0.3);
+        const scaleLen = spanLen / Math.max(0.5, tops[0]! - fullStart);
+        mains.push(points);
+        leads.push(k === 0);
+        segMeta.push({
+          w0: lerp(fullW0, fullW1, u0),
+          w1: lerp(fullW0, fullW1, u1),
+          born: STEM_PHASE * u0 * scaleLen,
+          grown: STEM_PHASE * u1 * scaleLen,
+          endsHere: fullEnd <= yOffset + H + 0.01,
+          lead: k === 0,
+        });
+      }
+      layout = createRng(Math.imul(spec.seed, 7919) + 13 + Math.imul(seg.index + 1, 104729));
     }
   } else {
     const ground = foot ? foot.crown[1] * footScale - drop : 0.5;
@@ -442,16 +538,22 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   }
   /** The root the foot's crown holds, or the first plant's. */
   const rootAt: Pt = roots.find(at => at[0] === crownX) ?? roots[0] ?? [W / 2, 0.5];
-  const longest = Math.max(...mains.map(points => arcLength(points).total));
+  const longest = Math.max(1, ...mains.map(points => arcLength(points).total));
   mains.forEach((points, k) => {
-    const w0 = form.stems.width * (leads[k] ? 1 : 0.8);
-    const grown = STEM_PHASE * arcLength(points).total / longest;
-    mainItems.push(stem(points, w0, Math.max(0.025, form.stems.width * 0.3), 0, grown, 0.1, true));
-    addStemPoints(points, w0, 0.028);
+    if (seg !== null) {
+      const meta = segMeta[k]!;
+      mainItems.push(stem(points, meta.w0, meta.w1, meta.born, meta.grown, 0.1, true));
+      addStemPoints(points, meta.w0, meta.w1);
+    } else {
+      const w0 = form.stems.width * (leads[k] ? 1 : 0.8);
+      const grown = STEM_PHASE * arcLength(points).total / longest;
+      mainItems.push(stem(points, w0, Math.max(0.025, form.stems.width * 0.3), 0, grown, 0.1, true));
+      addStemPoints(points, w0, 0.028);
+    }
   });
   // On bare ground the root curls into a scroll at the corner. A bed's outer plants curl theirs outwards, as the
   // brackets at a headpiece's ends, and a cul-de-lampe's root curls to both sides of it.
-  if (!foot || foot.scroll) {
+  if (isFoot && (!foot || foot.scroll)) {
     const first = roots[0], last = roots[roots.length - 1];
     const curls: [Pt, 1 | -1][] = ornament === null ? [[rootAt, -1]]
       : ornament === "cul-de-lampe" ? [[rootAt, -1], [rootAt, 1]]
@@ -472,14 +574,16 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   // A foot with no stems above it is the whole garden, and its top is the highest point.
   let crown: Pt = foot && form.stems.count === 0 ? [rootAt[0], Math.max(rootAt[1], ...footRooms.map(rect => rect[3]))] : [W / 2, 0];
   mains.forEach((points, k) => {
+    if (seg !== null && !segMeta[k]!.endsHere) return;
     const tip = points[points.length - 1]!, before = points[Math.max(0, points.length - 3)]!;
     const [hx, hy] = unit(tip[0] - before[0], tip[1] - before[1]);
     // The column's first bloom is the largest its width suits, and stands upright; in a band each bloom follows its
     // stem, and none outgrows the band.
+    const isLead = seg !== null ? segMeta[k]!.lead : k === 0;
     let size = ornament ? Math.min(bloom, layout.range(...form.terminal.size) * (leads[k] ? 1 : 0.85))
-      : k === 0 ? Math.min(form.terminal.size[1], W * 0.27) : layout.range(...form.terminal.size) * 0.85;
+      : isLead ? Math.min(form.terminal.size[1], W * 0.27) : layout.range(...form.terminal.size) * 0.85;
     const at: Pt = [tip[0] + hx * 0.05, tip[1] + hy * 0.05];
-    const angle = !ornament && k === 0 ? 90 : degrees(hx, hy);
+    const angle = !ornament && isLead ? 90 : degrees(hx, hy);
     const seed = ornament ? motifSeed() : undefined;
     if (seed !== undefined) for (let attempt = 0; attempt < 4 && runsOut(form.terminal.draw, size, at, angle, true, seed); attempt += 1) size *= 0.85;
     const bloomItem = motif("terminal", at, angle, size, LAYER.bloom, mainItems[k]!.grown, true, form.terminal.draw, seed);
@@ -491,9 +595,12 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
 
   // ---------------------------------------------------------------- 2b. the day's guest, before the leaves, so they grow around it
   let guests: GuestPlace[] = [];
-  if (spec.guest) {
+  const guestAllowedInBand = seg === null ? true
+    : spec.guest?.kind === "rest" || spec.guest?.stance === "ground" ? isFoot
+    : mains.length > 0 && seg.index % 2 === 0;
+  if (spec.guest && guestAllowedInBand) {
     // Its own stream: the guest's choices never move the rest of the layout's draws.
-    const visit = createRng(Math.imul(spec.seed, 7919) + 101);
+    const visit = createRng(Math.imul(spec.seed, 7919) + 101 + (seg ? Math.imul(seg.index, 65537) : 0));
     const { kind, aspect, size } = spec.guest;
     // A plant without stems leaves a visitor only the ground to stand on.
     const stance: GuestStance | null = kind === "rest" ? null : mains.length === 0 ? "ground" : spec.guest.stance ?? "stems";
@@ -656,7 +763,7 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   }
 
   // ---------------------------------------------------------------- 3. leaves: a basal rosette, then the nodes
-  if (form.basal) {
+  if (isFoot && form.basal) {
     const basal = form.basal;
     // In a band each plant has its rosette, a bed's sparer than a column's, and none outgrows the band.
     const scale = ornament ? Math.min(1, (G - rootAt[1]) * 0.55 / basal.length[1]) : 1;
@@ -684,11 +791,12 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
       next += layout.range(...form.nodes.every);
       sideOf = -sideOf;
       const p = points[index]!;
-      if (p[1] / G > form.nodes.below) continue;
+      const heightFrac = seg ? clamp((p[1] + yOffset) / totalG, 0, 1) : p[1] / G;
+      if (heightFrac > form.nodes.below) continue;
       const [tx, ty] = unit(points[index + 1]![0] - points[index - 1]![0], points[index + 1]![1] - points[index - 1]![1]);
       const angle = degrees(tx, ty) + sideOf * layout.range(...form.nodes.angle);
       const ux = Math.cos(angle * RAD), uy = Math.sin(angle * RAD);
-      let length = form.nodes.length(p[1] / G) * layout.range(0.85, 1.1);
+      let length = form.nodes.length(heightFrac) * layout.range(0.85, 1.1);
       // In a band the leaf must also keep inside it, so its bend and seed are drawn first to probe it.
       const early = ornament ? { bend: sideOf * layout.range(0.05, 0.25), seed: motifSeed() } : null;
       let fits = false;
@@ -736,19 +844,49 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   // ---------------------------------------------------------------- 4. branches to the largest holes
   const counts = new Map(form.motifs.map(row => [row.name, 0]));
   const caps = new Map(form.motifs.map(row => [row.name, Math.round(row.max * plenty)]));
+  const anchors = spec.anchors && spec.anchors.length > 0 ? spec.anchors : null;
+  let anchorBoost: Float64Array | null = null;
+  let bloomBias: Float64Array | null = null;
+  let leafBias: Float64Array | null = null;
+  if (anchors !== null) {
+    anchorBoost = new Float64Array(field.x.length);
+    bloomBias = new Float64Array(field.x.length);
+    leafBias = new Float64Array(field.x.length);
+    const sigma = Math.max(0.8, H * 0.055);
+    for (let index = 0; index < field.x.length; index += 1) {
+      const py = field.y[index]!;
+      let total = 0, bloomSum = 0, leafSum = 0;
+      for (const anchor of anchors) {
+        const ay = clamp(anchor.y, 0, 1) * H;
+        const d = (py - ay) / sigma;
+        const g = Math.exp(-0.5 * d * d) * (anchor.weight ?? 1);
+        total += g;
+        if (anchor.kind === "leaf") leafSum += g; else bloomSum += g;
+      }
+      anchorBoost[index] = 1 + Math.min(1.6, total * 0.65);
+      bloomBias[index] = 1 + Math.min(3.5, bloomSum * 2.5);
+      leafBias[index] = 1 + Math.min(2.5, leafSum * 1.8);
+    }
+  }
   const branchItems: { stem: StemItem | null; leaves: MotifItem[]; motif: MotifItem }[] = [];
   for (let round = 0; round < 300 * plenty; round += 1) {
     let best = -1, cell = -1;
     for (let index = 0; index < field.x.length; index += 1) {
       if (nearestStemDistance[index]! > reach) continue;
-      const value = field.free[index]! * layout.range(0.85, 1.15);
+      let value = field.free[index]! * layout.range(0.85, 1.15);
+      if (anchorBoost !== null) value *= anchorBoost[index]!;
       if (value > best) { best = value; cell = index; }
     }
     if (cell < 0 || field.free[cell]! < SMALLEST) break;
     const free = field.free[cell]!, px = field.x[cell]!, py = field.y[cell]!;
     const eligible = form.motifs.filter(row => row.r(row.smin) <= free * 1.05 && (!row.hard || counts.get(row.name)! < caps.get(row.name)!));
     if (eligible.length === 0) { field.free[cell] = 0; continue; }
-    const weights = eligible.map(row => row.w / (1 + counts.get(row.name)! / Math.max(1, caps.get(row.name)!)));
+    const weights = eligible.map(row => {
+      let w = row.w / (1 + counts.get(row.name)! / Math.max(1, caps.get(row.name)!));
+      if (bloomBias !== null && (row.staged === true || row.layer >= LAYER.bloom)) w *= bloomBias[cell]!;
+      else if (leafBias !== null && row.layer === LAYER.leaf) w *= leafBias[cell]!;
+      return w;
+    });
     let pick = eligible[eligible.length - 1]!, roll = layout.u() * weights.reduce((sum, w) => sum + w, 0);
     for (const [index, row] of eligible.entries()) { roll -= weights[index]!; if (roll <= 0) { pick = row; break; } }
     let size = pick.smax;
@@ -869,6 +1007,7 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
   }
   return {
     form: formId, seed: spec.seed, width: canvas, height: H, column: mirrored ? [canvas - W, 0, canvas, H] : [0, 0, W, H], ornament, mirrored,
+    ...(seg ? { segment: seg } : {}),
     items, mains: mirrored ? mainItems.map(item => item.points) : mains, crown, guests,
     foot: foot ? { seed: Math.imul(spec.seed, 7919) + 307, draw: foot.draw, x: mirrored ? canvas - W : footX, width: span / footScale, drop, scale: footScale } : null,
     stemInk: form.stemInk ?? null,

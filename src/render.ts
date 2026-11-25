@@ -133,8 +133,9 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
   body = (marks.under ?? "") + body + (marks.over ?? "");
   const w = num(garden.width);
   // The garden is laid out with y up. Standing, it is turned over into the SVG's y down; hanging, it is left
-  // as it is, upside down, and the root above where its main stems begin is cropped away.
-  const crop = hanging && garden.mains.length > 0 ? Math.min(...garden.mains.map(points => points[0]![1])) + HANGING_ROOT : 0;
+  // as it is, upside down, and the root above where its main stems begin is cropped away on the foot band only.
+  const isFootBand = garden.segment === undefined || garden.segment.index === 0;
+  const crop = hanging && isFootBand && garden.mains.length > 0 ? Math.min(...garden.mains.map(points => points[0]![1])) + HANGING_ROOT : 0;
   const height = garden.height - crop;
   const drawing = hanging ? body : `<g transform="translate(0 ${num(garden.height)}) scale(1 -1)">${body}</g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" class="eglantine" viewBox="0 ${num(crop)} ${w} ${num(height)}" width="${num(garden.width * options.scale)}" height="${num(height * options.scale)}" role="img">`
