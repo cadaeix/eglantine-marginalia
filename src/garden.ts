@@ -444,6 +444,8 @@ function growPlain(form: PlantForm, formId: string, spec: GrowSpec, shaping: Mai
       if (seg !== null) {
         if (!isFoot && at[1] + below < 0.06) return true;
         if (!isCrown && at[1] + above > H - 0.06) return true;
+        // Keep motifs within a modest horizontal bleed so outer leaves never clip squarely against the frame.
+        if (at[0] + left < -0.65 || at[0] + right > W + 0.65) return true;
         return false;
       }
       return at[1] + below < 0 || at[1] + above > H || at[0] + left < -BAND_OVERHANG || at[0] + right > W + BAND_OVERHANG;

@@ -54,6 +54,8 @@ export interface RenderOptions {
    * cul-de-lampe, which stand on the band's foot.
    */
   hanging?: boolean;
+  /** Extra horizontal room in centimetres on each side of the column so outer leaves never clip at the SVG edge. */
+  bleed?: number;
   /** Marks to lay on the garden at this moment. */
   decorate?: (garden: Garden, sheet: Sheet) => Decorations;
 }
@@ -131,13 +133,16 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
   let body = [...layers.entries()].sort(([a], [b]) => a - b).map(([, text]) => text).join("");
   if (style.filter) body = `<g filter="url(#${style.filter(sheet, garden.seed)})">${body}</g>`;
   body = (marks.under ?? "") + body + (marks.over ?? "");
-  const w = num(garden.width);
+  const bleed = options.bleed ?? 0;
+  if (!(Number.isFinite(bleed) && bleed >= 0)) throw new RangeError(`bleed must be >= 0 (got ${String(options.bleed)})`);
+  const viewWidth = garden.width + bleed * 2;
+  const w = num(viewWidth);
   // The garden is laid out with y up. Standing, it is turned over into the SVG's y down; hanging, it is left
   // as it is, upside down, and the root above where its main stems begin is cropped away on the foot band only.
   const isFootBand = garden.segment === undefined || garden.segment.index === 0;
   const crop = hanging && isFootBand && garden.mains.length > 0 ? Math.min(...garden.mains.map(points => points[0]![1])) + HANGING_ROOT : 0;
   const height = garden.height - crop;
   const drawing = hanging ? body : `<g transform="translate(0 ${num(garden.height)}) scale(1 -1)">${body}</g>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="eglantine" viewBox="0 ${num(crop)} ${w} ${num(height)}" width="${num(garden.width * options.scale)}" height="${num(height * options.scale)}" role="img">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="eglantine" viewBox="${num(-bleed)} ${num(crop)} ${w} ${num(height)}" width="${num(viewWidth * options.scale)}" height="${num(height * options.scale)}" role="img">`
     + `<defs>${sheet.defs.join("")}</defs>${drawing}</svg>`;
 }

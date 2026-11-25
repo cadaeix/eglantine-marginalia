@@ -69,6 +69,9 @@ describe("continuous segmented columns", () => {
     const svg1 = renderGarden(b1, { t: 0.8, fullness: 0.7 }, { manner: "bois", id: "h1", scale: 36, hanging: true });
     expect(svg0).not.toContain('viewBox="0 0 6 22"');
     expect(svg1).toContain('viewBox="0 0 6 22"');
+
+    const bled = renderGarden(b1, { t: 0.8, fullness: 0.7 }, { manner: "bois", id: "hb", scale: 36, bleed: 0.9 });
+    expect(bled).toContain('viewBox="-0.9 0 7.8 22"');
   });
 
   it("refuses invalid segments or incompatible layouts", () => {
