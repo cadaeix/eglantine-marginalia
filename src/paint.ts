@@ -1,4 +1,4 @@
-// Five manners for the same shapes. Taille-douce is the copperplate: paper-white forms with a fine
+// Eight manners for the same shapes. Taille-douce is the copperplate: paper-white forms with a fine
 // outline, shade cut as hatching, stems in solid ink. Lavis is the wash: soot-brown bistre laid in
 // transparent layers, darker in the shade and pooled at the edges, veins lifted out in paper. Pointillé is
 // stipple engraving, as the plates after Redouté's lilies and roses were engraved: each form is modelled in dots
@@ -8,9 +8,11 @@
 // paper's tooth showing through every stroke. Bois is the relief woodcut, the taille d'épargne Jean-Michel
 // Papillon cut for eighteenth-century ornaments and almanacs: bold keyblock contours in letterpress ink,
 // solid ink shadows cut back in white line with the gouge, white veins across the dark, and open black cuts
-// on pale petals. Each manner is a row of STYLES, so another is another row.
+// on pale petals. Each manner is a row of STYLES, so another is another row. The screen manners, mosaïque, carreaux
+// and nékyia, are of no period but this one; they are painted in screen.ts and load on their own (load-manner.ts).
 // Colours are CSS custom properties with fallbacks (see inks.ts), so a page's stylesheet can retint them.
 import { clamp, fine, inside, lerp, num, pointsPath, polyPath, type Pt, smoothPath, smoothstep } from "./geometry.js";
+import { cellValue, Edges, variance } from "./grid.js";
 import { inkRef } from "./inks.js";
 import type { Body, Shape } from "./shapes.js";
 
@@ -69,13 +71,6 @@ function engraveBody(body: Body, sheet: Sheet): string {
   return out;
 }
 
-/** A stable 0..1 value from a form's first point, so each wash lies a little lighter or darker. */
-function variance(body: Body): number {
-  const [x = 0, y = 0] = body.outline[0] ?? [];
-  const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
-  return v - Math.floor(v);
-}
-
 function washBody(body: Body, sheet: Sheet): string {
   if (body.tone === "accent") return `<path d="${smoothPath(body.outline, true, 0.9)}" fill="${ACCENT}" fill-opacity="0.55"/>`;
   const depth = 0.75 + 0.5 * variance(body);
@@ -109,83 +104,6 @@ const LIT_DOT = 0.024, SHADE_DOT = 0.032, CONTOUR_DOT = 0.02;
 const CONTOUR_STEP = 0.055;
 /** How deeply an accented form is tinted with its colour under its dots. */
 const ACCENT_TINT = 0.4;
-
-/** A stable 0..1 value for a cell of the stipple's grid, one for each salt. */
-function cellValue(i: number, j: number, salt: number): number {
-  let h = Math.imul(i, 0x27d4eb2d) ^ Math.imul(j, 0x165667b1) ^ Math.imul(salt, 0x9e3779b1);
-  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-
-/** The height of the bands a form's edges are sorted into, in centimetres. */
-const EDGE_BAND = 0.1;
-
-interface Edge {
-  ax: number;
-  ay: number;
-  by: number;
-  dx: number;
-  dy: number;
-  lengthSquared: number;
-  left: number;
-  right: number;
-}
-
-/**
- * The edges of a form's rings sorted into bands across the page, so a point is measured against only the edges
- * near its height rather than every edge of the form: most cells of the stipple's grid lie far from any.
- */
-class Edges {
-  /** Bands share their edges, including the measurements reused by every stipple cell near them. */
-  readonly #bands: Edge[][] = [];
-  readonly #first: number;
-  constructor(rings: readonly (readonly Pt[])[], reach: number) {
-    let bottom = Infinity;
-    for (const ring of rings) for (const point of ring) bottom = Math.min(bottom, point[1]);
-    this.#first = Math.floor((bottom - reach) / EDGE_BAND);
-    for (const ring of rings) {
-      for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-        const [ax, ay] = ring[j]!, [bx, by] = ring[i]!;
-        const dx = bx - ax, dy = by - ay;
-        const edge: Edge = { ax, ay, by, dx, dy, lengthSquared: dx * dx + dy * dy, left: Math.min(ax, bx), right: Math.max(ax, bx) };
-        // An edge goes into every band within `reach` of it, so a point finds every edge it is measured against.
-        const from = Math.floor((Math.min(ay, by) - reach) / EDGE_BAND) - this.#first, to = Math.floor((Math.max(ay, by) + reach) / EDGE_BAND) - this.#first;
-        for (let band = from; band <= to; band += 1) (this.#bands[band] ??= []).push(edge);
-      }
-    }
-  }
-
-  #near(y: number): readonly Edge[] | undefined {
-    return this.#bands[Math.floor(y / EDGE_BAND) - this.#first];
-  }
-
-  /** Whether a point lies inside the rings, by the even-odd rule. */
-  inside(x: number, y: number): boolean {
-    const edges = this.#near(y);
-    if (!edges) return false;
-    let hit = false;
-    for (const { ax, ay, by, dx, dy } of edges) {
-      if ((ay > y) !== (by > y) && x < dx * (y - ay) / dy + ax) hit = !hit;
-    }
-    return hit;
-  }
-
-  /** How far a point lies from the nearest edge, up to the reach the edges were sorted for. */
-  distance(x: number, y: number, reach: number): number {
-    const edges = this.#near(y);
-    if (!edges) return reach;
-    let leastSquared = reach * reach;
-    for (const { ax, ay, dx, dy, lengthSquared, left, right } of edges) {
-      const gap = Math.max(left - x, x - right, 0);
-      if (gap * gap > leastSquared) continue;
-      const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / lengthSquared));
-      const ex = x - ax - dx * t, ey = y - ay - dy * t;
-      leastSquared = Math.min(leastSquared, ex * ex + ey * ey);
-    }
-    return Math.sqrt(leastSquared);
-  }
-}
 
 /**
  * The dots that model a body. Each cell of a grid fixed to the page offers one dot, kept where the form reads
@@ -366,6 +284,9 @@ function woodcutBody(body: Body, sheet: Sheet): string {
   return out;
 }
 
+/** Which part of the plant a motif is: its blooms, with their fruit and shed petals; its leaves; its stems; or the foot it stands on. */
+export type Part = "bloom" | "leaf" | "stem" | "foot";
+
 /** How a manner paints: its modelled forms, and the ink its solids, lines and dots take when they are not accented. */
 export interface MannerStyle {
   body(body: Body, sheet: Sheet): string;
@@ -377,6 +298,10 @@ export interface MannerStyle {
   readonly figure: string;
   /** A filter laid over the whole garden, giving its id. */
   filter?(sheet: Sheet, seed: number): string;
+  /** Paints a motif's shapes all at once, in place of painting them one by one, knowing which part of the plant they are. */
+  paint?(shapes: readonly Shape[], sheet: Sheet, part: Part): string;
+  /** Wants its shapes in the page's frame rather than each motif's own, as a grid fixed to the page needs. */
+  readonly upright?: boolean;
 }
 
 const STYLES = {
@@ -391,18 +316,39 @@ const STYLES = {
   bois: { body: woodcutBody, solid: ` fill="${INK}"`, line: ` stroke="${INK}"`, dots: ` fill="${INK}"`, figure: `fill="${INK}"`, filter: woodFilter },
 } as const satisfies Record<string, MannerStyle>;
 
-export type Manner = keyof typeof STYLES;
-/** The manners a garden can be drawn in. */
-export const MANNERS = Object.keys(STYLES) as readonly Manner[];
+/** The period manners a garden can be painted in here. The screen manners are painted in screen.ts. */
+export type PeriodManner = keyof typeof STYLES;
+/** The screen manners, which load on their own: see load-manner.ts. */
+export type ScreenManner = "mosaique" | "carreaux" | "nekyia";
+export type Manner = PeriodManner | ScreenManner;
+/** The manners a garden can be drawn in, listed by hand: the five period manners, then the three screen manners. */
+export const MANNERS: readonly Manner[] = ["taille-douce", "lavis", "pointille", "crayon", "bois", "mosaique", "carreaux", "nekyia"];
 
-/** A manner's style; a manner it does not know is refused. */
-export function mannerStyle(manner: Manner): MannerStyle {
-  if (!Object.hasOwn(STYLES, manner)) throw new RangeError(`A manner is one of ${MANNERS.join(", ")}, not ${String(manner)}`);
-  return STYLES[manner];
+/** A manner ready to paint: its id and its style, as `loadManner` gives it. */
+export interface MannerModule extends MannerStyle {
+  readonly id: Manner;
+}
+/** A manner as painting takes it: a period manner by its id, or any manner loaded. */
+export type MannerInput = PeriodManner | MannerModule;
+
+/** A manner's style. A screen manner named by its id alone is refused here, since it is painted only once loaded. */
+export function mannerStyle(manner: MannerInput): MannerStyle {
+  if (typeof manner !== "string") return manner;
+  if (Object.hasOwn(STYLES, manner)) return STYLES[manner];
+  throw new RangeError((MANNERS as readonly string[]).includes(manner)
+    ? `${manner} is a screen manner: load it with loadManner, or draw it from the main entry`
+    : `A manner is one of ${MANNERS.join(", ")}, not ${String(manner)}`);
 }
 
-export function paintShapes(shapes: readonly Shape[], manner: Manner, sheet: Sheet): string {
+/** A period manner as a module, the shape a loaded manner takes. */
+export function periodManner(id: PeriodManner): MannerModule {
+  return { id, ...mannerStyle(id) };
+}
+
+/** A motif's shapes in a manner, as `part` of the plant: a manner may paint blooms apart from the rest. */
+export function paintShapes(shapes: readonly Shape[], manner: MannerInput, sheet: Sheet, part: Part = "leaf"): string {
   const style = mannerStyle(manner);
+  if (style.paint) return style.paint(shapes, sheet, part);
   let out = "";
   // Neighbouring paths with the same attributes share one group that carries them, since the attributes
   // are most of a stroke's markup. A group with no opacity or filter of its own paints its children

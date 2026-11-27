@@ -1,7 +1,8 @@
 // A garden at one moment of the day, as one SVG.
-import { num, prefix, type Pt, ribbon, smoothstep } from "./geometry.js";
+import { num, prefix, type Pt, RAD, ribbon, smoothstep } from "./geometry.js";
+import { LAYER } from "./form.js";
 import { type Garden, type MotifItem, stageAt, stemShown } from "./garden.js";
-import { type Manner, mannerStyle, paintShapes, Sheet } from "./paint.js";
+import { type MannerInput, type MannerModule, type Part, paintShapes, periodManner, Sheet } from "./paint.js";
 import { createRng } from "./random.js";
 import type { Shape } from "./shapes.js";
 
@@ -34,7 +35,8 @@ export interface Decorations {
 }
 
 export interface RenderOptions {
-  manner: Manner;
+  /** A period manner by its id, or any manner loaded with `loadManner`. The main entry also takes a screen manner's id. */
+  manner: MannerInput;
   /** Prefix for the SVG's internal ids, unique among the gardens on one page. */
   id: string;
   /** Pixels per centimetre. */
@@ -78,9 +80,30 @@ const ATTRIBUTE_ENTITIES: Readonly<Record<string, string>> = { "&": "&amp;", "<"
 const group = (at: Pt, angle: number, mirrored: boolean, body: string): string =>
   `<g transform="translate(${num(at[0])} ${num(at[1])}) rotate(${num(angle - 90)})${mirrored ? " scale(-1 1)" : ""}">${body}</g>`;
 
+/** Shapes carried out of their own frame by `place`, a map of points, with lines and dots widened by `scale`. */
+function placeShapes(shapes: readonly Shape[], place: (point: Pt) => Pt, scale: number): Shape[] {
+  const carry = (points: readonly Pt[]): Pt[] => points.map(place);
+  return shapes.map((shape): Shape => {
+    switch (shape.type) {
+      case "body": return { ...shape, outline: carry(shape.outline), shadow: shape.shadow.map(carry), grain: shape.grain.map(carry), veins: shape.veins.map(carry) };
+      case "solid": return { ...shape, outline: carry(shape.outline) };
+      case "line": return { ...shape, points: carry(shape.points), width: shape.width * scale };
+      case "dots": return { ...shape, points: carry(shape.points), radius: shape.radius * scale };
+    }
+  });
+}
+
+/** A motif's shapes carried into the page's frame, as `group` would place them, for a manner whose grid is the page's. */
+function uprightShapes(shapes: readonly Shape[], at: Pt, angle: number, mirrored: boolean): Shape[] {
+  const cos = Math.cos((angle - 90) * RAD), sin = Math.sin((angle - 90) * RAD), flip = mirrored ? -1 : 1;
+  return placeShapes(shapes, ([x, y]) => [at[0] + flip * x * cos - y * sin, at[1] + flip * x * sin + y * cos], 1);
+}
+
 export function renderGarden(garden: Garden, moment: Moment, options: RenderOptions): string {
   const hanging = options.hanging === true;
-  const style = mannerStyle(options.manner);
+  // The manner is resolved once, so every motif is painted from the same style.
+  const manner: MannerModule = typeof options.manner === "string" ? periodManner(options.manner) : options.manner;
+  const style = manner;
   if (hanging && garden.column[2] - garden.column[0] < garden.width) throw new RangeError("a garden grown round a page cannot hang");
   if (hanging && garden.ornament) throw new RangeError(`a ${garden.ornament} cannot hang`);
   const sheet = new Sheet(options.id);
@@ -89,9 +112,14 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
   if (garden.foot) {
     // The foot is drawn for its own column and stands where the garden puts it, never mirrored.
     const { x, width, drop, scale } = garden.foot;
-    const foot = paintShapes(garden.foot.draw(createRng(garden.foot.seed), { width, height: (garden.height + drop) / scale }, moment.t, moment.fullness), options.manner, sheet);
-    const transform = `${x === 0 && drop === 0 ? "" : `translate(${num(x)} ${num(-drop)})`}${scale === 1 ? "" : ` scale(${num(scale)})`}`.trim();
-    add(FOOT_LAYER, transform ? `<g transform="${transform}">${foot}</g>` : foot);
+    const drawn = garden.foot.draw(createRng(garden.foot.seed), { width, height: (garden.height + drop) / scale }, moment.t, moment.fullness);
+    if (style.upright) {
+      add(FOOT_LAYER, paintShapes(placeShapes(drawn, ([px, py]) => [x + scale * px, scale * py - drop], scale), manner, sheet, "foot"));
+    } else {
+      const foot = paintShapes(drawn, manner, sheet, "foot");
+      const transform = `${x === 0 && drop === 0 ? "" : `translate(${num(x)} ${num(-drop)})`}${scale === 1 ? "" : ` scale(${num(scale)})`}`.trim();
+      add(FOOT_LAYER, transform ? `<g transform="${transform}">${foot}</g>` : foot);
+    }
   }
   for (const item of garden.items) {
     if (item.kind === "stem") {
@@ -105,13 +133,16 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
       const shapes: Shape[] = garden.stemInk
         ? garden.stemInk(createRng(Math.imul(garden.seed, 2654435761) + item.order), points, width, item.main)
         : [{ type: "solid", outline: ribbon(points, width) }];
-      add(item.layer, paintShapes(shapes, options.manner, sheet));
+      add(item.layer, paintShapes(shapes, manner, sheet, "stem"));
       continue;
     }
     // A hanging garden's petals would fall upwards, so it lets none fall.
     if (hanging && item.name === "petal") continue;
     const shapes = motifShapes(item, moment);
-    if (shapes) add(item.layer, group(item.at, item.angle, garden.mirrored, paintShapes(shapes, options.manner, sheet)));
+    if (!shapes) continue;
+    const part: Part = item.layer >= LAYER.bloom || item.name === "petal" ? "bloom" : "leaf";
+    if (style.upright) add(item.layer, paintShapes(uprightShapes(shapes, item.at, item.angle, garden.mirrored), manner, sheet, part));
+    else add(item.layer, group(item.at, item.angle, garden.mirrored, paintShapes(shapes, manner, sheet, part)));
   }
   // Every copy of the guest that has arrived, from one mask: the copies are one figure at one size.
   const arrived = options.guestFigure !== undefined && !hanging ? garden.guests.filter(guest => moment.t >= guest.born) : [];

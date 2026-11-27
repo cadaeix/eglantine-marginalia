@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { inside, pointsPath, polyPath, type Pt, smoothPath } from "../src/geometry.js";
 import { growGarden } from "../src/grow.js";
 import { DEFAULT_INKS, withInks } from "../src/inks.js";
-import { type Manner, MANNERS, paintShapes, Sheet } from "../src/paint.js";
+import * as main from "../src/draw.js";
+import { loadManner } from "../src/load-manner.js";
+import { type Manner, MANNERS, paintShapes, type Part, type PeriodManner, Sheet } from "../src/paint.js";
 import { createRng } from "../src/random.js";
 import { renderGarden } from "../src/render.js";
 import { bladeBody } from "../src/shapes.js";
@@ -80,7 +82,7 @@ describe("rendering", () => {
   });
 
   it("refuses a manner it does not know", () => {
-    expect(() => renderGarden(garden, moment, { manner: "mezzotint" as Manner, id: "m", scale: 10 })).toThrow(RangeError);
+    expect(() => renderGarden(garden, moment, { manner: "mezzotint" as PeriodManner, id: "m", scale: 10 })).toThrow(RangeError);
   });
 
   it("cuts heavy woodcut forms in solid ink with white-line gouges and light petals in open ink cuts", () => {
@@ -144,7 +146,7 @@ describe("rendering", () => {
 
   it("keeps SVG ids and their references valid with punctuation in the prefix, in every manner", () => {
     for (const manner of MANNERS) {
-      const svg = renderGarden(garden, moment, { manner, id: `page "one" & <two> (#) Été K ſ`, scale: 10 });
+      const svg = main.renderGarden(garden, moment, { manner, id: `page "one" & <two> (#) Été K ſ`, scale: 10 });
       const ids = [...svg.matchAll(/\bid="([^"]*)"/gu)].map(match => match[1]!);
       const references = [...svg.matchAll(/(?:href="#|url\(#)([^")]+)/gu)].map(match => match[1]!);
       expect(ids.every(id => /^[A-Za-z0-9_-]+$/u.test(id)), manner).toBe(true);
@@ -155,6 +157,42 @@ describe("rendering", () => {
     const literal = new Sheet("page_22_one").id(`shape"`);
     expect(quoted).toMatch(/^[a-z0-9_-]+$/iu);
     expect(quoted).not.toBe(literal);
+  });
+
+  it("draws a garden alike every time in the screen manners, each square coming from its place and the seed", () => {
+    for (const manner of ["mosaique", "carreaux", "nekyia"] as const) {
+      const draw = (): string => main.renderGarden(garden, moment, { manner, id: "s", scale: 10 });
+      expect(draw(), manner).toBe(draw());
+    }
+  });
+
+  it("loads every manner it lists, and refuses one it does not know", async () => {
+    for (const manner of MANNERS) expect((await loadManner(manner)).id).toBe(manner);
+    await expect(loadManner("mezzotint")).rejects.toThrow(RangeError);
+  });
+
+  it("draws a loaded screen manner as the main entry draws it by its id, and asks for one named alone to be loaded", async () => {
+    const nekyia = await loadManner("nekyia");
+    expect(renderGarden(garden, moment, { manner: nekyia, id: "n", scale: 10 })).toBe(main.renderGarden(garden, moment, { manner: "nekyia", id: "n", scale: 10 }));
+    expect(() => renderGarden(garden, moment, { manner: "nekyia" as PeriodManner, id: "n", scale: 10 })).toThrow(RangeError);
+  });
+
+  it("raises nekyia's leaves and foot in fine tesserae and sets its blooms and stems in panes", () => {
+    const leaf = bladeBody({ spine: v => [0.3 * v * v, 3 * v], halfWidth: v => 0.7 * Math.sin(Math.PI * v), shade: 1, spacing: 0.055, grain: "across", weight: 0.6 }, createRng(1793));
+    const paint = (manner: Manner, part: Part): string => main.paintShapes([leaf], manner, new Sheet("p"), part);
+    const squares = (svg: string): number => svg.match(/M/gu)?.length ?? 0;
+    for (const part of ["bloom", "stem"] as const) expect(paint("nekyia", part), part).toBe(paint("carreaux", part));
+    expect(paint("nekyia", "foot")).toBe(paint("nekyia", "leaf"));
+    expect(squares(paint("nekyia", "leaf"))).toBeGreaterThan(5 * squares(paint("nekyia", "bloom")));
+  });
+
+  it("keeps every square a carreaux stem has shown as the stem grows longer", () => {
+    const points: Pt[] = Array.from({ length: 40 }, (_, k) => [0.4 * Math.sin(k / 6), k * 0.1]);
+    const squares = (count: number): Set<string> =>
+      new Set(main.paintShapes([{ type: "line", points: points.slice(0, count), width: 0.06 }], "carreaux", new Sheet("s"), "stem").match(/M[^Mz]*z/gu));
+    const shown = squares(15), grown = squares(40);
+    expect(shown.size).toBeGreaterThan(5);
+    expect([...shown].filter(square => !grown.has(square))).toEqual([]);
   });
 
   it("hangs a garden from the top of its column with its root cropped away and no guest, and refuses a page garden or a band", () => {

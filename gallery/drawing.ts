@@ -1,6 +1,6 @@
 // Drawing a form's parts on their own, as the specimens and the playground's plant chooser show them.
 import { num, type Pt } from "../src/geometry.js";
-import { type Manner, paintShapes, Sheet } from "../src/paint.js";
+import { type MannerInput, paintShapes, Sheet } from "../src/paint.js";
 import type { Shape } from "../src/shapes.js";
 
 function points(shape: Shape): Pt[] {
@@ -13,7 +13,7 @@ function points(shape: Shape): Pt[] {
 }
 
 /** Shapes drawn alone, framed to their own bounds, at `scale` pixels per centimetre. */
-export function shapesSvg(shapes: Shape[], manner: Manner, id: string, scale: number): string {
+export function shapesSvg(shapes: Shape[], manner: MannerInput, id: string, scale: number): string {
   const all = shapes.flatMap(points);
   if (all.length === 0) return "";
   const pad = 0.1;

@@ -2,8 +2,10 @@
 // and a plant form, then render it at any moment of the day as SVG.
 export { type Anchor, COLUMN, type ColumnSegment, foliageShown, type Garden, type GardenItem, growGarden, type GrowSpec, type Guest, type GuestPlace, type GuestStance, type MotifItem, type Ornament, ORNAMENTS, type Page, stageAt, stemShown, type StemItem } from "./grow.js";
 export { type Festival, type FestivalModule, FESTIVALS } from "./festival.js";
-export { type Decorations, type Inlay, type Moment, renderGarden, type RenderOptions } from "./render.js";
-export { type Manner, MANNERS, paintShapes, Sheet } from "./paint.js";
+export { type Decorations, type Inlay, type Moment } from "./render.js";
+export { mannerInput, paintShapes, renderGarden, type RenderOptions } from "./draw.js";
+export { loadManner } from "./load-manner.js";
+export { type Manner, type MannerInput, type MannerModule, MANNERS, type MannerStyle, type Part, type PeriodManner, type ScreenManner, Sheet } from "./paint.js";
 export { DEFAULT_INKS, INK_PROPERTIES, inkRef, type Inks, withInks } from "./inks.js";
 export { type Palette, PALETTES, paletteInks, palettesCss } from "./palettes.js";
 export { FESTIVAL_MODULES, FORM_MODULES, plantForm } from "./registry.js";

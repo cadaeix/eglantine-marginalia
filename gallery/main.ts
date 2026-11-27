@@ -11,7 +11,7 @@ import { type Manner, MANNERS } from "../src/paint.js";
 import { createRng, seedFromText } from "../src/random.js";
 import { PALETTES, palettesCss } from "../src/palettes.js";
 import { FORM_MODULES, plantForm } from "../src/registry.js";
-import { renderGarden } from "../src/render.js";
+import { mannerInput, renderGarden } from "../src/draw.js";
 import { shapesSvg } from "./drawing.js";
 
 interface Route { form: string | null; all: boolean; today: boolean; festivals: boolean; date: string | null; manner: Manner; paper: "cream" | "night"; palette: string | null }
@@ -42,12 +42,12 @@ const slug = (text: string): string => text.normalize("NFD").replace(/[^a-z0-9-]
 function example(module: FormModule, name: string, variant: Variant, manner: Manner): string {
   const form = plantForm(module.id, variant);
   const id = slug(`${module.id}-${name}`);
-  const blooms = (["bud", "bloom", "seed"] as const).map(stage => figure(shapesSvg(form.terminal.draw(createRng(7), 1.4, stage), manner, `${id}-${stage}`, 110), stage));
+  const blooms = (["bud", "bloom", "seed"] as const).map(stage => figure(shapesSvg(form.terminal.draw(createRng(7), 1.4, stage), mannerInput(manner), `${id}-${stage}`, 110), stage));
   return `<section><h2>${escape(name)} <code>${escape(JSON.stringify(variant))}</code></h2><div class="row">`
     + figure(garden(module, variant, 0.62, manner, `${id}-g1`, 24), "bloom (t 0.62)")
     + figure(garden(module, variant, 0.97, manner, `${id}-g2`, 24), "seed (t 0.97)")
     + blooms.join("")
-    + figure(shapesSvg(form.leaf(createRng(11), 2.2, 0.1), manner, `${id}-leaf`, 90), "leaf")
+    + figure(shapesSvg(form.leaf(createRng(11), 2.2, 0.1), mannerInput(manner), `${id}-leaf`, 90), "leaf")
     + "</div></section>";
 }
 

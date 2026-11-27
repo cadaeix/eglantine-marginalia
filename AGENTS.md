@@ -26,14 +26,15 @@ npm run sweep            # grows every plant across sizes and layouts, listing a
 | Path | Holds |
 |---|---|
 | `src/garden.ts` | the growth loop, after florilegium; loads no forms |
-| `src/grow.ts`, `src/index.ts` | the main entry: `growGarden` by registered form id |
-| `src/lite.ts`, `src/load-form.ts` | the light entry: forms loaded one at a time |
-| `src/render.ts`, `src/paint.ts` | a garden at one moment as SVG, in a manner: `taille-douce`, `lavis`, `pointille`, `crayon` or `bois`, each a row of the manners table in `paint.ts` |
+| `src/grow.ts`, `src/draw.ts`, `src/index.ts` | the main entry: `growGarden` by registered form id, and `renderGarden` by any manner's id |
+| `src/lite.ts`, `src/load-form.ts`, `src/load-manner.ts` | the light entry: forms, festivals and screen manners loaded one at a time |
+| `src/render.ts`, `src/paint.ts` | a garden at one moment as SVG, in a manner: the period manners `taille-douce`, `lavis`, `pointille`, `crayon` and `bois`, each a row of the manners table in `paint.ts` |
+| `src/screen.ts`, `src/grid.ts` | the screen manners `mosaique`, `carreaux` and `nekyia`, loaded on their own, and the page's grid they share with the stipple |
 | `src/form.ts`, `src/kit.ts`, `src/toolkit.ts` | what a form is, and the shared kit forms are built with |
 | `src/forms/<id>.form.ts` | the thirteen plant forms |
 | `src/festival.ts`, `src/festivals/<id>.ts` | the six festivals of the complementary days, each done to a plant |
 | `src/calendar/` | Republican dates, day names, the plant table and the figure table |
-| `src/palettes.ts`, `src/inks.ts` | the eight palettes and the four CSS inks |
+| `src/palettes.ts`, `src/inks.ts` | the nine palettes and the four CSS inks |
 | `gallery/` | the playground and the specimen gallery (Vite); the only code that touches a DOM |
 | `figures/` | guest PNGs and their provenance |
 | `test/` | vitest suites |
@@ -90,7 +91,11 @@ Use only scans their institution releases for any use, commercial included: CC0,
 
 ## Palettes
 
-Each palette has a light reading and a dark one. Every wash stands 6:1 to 10:1 from its paper and every line at least 7:1, and a test checks both. The historical names and periods are part of the brand, so keep them when retuning a colour.
+Each palette has a light reading and a dark one. Every wash stands 6:1 to 10:1 from its paper and every line at least 7:1, and a test checks both. The historical names and periods are part of the brand, so keep them when retuning a colour. `neon`, *Nécromancie numérique*, is Cad's own and dated to the present year, *an CCXXXV*.
+
+## Screen manners
+
+`mosaique`, `carreaux` and `nekyia` are Cad's own, a signature rather than a theme: keep them to these three rather than adding more. They live in `src/screen.ts`, which nothing in the core imports at run time: the light entry fetches them with `loadManner`, and the main entry's `draw.ts` resolves their ids. List a manner by hand in `MANNERS` in `paint.ts` and in `load-manner.ts`. Each is a row naming a glazing for each part of the plant (bloom, leaf, stem and foot), which `renderGarden` passes to `paintShapes`. They paint in the page's frame (`upright`), and every square takes its values from its cell on the page, so a moment only reveals.
 
 ## The playground
 

@@ -9,7 +9,8 @@ import { ORNAMENTS } from "../src/garden.js";
 import { clamp } from "../src/geometry.js";
 import { INK_PROPERTIES } from "../src/inks.js";
 import { loadForm } from "../src/load-form.js";
-import type { Manner } from "../src/paint.js";
+import { loadManner } from "../src/load-manner.js";
+import type { Manner, MannerModule } from "../src/paint.js";
 import { PALETTES, paletteInks } from "../src/palettes.js";
 import { createRng } from "../src/random.js";
 import { renderGarden } from "../src/render.js";
@@ -59,7 +60,10 @@ const MODE_NOTES: Readonly<Record<Mode, string>> = {
   "cul-de-lampe": "One root sprays the plant both ways, as a cul-de-lampe ends a chapter.",
 };
 /** How the garden's description names the manner it is drawn in. */
-const MANNER_PHRASES: Readonly<Record<Manner, string>> = { "taille-douce": "engraved", lavis: "in wash", pointille: "in stipple", crayon: "in chalk", bois: "in woodcut" };
+const MANNER_PHRASES: Readonly<Record<Manner, string>> = {
+  "taille-douce": "engraved", lavis: "in wash", pointille: "in stipple", crayon: "in chalk", bois: "in woodcut", mosaique: "in mosaic",
+  carreaux: "in panes of light", nekyia: "raised in neon",
+};
 /** The garden's tallest column, in centimetres: a long page keeps its garden at its foot. */
 const TALLEST = 30;
 /** The proof's detail view, in pixels per centimetre, twice the playground's largest drawing scale. */
@@ -97,6 +101,9 @@ let grown: { key: string; preview: GardenPreview } | null = null;
 /** The garden asked for and growing: its form loads before it grows, and only the garden last asked for is kept. */
 let growing: { key: string; done: Promise<void> } | null = null;
 let drawnKey = "";
+/** The manners loaded so far, and those loading: a screen manner is fetched the first time it is chosen. */
+const manners = new Map<Manner, MannerModule>();
+const loadingManners = new Set<Manner>();
 let exporting = false;
 let animation = 0;
 let pendingFrame = 0;
@@ -269,11 +276,17 @@ function drawGarden(): void {
   // The garden on the page is the one asked for, so any still growing was asked for before it.
   growing = null;
   const { selection, garden } = grown.preview;
+  // A screen manner loads on its own the first time it is chosen; the garden is drawn in it once it has, never regrown.
+  const manner = manners.get(state.manner);
+  if (!manner) {
+    requestManner(state.manner);
+    return;
+  }
   const scale = ornament ? bandScale : cm;
   const drawKey = JSON.stringify([key, state.manner, state.t, state.fullness, scale]);
   if (drawKey !== drawnKey) {
     const guestFigure = garden.guests.length > 0 && selection.guest ? { guestFigure: figureURL(selection.guest.figure).href } : {};
-    gardenElement.innerHTML = renderGarden(garden, { t: state.t, fullness: state.fullness }, { manner: state.manner, id: "garden", scale, hanging: state.mode === "hanging", ...guestFigure });
+    gardenElement.innerHTML = renderGarden(garden, { t: state.t, fullness: state.fullness }, { manner, id: "garden", scale, hanging: state.mode === "hanging", ...guestFigure });
     const where = ornament === "bandeau" ? "as a headpiece over the entry" : ornament ? "as a tailpiece under the entry" : "in the page's margin";
     gardenElement.querySelector("svg")!.setAttribute("aria-label", `${selection.title}, ${MANNER_PHRASES[state.manner]}, ${where}`);
     drawnKey = drawKey;
@@ -282,6 +295,19 @@ function drawGarden(): void {
   const drawing = gardenElement.querySelector("svg")!;
   place(Number(drawing.getAttribute("width")), Number(drawing.getAttribute("height")));
   proofButton.disabled = false;
+}
+
+/** Loads a manner once, then draws the garden in it if it is still the manner asked for. */
+function requestManner(id: Manner): void {
+  if (loadingManners.has(id)) return;
+  loadingManners.add(id);
+  loadManner(id).then(module => {
+    manners.set(id, module);
+    if (state.manner === id) drawGarden();
+  }, (error: unknown) => {
+    announce(`The manner could not be loaded. ${error instanceof Error ? error.message : String(error)}`, true);
+    console.error(error);
+  }).finally(() => loadingManners.delete(id));
 }
 
 /** Grows the garden `key` names once its form has loaded, and draws it if it is still the garden last asked for. */

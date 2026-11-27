@@ -1,7 +1,8 @@
 // Eight palettes after colours documented in eighteenth-century France: court fashion names, Sèvres
-// porcelain grounds, toile de Jouy dyes, chalk drawings and the materials of revolutionary Paris. Each has a
-// light reading, by daylight on a pale page, and a dark one, by candlelight on a dark page. Their washes
-// stand 6:1 to 10:1 in contrast from their paper, around the default bistre's 8.4:1, and their inks at least 7:1.
+// porcelain grounds, toile de Jouy dyes, chalk drawings and the materials of revolutionary Paris, and a ninth of
+// the present day, neon on a screen, for the screen manners. Each has a light reading, by daylight on a pale page,
+// and a dark one, by candlelight on a dark page. Their washes stand 6:1 to 10:1 in contrast from their paper,
+// around the default bistre's 8.4:1, and their inks at least 7:1.
 import type { Inks } from "./inks.js";
 import { INK_PROPERTIES } from "./inks.js";
 
@@ -53,6 +54,10 @@ export const PALETTES: readonly Palette[] = [
     note: "Bistre, the brown wash of soot, with red chalk for the touches of colour.",
     light: { ink: "#2a2521", paper: "#dac8ae", accent: "#7d3216", wash: "#3b2912" },
     dark: { ink: "#f6f3e8", paper: "#2a3f54", accent: "#f7b098", wash: "#dac5ac" } },
+  { id: "neon", name: "Nécromancie numérique", period: "an CCXXXV",
+    note: "The one palette of its own day: magenta light raised on the dark of a screen, running to cyan, as a digital necromancer calls it up.",
+    light: { ink: "#1b1528", paper: "#f5f2fa", accent: "#0b7f9c", wash: "#a3166f" },
+    dark: { ink: "#efeaff", paper: "#0b0913", accent: "#35e3ff", wash: "#ff4fae" } },
 ];
 
 /** A palette's inks in one reading, in the shape `withInks` takes. */

@@ -1,6 +1,6 @@
 # Églantine
 
-Églantine (`eglantine-marginalia`) grows a plant procedurally in the margin of a page and renders it as SVG in the manner of eighteenth-century French printmaking: copperplate (`taille-douce`), bistre wash (`lavis`), stipple (`pointille`), chalk (`crayon`) or relief woodcut (`bois`). Stems lengthen, buds open, and towards evening flowers shed their petals and go to seed (`t`); foliage fills in with whatever the page measures—words written, pages read, tasks done (`fullness`).
+Églantine (`eglantine-marginalia`) grows a plant procedurally in the margin of a page and renders it as SVG in the manner of eighteenth-century French printmaking: copperplate (`taille-douce`), bistre wash (`lavis`), stipple (`pointille`), chalk (`crayon`) or relief woodcut (`bois`), or, for a change of century, in squares of light on a screen. Stems lengthen, buds open, and towards evening flowers shed their petals and go to seed (`t`); foliage fills in with whatever the page measures—words written, pages read, tasks done (`fullness`).
 
 ![Gardens for five days of an CCXXXV in copperplate and wash: la carotte, l'amaryllis, l'oie, le fléau and l'amadouvier](docs/showcase.webp)
 
@@ -103,14 +103,15 @@ Forms can supply custom `husk` and `kernel` drawings (`PlantForm` in `src/form.t
 ## Light entry (code splitting)
 
 ```ts
-import { growGarden, loadForm, renderGarden } from "eglantine-marginalia/lite";
+import { growGarden, loadForm, loadManner, renderGarden } from "eglantine-marginalia/lite";
 
 const form = await loadForm("ombelle-corymbe");
 const garden = growGarden({ seed: 1793, form, variant: { leaf: "pinnate" } });
 const svg = renderGarden(garden, { t: 0.6, fullness: 0 }, { manner: "taille-douce", id: "margin", scale: 36 });
+const neon = renderGarden(garden, { t: 0.6, fullness: 0 }, { manner: await loadManner("nekyia"), id: "screen", scale: 36 });
 ```
 
-Plant forms make up most of the package weight. `eglantine-marginalia/lite` omits the registry so bundlers split each form and festival into its own chunk: `loadForm` and `loadFestival` fetch one at a time, and `growGarden` accepts the loaded modules directly. A page loads ~9 KB gzipped for the engine plus the shared kit and one form (0.2–21 KB gzipped) instead of ~117 KB for all thirteen. Festivals add 0.2–4 KB each.
+Plant forms make up most of the package weight. `eglantine-marginalia/lite` omits the registry so bundlers split each form and festival into its own chunk: `loadForm` and `loadFestival` fetch one at a time, and `growGarden` accepts the loaded modules directly. A page loads ~9 KB gzipped for the engine plus the shared kit and one form (0.2–21 KB gzipped) instead of ~117 KB for all thirteen. Festivals add 0.2–4 KB each. The period manners come with the engine; the three screen manners share a chunk of their own (about 3.4 KB gzipped), which `loadManner` fetches the first time a page draws in one, so `renderGarden` on the light entry takes a screen manner only once it is loaded.
 
 ## Forms
 
@@ -138,13 +139,23 @@ The specimen gallery at `specimens.html#all` renders every form's examples at bl
 
 ![The same rose garden and a rose, hip and fig leaf drawn in all five manners: taille-douce, lavis, pointillé, crayon and bois](docs/manners.webp)
 
-`MANNERS` lists all five printmaking styles supported by `renderGarden`:
+`MANNERS` lists all eight styles supported by `renderGarden`: five printmaking styles, and three screen manners of the author's own.
 
 - **`taille-douce`** — copperplate line engraving: paper-white forms, fine ink contours, hatched shadows and solid ink stems.
 - **`lavis`** — bistre wash: translucent layers of wash darker in shadow and pooled at the edges, paper-lifted veins, and a soft bled edge.
 - **`pointille`** — stipple engraving after the plates from Pierre-Joseph Redouté's lilies and roses (London 1787; Muséum national d'histoire naturelle from 1793): modelled in wash-coloured dots dense in shadow and rim and sparse on the lit side inside a dotted contour, with accented hips and berries tinted underneath *à la poupée*.
 - **`crayon`** — the chalk manner developed by Jean-Charles François and Gilles Demarteau in the 1750s: loose wash hatching, a contour heavy in shadow and skipping on the lit side, pastel-tinted accents, and paper tooth breaking through every stroke.
 - **`bois`** — relief woodcut after Jean-Michel Papillon's *taille d'épargne*: bold letterpress keyblock contours, solid ink shadows cut back in white line with the gouge and crossed by white veins on foliage and fruit, open black cuts on pale petals, solid second-block accents, and a faint pearwood grain.
+
+### Screen manners
+
+The screen manners are not of any period. They raise the plant as light on a dark screen, in the squares of the author's own pictures, and look their best on the `neon` palette by candlelight. Every square lies on a grid fixed to the page and takes its values from its place, so a leaf lying aslant is still set square, the same seed draws the same squares, and a growing stem keeps the squares it has shown. A soft glow lies over everything.
+
+- **`mosaique`** — fine tesserae: translucent blocks deep in each form, finer tiles thickening into a lit rim, loose tiles and the odd streak drifting off its edge, veins cut through as dark leading, and stems stepped in pixels. Its colours run from the wash to the accent.
+- **`carreaux`** — panes: each form becomes a few large, see-through panes chained along its length and turned any way, some dripping light below them, among chips of colour and lit windows; stems break into loose squares. Its colours go from the wash to the accent and back by the greens and reds, so a palette of two inks gives a whole neon city.
+- **`nekyia`** — the plant called up as a digital necromancer would: leaves and the foot it stands on in fine tesserae of a neon of their own, blooms and stems in panes, so the leaves' shapes stay legible while the flowers turn to blocks of colour.
+
+`mosaique` and `carreaux` take every colour from the palette. `nekyia`'s tesserae keep their own neon whatever the palette, and only its panes follow it. The in-between colours are CSS `color-mix()`, which browsers draw and some standalone SVG editors do not. The main entry draws them by their ids; the light entry loads them first with `loadManner` (see [Light entry](#light-entry-code-splitting)), so a page that never draws one never fetches them.
 
 ### Inks
 
@@ -162,7 +173,7 @@ import { paletteInks, withInks } from "eglantine-marginalia";
 const print = withInks(svg, paletteInks("iron-gall", "dark"));
 ```
 
-Eight palettes inspired by eighteenth-century France ship with both light (daylight) and dark (candlelight) readings. In CSS, `data-eglantine-palette="madder"` follows `prefers-color-scheme`, while `madder-light` or `madder-dark` pins a reading. Every wash holds 6:1–10:1 contrast against its paper and every ink at least 7:1.
+Eight palettes inspired by eighteenth-century France, and one of today's, ship with both light (daylight) and dark (candlelight) readings. In CSS, `data-eglantine-palette="madder"` follows `prefers-color-scheme`, while `madder-light` or `madder-dark` pins a reading. Every wash holds 6:1–10:1 contrast against its paper and every ink at least 7:1.
 
 | Palette | Name | Period | Wash and accent |
 |---|---|---|---|
@@ -174,6 +185,7 @@ Eight palettes inspired by eighteenth-century France ship with both light (dayli
 | `porcelain` | Fonds de Sèvres | 1752 to 1763 | Sèvres blue, with gilding |
 | `madder` | Toile de Jouy | 1770 to the 1790s | madder, with pencilled indigo |
 | `red-chalk` | Aux trois crayons | about 1715 to 1720 | bistre on chamois, with red chalk |
+| `neon` | Nécromancie numérique | an CCXXXV | magenta light on the dark of a screen, with cyan; made for the screen manners |
 
 Brown, madder and blue washes suit every day; the green washes (`olive`, `cockade`) also tint geological sections and dead wood green.
 

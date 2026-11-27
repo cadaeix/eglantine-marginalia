@@ -8,6 +8,7 @@ import { num } from "../src/geometry.js";
 import { withInks } from "../src/inks.js";
 import { loadFestival } from "../src/load-festival.js";
 import { loadForm } from "../src/load-form.js";
+import { loadManner } from "../src/load-manner.js";
 import { type Manner, MANNERS } from "../src/paint.js";
 import { PALETTES, paletteInks } from "../src/palettes.js";
 import { renderGarden } from "../src/render.js";
@@ -268,7 +269,7 @@ export async function exportSvg(state: PlaygroundState, geometry: Geometry): Pro
   const id = `eglantine-${value.seed}`;
   const inks = paletteInks(value.palette, value.reading);
   const svg = withInks(renderGarden(garden, { t: value.t, fullness: value.fullness }, {
-    manner: value.manner, id, scale: SAVED_SCALE, hanging: value.mode === "hanging", ...(guestFigure ? { guestFigure } : {}),
+    manner: await loadManner(value.manner), id, scale: SAVED_SCALE, hanging: value.mode === "hanging", ...(guestFigure ? { guestFigure } : {}),
   }), inks);
   const attribution = guest ? guestCredit(guest) : "";
   const description = [selection.gloss, selection.dateline, selection.about, attribution].filter(Boolean).join(" ");
