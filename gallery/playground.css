@@ -86,9 +86,11 @@ h1 { margin: 0 0 0.9rem; font-size: 3rem; font-weight: 400; line-height: 1.05; l
 .settings { margin-top: 1.6rem; border-top: 1px solid var(--rule); font-size: 0.97rem; }
 .settings:focus { outline: none; }
 .setting {
+  --label: 6.2rem;
+  --label-gap: 1rem;
   display: grid;
-  grid-template-columns: 6.2rem minmax(0, 1fr);
-  gap: 0 1rem;
+  grid-template-columns: var(--label) minmax(0, 1fr);
+  gap: 0 var(--label-gap);
   align-items: baseline;
   margin: 0;
   padding: 0.38rem 0;
@@ -97,6 +99,11 @@ h1 { margin: 0 0 0.9rem; font-size: 3rem; font-weight: 400; line-height: 1.05; l
   min-width: 0;
 }
 .setting > .label { float: left; padding: 0; font-variant-caps: all-small-caps; letter-spacing: 0.08em; color: var(--muted); }
+/* WebKit keeps a fieldset's legend out of its grid, floated or not, which squeezed the choices into the label's
+   column. So a fieldset of settings floats its legend at the label's width and sets its choices beside it instead. */
+fieldset.setting { display: block; }
+fieldset.setting > .label { width: var(--label); margin-right: var(--label-gap); }
+fieldset.setting > .value { display: flow-root; }
 .value { min-width: 0; }
 .note { margin: 0.15rem 0; font-style: italic; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status { min-height: 1.55em; margin: 0.5rem 0 0; font-style: italic; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -285,7 +292,7 @@ textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--rule); backgrou
   .gloss { display: block; margin-top: 0.2rem; font-size: 1.05rem; }
   .entry + .band { margin: 0.4rem 0 0; }
   .phone-slot { padding: 1rem 1rem 0.5rem; }
-  .setting { grid-template-columns: 4.8rem minmax(0, 1fr); gap: 0 0.7rem; }
+  .setting { --label: 4.8rem; --label-gap: 0.7rem; }
   .note, .status { white-space: normal; }
   .foot { padding-inline: 1rem; }
 }
@@ -316,6 +323,7 @@ textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--rule); backgrou
 }
 @media (max-width: 400px) {
   .setting { grid-template-columns: minmax(0, 1fr); row-gap: 0.15rem; }
+  fieldset.setting > .label { float: none; width: auto; margin: 0 0 0.15rem; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .swatch, .plant { transition: border-color 120ms ease-out, outline-color 120ms ease-out; }
