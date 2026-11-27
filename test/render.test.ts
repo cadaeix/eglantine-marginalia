@@ -7,7 +7,12 @@ import { loadManner } from "../src/load-manner.js";
 import { type Manner, MANNERS, paintShapes, type Part, type PeriodManner, Sheet } from "../src/paint.js";
 import { createRng } from "../src/random.js";
 import { renderGarden } from "../src/render.js";
-import { bladeBody } from "../src/shapes.js";
+import { type Body, bladeBody } from "../src/shapes.js";
+
+/** A square form `side` centimetres across from (x, y), lit evenly, with nothing cut in it. */
+const squareForm = (x: number, y: number, side: number, tone?: "accent"): Body => ({
+  type: "body", outline: [[x, y], [x + side, y], [x + side, y + side], [x, y + side]], shadow: [], grain: [], veins: [], weight: 0.6, ...(tone ? { tone } : {}),
+});
 
 /** The points path data passes through, read back by SVG's number grammar, in hundredths of a centimetre. */
 function passesThrough(d: string): [number, number][] {
@@ -194,6 +199,22 @@ describe("rendering", () => {
     for (const part of ["bloom", "stem"] as const) expect(paint("nekyia", part), part).toBe(paint("carreaux", part));
     expect(paint("nekyia", "foot")).toBe(paint("nekyia", "leaf"));
     expect(squares(paint("nekyia", "leaf"))).toBeGreaterThan(5 * squares(paint("nekyia", "bloom")));
+  });
+
+  it("hides a form's tesserae under a form drawn over it", () => {
+    const svg = main.paintShapes([squareForm(0, 0, 2), squareForm(0.5, 0.5, 1, "accent")], "nekyia", new Sheet("o"), "leaf");
+    // The squares of the form beneath: every tessera not in the accent, centred, in centimetres.
+    const beneath = [...svg.matchAll(/<path transform="scale\(0\.08\)" d="([^"]*)" fill="(?![^"]*--eglantine-accent)[^"]*"/gu)]
+      .flatMap(([, d]) => [...d!.matchAll(/M(-?[\d.]+) (-?[\d.]+)h(-?[\d.]+)/gu)].map(([, x, y, w]): Pt => [(Number(x) + Number(w) / 2) * 0.08, (Number(y) + Number(w) / 2) * 0.08]));
+    expect(beneath.length).toBeGreaterThan(50);
+    expect(beneath.filter(([x, y]) => x > 0.6 && x < 1.4 && y > 0.6 && y < 1.4)).toEqual([]);
+  });
+
+  it("cuts an engraver's line within a form as dark leading, and keeps a line outside every form lit", () => {
+    const leaded = (svg: string): boolean => svg.includes(`fill="var(--eglantine-paper`);
+    const line = (points: Pt[]) => ({ type: "line", points, width: 0.02 }) as const;
+    expect(leaded(main.paintShapes([squareForm(0, 0, 2), line([[0.3, 1], [1.7, 1]])], "mosaique", new Sheet("l")))).toBe(true);
+    expect(leaded(main.paintShapes([squareForm(0, 0, 2), line([[3, 0], [3, 2]])], "mosaique", new Sheet("l")))).toBe(false);
   });
 
   it("keeps every square a carreaux stem has shown as the stem grows longer", () => {

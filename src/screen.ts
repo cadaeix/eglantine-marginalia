@@ -29,6 +29,11 @@ const BLOCK = 0.35, BLOCK_DEPTH = 0.1;
 const STREAK = 0.08, STREAK_REACH = 9;
 /** How the light's colour sweeps over the page: cycles a centimetre up it, and how far it sways across it. */
 const SWEEP = 0.07, SWAY = 0.25;
+/**
+ * Forms larger than the first area, in square centimetres, have their interiors thinned, down to the share given
+ * at the second, while their rims stay lit: a rock's strata read by their edges, as in a section, not as a wall.
+ */
+const ROOMY = [1.5, 6] as const, ROOMY_SHARE = 0.4;
 
 /** The colours a mosaic's light runs through, in order, as it sweeps over the page. */
 interface MosaicColours { readonly ramp: readonly string[] }
@@ -123,6 +128,8 @@ function stepLine(points: readonly Pt[], width: number, pixels: Pixels): void {
     for (let step = k === 0 ? 0 : 1; step <= steps; step += 1) {
       const x = ax + (bx - ax) * step / steps, y = ay + (by - ay) * step / steps;
       const ci = Math.floor(x / cell), cj = Math.floor(y / cell);
+      // The cell the point falls in always holds it; its neighbours only where the line's width reaches them.
+      pixels.set(ci, cj);
       for (let di = -reach; di <= reach; di += 1) {
         for (let dj = -reach; dj <= reach; dj += 1) {
           if (Math.hypot((ci + di + 0.5) * cell - x, (cj + dj + 0.5) * cell - y) <= radius + cell / 2) pixels.set(ci + di, cj + dj);
@@ -150,12 +157,21 @@ function stepRing(outline: readonly Pt[], pixels: Pixels): void {
   }
 }
 
+/** The other forms of a motif, as one of them is laid in tesserae. */
+interface Neighbours {
+  /** Whether a point lies under a form drawn after this one, which hides it. */
+  over(x: number, y: number): boolean;
+  /** Whether a point lies inside any other form of the motif. */
+  any(x: number, y: number): boolean;
+}
+
 /**
  * A body laid in tesserae. Each cell of the page's grid offers one, kept where the form reads lit enough: more
  * towards its rim, more the heavier the form, fewer in its shadow, where they lie dimmer. The cells' values come
- * from their place and the form, so the same form is always set alike.
+ * from their place and the form, so the same form is always set alike. A form drawn over it hides its tesserae,
+ * and its loose ones never drift onto another form, so forms laid one over another stay distinct.
  */
-function tessellate(body: Body, colours: MosaicColours, tiles: Tiles): void {
+function tessellate(body: Body, colours: MosaicColours, tiles: Tiles, neighbours: Neighbours): void {
   if (body.outline.length < 3) return;
   let left = Infinity, right = -Infinity, bottom = Infinity, top = -Infinity;
   for (const [x, y] of body.outline) {
@@ -163,6 +179,11 @@ function tessellate(body: Body, colours: MosaicColours, tiles: Tiles): void {
     bottom = Math.min(bottom, y); top = Math.max(top, y);
   }
   const salt = Math.floor(variance(body) * 1e6), w = body.weight, middle = (left + right) / 2;
+  let area = 0;
+  for (let k = 0, m = body.outline.length - 1; k < body.outline.length; m = k, k += 1) {
+    area += (body.outline[m]![0] - body.outline[k]![0]) * (body.outline[m]![1] + body.outline[k]![1]) / 2;
+  }
+  const interior = 1 - (1 - ROOMY_SHARE) * smoothstep(ROOMY[0], ROOMY[1], Math.abs(area));
   const outline = new Edges([body.outline], LOOSE_REACH);
   const shadow = body.shadow.length > 0 ? new Edges(body.shadow, MOSAIC_SOFT) : null;
   // An accented form, a hip or a berry, keeps the accent; the rest take the light sweeping over the page.
@@ -178,7 +199,7 @@ function tessellate(body: Body, colours: MosaicColours, tiles: Tiles): void {
     for (let I = Math.floor(left / wide); I * wide < right; I += 1) {
       if (cellValue(I, J, salt + 7) >= BLOCK) continue;
       const x = (I + 0.5) * wide, y = (J + 0.5) * wide;
-      if (!outline.inside(x, y) || outline.distance(x, y, LOOSE_REACH) < BLOCK_DEPTH + TESSERA) continue;
+      if (!outline.inside(x, y) || outline.distance(x, y, LOOSE_REACH) < BLOCK_DEPTH + TESSERA || neighbours.over(x, y)) continue;
       tiles.add(Course.Block, colourAt(x, y, cellValue(I, J, salt + 8)), shadeAt(x, y) > 0.5 ? 0.35 : 0.55, TESSERA, 2 * I + 0.06, 2 * J + 0.06, 1.88, 1.88);
     }
   }
@@ -187,9 +208,10 @@ function tessellate(body: Body, colours: MosaicColours, tiles: Tiles): void {
       const value = cellValue(i, j, salt), jitter = cellValue(i, j, salt + 1), size = cellValue(i, j, salt + 2);
       const x = (i + 0.5) * TESSERA, y = (j + 0.5) * TESSERA;
       if (outline.inside(x, y)) {
+        if (neighbours.over(x, y)) continue;
         const rim = 1 - smoothstep(0, MOSAIC_RIM, outline.distance(x, y, MOSAIC_RIM));
         const shade = shadeAt(x, y);
-        if (value >= 0.42 + 0.25 * w + 0.5 * rim - 0.15 * shade) continue;
+        if (value >= (0.42 + 0.25 * w) * interior + 0.5 * rim - 0.15 * shade) continue;
         const side = 0.7 + 0.24 * size, offset = (1 - side) * cellValue(i, j, salt + 3);
         if (rim > 0.6 && jitter < 0.22) tiles.add(Course.Lit, INK, 1, TESSERA, i + offset, j + offset, side, side);
         else tiles.add(Course.Tessera, colourAt(x, y, jitter), shade > 0.5 ? 0.5 : 0.85, TESSERA, i + offset, j + offset, side, side);
@@ -197,7 +219,7 @@ function tessellate(body: Body, colours: MosaicColours, tiles: Tiles): void {
       }
       // Beyond the form tesserae come loose, the fewer the further out, drifting sideways away from it.
       const distance = outline.distance(x, y, LOOSE_REACH);
-      if (distance >= LOOSE_REACH || value >= LOOSE * (1 - distance / LOOSE_REACH)) continue;
+      if (distance >= LOOSE_REACH || value >= LOOSE * (1 - distance / LOOSE_REACH) || neighbours.any(x, y)) continue;
       const away = x < middle ? -1 : 1, drift = away * Math.floor(jitter * 3), side = 0.4 + 0.3 * size;
       const colour = colourAt(x, y, jitter);
       tiles.add(Course.Tessera, colour, 0.75, TESSERA, i + drift + (1 - side) / 2, j + (1 - side) / 2, side, side);
@@ -293,7 +315,7 @@ function glaze(body: Body, colours: MosaicColours, tiles: Tiles): void {
 /** How a mosaic manner lays its light: its colours, how it lays a body, and how it lays the cells its stems and lines fall into. */
 interface Glazing {
   readonly colours: MosaicColours;
-  body(body: Body, colours: MosaicColours, tiles: Tiles): void;
+  body(body: Body, colours: MosaicColours, tiles: Tiles, neighbours: Neighbours): void;
   /** The side of the cells stems, lines and dots are stepped into, in centimetres. */
   readonly cell: number;
   stems(cells: Pixels, colours: MosaicColours, tiles: Tiles, accent: boolean): void;
@@ -323,21 +345,67 @@ function scattered(cells: Pixels, colours: MosaicColours, tiles: Tiles, accent: 
   }
 }
 
-/** A mosaic painter after its glazing: it lays a whole motif at once, so each of its colours is one path. */
+/** A form's outline, for telling whether a point lies inside it, with its bounds to rule most points out at once. */
+interface Form {
+  readonly edges: Edges;
+  readonly left: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly top: number;
+}
+
+function formOf(body: Body): Form {
+  let left = Infinity, right = -Infinity, bottom = Infinity, top = -Infinity;
+  for (const [x, y] of body.outline) {
+    left = Math.min(left, x); right = Math.max(right, x);
+    bottom = Math.min(bottom, y); top = Math.max(top, y);
+  }
+  return { edges: new Edges([body.outline], 0), left, right, bottom, top };
+}
+
+const within = (form: Form, x: number, y: number): boolean =>
+  x >= form.left && x <= form.right && y >= form.bottom && y <= form.top && form.edges.inside(x, y);
+
+/**
+ * A mosaic painter after its glazing: it lays a whole motif at once, so each of its colours is one path. The lines
+ * and solids an engraver cut within a form, its hatching and grain, are cut through it as dark leading, as its
+ * veins are; those outside every form, its stems, stalks and tendrils, are light.
+ */
 function mosaic(glazing: Glazing): (shapes: readonly Shape[]) => string {
   return shapes => {
-    const tiles = new Tiles(), inked = new Pixels(glazing.cell), accented = new Pixels(glazing.cell);
+    const tiles = new Tiles(), inked = new Pixels(glazing.cell), accented = new Pixels(glazing.cell), leading = new Pixels(PIXEL);
+    // The motif's forms in the order they are drawn, so each knows which lie over it.
+    const forms = shapes.flatMap(shape => shape.type === "body" && shape.outline.length >= 3 ? [formOf(shape)] : []);
+    const withinAny = ([x, y]: Pt): boolean => forms.some(form => within(form, x, y));
+    let index = 0;
     for (const shape of shapes) {
-      const pixels = shape.tone === "accent" ? accented : inked;
+      const accent = shape.tone === "accent", pixels = accent ? accented : inked;
       switch (shape.type) {
-        case "body": glazing.body(shape, glazing.colours, tiles); break;
-        case "solid": stepRing(shape.outline, pixels); break;
-        case "line": stepLine(shape.points, shape.width, pixels); break;
+        case "body": {
+          if (shape.outline.length < 3) break;
+          const own = index++;
+          glazing.body(shape, glazing.colours, tiles, {
+            over: (x, y) => forms.some((form, k) => k > own && within(form, x, y)),
+            any: (x, y) => forms.some((form, k) => k !== own && within(form, x, y)),
+          });
+          break;
+        }
+        case "solid": {
+          const middle = shape.outline[Math.floor(shape.outline.length / 2)];
+          stepRing(shape.outline, !accent && middle && withinAny(middle) ? leading : pixels);
+          break;
+        }
+        case "line": {
+          const middle = shape.points[Math.floor(shape.points.length / 2)];
+          stepLine(shape.points, shape.width, !accent && middle && withinAny(middle) ? leading : pixels);
+          break;
+        }
         case "dots": for (const point of shape.points) stepLine([point], shape.radius * 2, pixels); break;
       }
     }
     glazing.stems(inked, glazing.colours, tiles, false);
     glazing.stems(accented, glazing.colours, tiles, true);
+    leading.lay(tiles, Course.Leading, () => PAPER, 0.85);
     return tiles.svg();
   };
 }
@@ -365,41 +433,38 @@ function glazed(parts: Readonly<Record<Part, Glazing>>): Pick<MannerStyle, "body
   };
 }
 
-/** A guest's square, in centimetres: the tessera's, so he is set on the garden's own grid, and how much of it the square fills. */
-const FIGURE_PIXEL = TESSERA, FIGURE_FILL = 0.86;
-/** How far squares are thrown off a guest, in centimetres, how fine the noise that throws them is, in cycles a centimetre, and how solid a thrown square is. */
-const SCATTER = 1.1, SCATTER_GRAIN = 6, THROWN = 0.75;
-/**
- * A trail of his squares left behind him, as a broken signal leaves a figure: how far behind it lies, in centimetres,
- * how coarse the noise that keeps some of it, in cycles a centimetre, and how sparsely that noise keeps it.
- */
-const TRAIL = 0.5, TRAIL_GRAIN = 4, TRAIL_GAIN = 9, TRAIL_OFFSET = -5;
+/** How wide a gap in a guest's engraving is closed to find his silhouette, and how wide the outline round it, in centimetres. */
+const CLOSE = 0.05, OUTLINE = 0.032;
+/** How strongly a hologram's engraved lines show inside its outline, how strongly its scan lines glow, and how far its rim is lightened towards white. */
+const LINES = 0.3, SCAN_GLOW = 0.22, RIM_LIGHT = 0.4;
+/** The distance between a hologram's scan lines, in centimetres. */
+const SCAN = 0.05;
 
 /**
- * A guest raised in squares: his engraving lit by the manner's colours running across him, a ragged fringe of him
- * thrown loose by noise, and the whole broken into squares on a grid, one sample of him to each square. The browser
- * takes the squares from the drawn figure, so the core never reads the engraving itself; the noise is seeded by the
- * garden, so a seed still draws the same guest.
+ * A guest raised as a hologram: his engraving's hatching closed up into his silhouette, a bright outline round it
+ * in the manner's colours running across him, and inside it his own engraved lines, faint, over the glow of scan
+ * lines. The browser takes the outline from the drawn figure, so the core never reads the engraving itself.
  */
-function pixelFigure(colours: MosaicColours): MannerStyle["figure"] {
-  return (sheet, seed) => {
-    const light = sheet.id("light"), filter = sheet.id("pixels");
+function hologram(colours: MosaicColours): MannerStyle["figure"] {
+  return sheet => {
+    const light = sheet.id("light"), filter = sheet.id("hologram");
     const last = colours.ramp.length - 1;
     const stops = colours.ramp.map((colour, k) => `<stop offset="${num(k / last)}" stop-color="${colour}"/>`).join("");
-    // One dot sampled in each cell of the grid, then grown into the cell's square.
-    const cell = FIGURE_PIXEL, dot = cell / 3, grow = (cell * FIGURE_FILL - dot) / 2;
     sheet.defs.push(`<linearGradient id="${light}" x1="0" y1="0" x2="1" y2="1">${stops}</linearGradient>`
-      + `<filter id="${filter}" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">`
-      + `<feTurbulence type="fractalNoise" baseFrequency="${SCATTER_GRAIN}" numOctaves="1" seed="${seed % 1000}" result="noise"/>`
-      + `<feDisplacementMap in="SourceGraphic" in2="noise" scale="${SCATTER}" xChannelSelector="R" yChannelSelector="G"/>`
-      + `<feComponentTransfer result="thrown"><feFuncA type="linear" slope="${THROWN}"/></feComponentTransfer>`
-      + `<feTurbulence type="fractalNoise" baseFrequency="${TRAIL_GRAIN}" numOctaves="1" seed="${(seed + 1) % 1000}"/>`
-      + `<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${TRAIL_GAIN} ${TRAIL_OFFSET}" result="sparse"/>`
-      + `<feOffset in="SourceGraphic" dx="${fine(-TRAIL)}" result="behind"/><feComposite in="behind" in2="sparse" operator="in" result="trail"/>`
-      + `<feMerge result="whole"><feMergeNode in="trail"/><feMergeNode in="thrown"/><feMergeNode in="SourceGraphic"/></feMerge>`
-      + `<feFlood x="${fine((cell - dot) / 2)}" y="${fine((cell - dot) / 2)}" width="${fine(dot)}" height="${fine(dot)}"/>`
-      + `<feComposite x="0" y="0" width="${fine(cell)}" height="${fine(cell)}"/><feTile result="grid"/>`
-      + `<feComposite in="whole" in2="grid" operator="in"/><feMorphology operator="dilate" radius="${fine(grow)}"/></filter>`);
+      + `<filter id="${filter}" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">`
+      // His silhouette: the gaps between his hatching closed, by growing it and shrinking it back.
+      + `<feMorphology in="SourceAlpha" operator="dilate" radius="${fine(CLOSE)}"/><feMorphology operator="erode" radius="${fine(CLOSE)}" result="solid"/>`
+      // The outline: the silhouette grown a little, less the silhouette, coloured by his light spread out to it.
+      + `<feMorphology in="solid" operator="dilate" radius="${fine(OUTLINE)}"/><feComposite in2="solid" operator="out" result="ring"/>`
+      + `<feMorphology in="SourceGraphic" operator="dilate" radius="${fine(CLOSE + OUTLINE)}" result="spread"/>`
+      + `<feComposite in="spread" in2="ring" operator="in"/>`
+      + `<feComponentTransfer result="edge"><feFuncR type="linear" slope="${1 - RIM_LIGHT}" intercept="${RIM_LIGHT}"/><feFuncG type="linear" slope="${1 - RIM_LIGHT}" intercept="${RIM_LIGHT}"/><feFuncB type="linear" slope="${1 - RIM_LIGHT}" intercept="${RIM_LIGHT}"/></feComponentTransfer>`
+      // Scan lines across the silhouette, faint, and his own engraved lines over them.
+      + `<feFlood x="0" y="0" width="1" height="${fine(SCAN / 2)}"/><feComposite x="0" y="0" width="1" height="${fine(SCAN)}"/><feTile/>`
+      + `<feComposite in2="solid" operator="in"/><feComposite in="spread" operator="in"/>`
+      + `<feComponentTransfer result="scan"><feFuncA type="linear" slope="${SCAN_GLOW}"/></feComponentTransfer>`
+      + `<feComponentTransfer in="SourceGraphic" result="lines"><feFuncA type="linear" slope="${LINES}"/></feComponentTransfer>`
+      + `<feMerge><feMergeNode in="scan"/><feMergeNode in="lines"/><feMergeNode in="edge"/></feMerge></filter>`);
     return { fill: `fill="url(#${light})"`, filter };
   };
 }
@@ -411,10 +476,10 @@ const SCREEN = {
 
 /** The screen manners, each naming a glazing for each part of the plant and the light its guests are raised in. */
 export const SCREEN_MANNERS: Readonly<Record<ScreenManner, MannerModule>> = {
-  mosaique: { id: "mosaique", ...glazed(everywhere(FOUR_INK_TESSERAE)), figure: pixelFigure(FOUR_INKS), ...SCREEN },
-  carreaux: { id: "carreaux", ...glazed(everywhere(PANES)), figure: pixelFigure(WINDOWSILL), ...SCREEN },
+  mosaique: { id: "mosaique", ...glazed(everywhere(FOUR_INK_TESSERAE)), figure: hologram(FOUR_INKS), ...SCREEN },
+  carreaux: { id: "carreaux", ...glazed(everywhere(PANES)), figure: hologram(WINDOWSILL), ...SCREEN },
   // Fine tesserae where the plant's shape tells, in its leaves and its foot; panes for its blooms and stems.
-  nekyia: { id: "nekyia", ...glazed({ bloom: PANES, leaf: NEON_TESSERAE, stem: PANES, foot: NEON_TESSERAE }), figure: pixelFigure(NEON), ...SCREEN },
+  nekyia: { id: "nekyia", ...glazed({ bloom: PANES, leaf: NEON_TESSERAE, stem: PANES, foot: NEON_TESSERAE }), figure: hologram(NEON), ...SCREEN },
 };
 
 /** How far a mosaic's light spreads round each tessera, in centimetres, and how strongly it glows. */
