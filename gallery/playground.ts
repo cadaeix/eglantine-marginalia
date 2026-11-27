@@ -109,6 +109,16 @@ let animation = 0;
 let pendingFrame = 0;
 let resizeTimer = 0;
 const paletteInputs = new Map<string, HTMLInputElement>();
+/**
+ * The screen manners and the palette made for them are the author's own, not the playground's main event: they stay
+ * out of sight until a reader calls them up with the word at the end of the manners, or arrives at a garden drawn in
+ * them, and then stay for the visit.
+ */
+const SCREEN_MANNERS: readonly Manner[] = ["mosaique", "carreaux", "nekyia"];
+const SCREEN_PALETTE = "neon";
+/** What calling them up chooses: nékyia in its own palette, by candlelight. */
+const SUMMONED: Partial<PlaygroundState> = { manner: "nekyia", palette: SCREEN_PALETTE, reading: "dark" };
+let summoned = false;
 
 element<HTMLAnchorElement>("font-license").href = new URL("./fonts/OFL.txt", import.meta.url).href;
 
@@ -159,6 +169,9 @@ function syncPlayback(playing: boolean): void {
 }
 
 function syncControls(): void {
+  summoned ||= SCREEN_MANNERS.includes(state.manner) || state.palette === SCREEN_PALETTE;
+  for (const choice of document.querySelectorAll<HTMLElement>("[data-screen]")) choice.hidden = !summoned;
+  element("summon").hidden = summoned;
   // A band lies across the text, so the side it would grow on does nothing.
   const band = ornamentOf(state.mode) !== null;
   for (const input of document.querySelectorAll<HTMLInputElement>('.words input[type="radio"]')) {
@@ -476,6 +489,7 @@ function makePalettes(): void {
   for (const palette of PALETTES) {
     const label = document.createElement("label");
     label.title = `${palette.name}, ${palette.period}`;
+    if (palette.id === SCREEN_PALETTE) label.dataset.screen = "";
     const input = document.createElement("input");
     input.type = "radio";
     input.name = "palette";
@@ -513,6 +527,14 @@ element("calendar-plant").addEventListener("click", () => update({ source: "cale
 element("choose-plant").addEventListener("click", openPlants);
 element("another-plant").addEventListener("click", openPlants);
 proofButton.addEventListener("click", openProof);
+element("summon").addEventListener("click", () => {
+  summoned = true;
+  update(SUMMONED, true);
+  schedule();
+  announce("Called up from the screen: mosaic, panes and nekyia.");
+  // The word is gone once the manners show, so focus moves to the manner it chose, once the controls have caught up.
+  requestAnimationFrame(() => document.querySelector<HTMLInputElement>('input[name="manner"][value="nekyia"]')!.focus());
+});
 proofCloser.addEventListener("click", () => {
   const closer = proofCloser.getAttribute("aria-pressed") !== "true";
   proofCloser.setAttribute("aria-pressed", String(closer));

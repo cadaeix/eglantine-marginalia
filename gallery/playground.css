@@ -137,6 +137,9 @@ h1 { margin: 0 0 0.9rem; font-size: 3rem; font-weight: 400; line-height: 1.05; l
 .word:hover { text-decoration-color: currentColor; }
 .word:disabled { color: var(--muted); cursor: default; text-decoration: none; }
 .word[aria-pressed="true"] { text-decoration-color: currentColor; }
+/* A quiet action at the end of a row of choices, such as the word that calls up the screen manners. */
+.word.aside { color: var(--muted); font-style: italic; }
+.word.aside:hover { color: var(--ink); }
 .step { padding: 0 0.25rem; border: 0; background: none; cursor: pointer; font-size: 1.15rem; line-height: 1; }
 .step:hover { color: var(--accent); }
 input[type="date"] {
