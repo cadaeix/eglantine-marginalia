@@ -365,18 +365,56 @@ function glazed(parts: Readonly<Record<Part, Glazing>>): Pick<MannerStyle, "body
   };
 }
 
+/** A guest's square, in centimetres: the tessera's, so he is set on the garden's own grid, and how much of it the square fills. */
+const FIGURE_PIXEL = TESSERA, FIGURE_FILL = 0.86;
+/** How far squares are thrown off a guest, in centimetres, how fine the noise that throws them is, in cycles a centimetre, and how solid a thrown square is. */
+const SCATTER = 1.1, SCATTER_GRAIN = 6, THROWN = 0.75;
+/**
+ * A trail of his squares left behind him, as a broken signal leaves a figure: how far behind it lies, in centimetres,
+ * how coarse the noise that keeps some of it, in cycles a centimetre, and how sparsely that noise keeps it.
+ */
+const TRAIL = 0.5, TRAIL_GRAIN = 4, TRAIL_GAIN = 9, TRAIL_OFFSET = -5;
+
+/**
+ * A guest raised in squares: his engraving lit by the manner's colours running across him, a ragged fringe of him
+ * thrown loose by noise, and the whole broken into squares on a grid, one sample of him to each square. The browser
+ * takes the squares from the drawn figure, so the core never reads the engraving itself; the noise is seeded by the
+ * garden, so a seed still draws the same guest.
+ */
+function pixelFigure(colours: MosaicColours): MannerStyle["figure"] {
+  return (sheet, seed) => {
+    const light = sheet.id("light"), filter = sheet.id("pixels");
+    const last = colours.ramp.length - 1;
+    const stops = colours.ramp.map((colour, k) => `<stop offset="${num(k / last)}" stop-color="${colour}"/>`).join("");
+    // One dot sampled in each cell of the grid, then grown into the cell's square.
+    const cell = FIGURE_PIXEL, dot = cell / 3, grow = (cell * FIGURE_FILL - dot) / 2;
+    sheet.defs.push(`<linearGradient id="${light}" x1="0" y1="0" x2="1" y2="1">${stops}</linearGradient>`
+      + `<filter id="${filter}" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">`
+      + `<feTurbulence type="fractalNoise" baseFrequency="${SCATTER_GRAIN}" numOctaves="1" seed="${seed % 1000}" result="noise"/>`
+      + `<feDisplacementMap in="SourceGraphic" in2="noise" scale="${SCATTER}" xChannelSelector="R" yChannelSelector="G"/>`
+      + `<feComponentTransfer result="thrown"><feFuncA type="linear" slope="${THROWN}"/></feComponentTransfer>`
+      + `<feTurbulence type="fractalNoise" baseFrequency="${TRAIL_GRAIN}" numOctaves="1" seed="${(seed + 1) % 1000}"/>`
+      + `<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${TRAIL_GAIN} ${TRAIL_OFFSET}" result="sparse"/>`
+      + `<feOffset in="SourceGraphic" dx="${fine(-TRAIL)}" result="behind"/><feComposite in="behind" in2="sparse" operator="in" result="trail"/>`
+      + `<feMerge result="whole"><feMergeNode in="trail"/><feMergeNode in="thrown"/><feMergeNode in="SourceGraphic"/></feMerge>`
+      + `<feFlood x="${fine((cell - dot) / 2)}" y="${fine((cell - dot) / 2)}" width="${fine(dot)}" height="${fine(dot)}"/>`
+      + `<feComposite x="0" y="0" width="${fine(cell)}" height="${fine(cell)}"/><feTile result="grid"/>`
+      + `<feComposite in="whole" in2="grid" operator="in"/><feMorphology operator="dilate" radius="${fine(grow)}"/></filter>`);
+    return { fill: `fill="url(#${light})"`, filter };
+  };
+}
 
 /** What every screen manner shares: shapes in the page's frame, its inks for anything unglazed, and the glow. */
 const SCREEN = {
-  upright: true, solid: ` fill="${INK}"`, line: ` stroke="${INK}"`, dots: ` fill="${INK}"`, figure: `fill="${INK}"`, filter: glowFilter,
+  upright: true, solid: ` fill="${INK}"`, line: ` stroke="${INK}"`, dots: ` fill="${INK}"`, filter: glowFilter,
 } as const;
 
-/** The screen manners, each naming a glazing for each part of the plant. */
+/** The screen manners, each naming a glazing for each part of the plant and the light its guests are raised in. */
 export const SCREEN_MANNERS: Readonly<Record<ScreenManner, MannerModule>> = {
-  mosaique: { id: "mosaique", ...glazed(everywhere(FOUR_INK_TESSERAE)), ...SCREEN },
-  carreaux: { id: "carreaux", ...glazed(everywhere(PANES)), ...SCREEN },
+  mosaique: { id: "mosaique", ...glazed(everywhere(FOUR_INK_TESSERAE)), figure: pixelFigure(FOUR_INKS), ...SCREEN },
+  carreaux: { id: "carreaux", ...glazed(everywhere(PANES)), figure: pixelFigure(WINDOWSILL), ...SCREEN },
   // Fine tesserae where the plant's shape tells, in its leaves and its foot; panes for its blooms and stems.
-  nekyia: { id: "nekyia", ...glazed({ bloom: PANES, leaf: NEON_TESSERAE, stem: PANES, foot: NEON_TESSERAE }), ...SCREEN },
+  nekyia: { id: "nekyia", ...glazed({ bloom: PANES, leaf: NEON_TESSERAE, stem: PANES, foot: NEON_TESSERAE }), figure: pixelFigure(NEON), ...SCREEN },
 };
 
 /** How far a mosaic's light spreads round each tessera, in centimetres, and how strongly it glows. */

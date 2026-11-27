@@ -154,8 +154,12 @@ export function renderGarden(garden: Garden, moment: Moment, options: RenderOpti
     // mask-type as a presentation attribute, not a style: pages with a strict content policy refuse inline styles.
     sheet.defs.push(`<mask id="${mask}" maskUnits="userSpaceOnUse" ${box} mask-type="alpha"><image href="${figure}" ${box} preserveAspectRatio="none"/></mask>`);
     // The page is drawn with y up; the engraving is y down, so it is flipped back, and mirrored to face the plant.
+    // A manner's filter lies over the figure once masked, since a filter on the masked element would run before its mask.
+    const ink = style.figure(sheet, garden.seed);
+    const masked = `<rect ${box} ${ink.fill} mask="url(#${mask})"/>`;
+    const drawn = ink.filter === undefined ? masked : `<g filter="url(#${ink.filter})">${masked}</g>`;
     for (const guest of arrived) {
-      add(guest.kind === "visitor" ? VISITOR_LAYER : REST_LAYER, `<g transform="translate(${num(guest.at[0])} ${num(guest.at[1])}) rotate(${num(guest.angle)}) scale(${guest.facing} -1)"><rect ${box} ${style.figure} mask="url(#${mask})"/></g>`);
+      add(guest.kind === "visitor" ? VISITOR_LAYER : REST_LAYER, `<g transform="translate(${num(guest.at[0])} ${num(guest.at[1])}) rotate(${num(guest.angle)}) scale(${guest.facing} -1)">${drawn}</g>`);
     }
   }
   const marks = options.decorate?.(garden, sheet) ?? {};

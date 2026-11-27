@@ -145,8 +145,9 @@ describe("rendering", () => {
   });
 
   it("keeps SVG ids and their references valid with punctuation in the prefix, in every manner", () => {
+    const visited = growGarden({ seed: 1793, form: "capitule", variant: {}, guest: { kind: "visitor", aspect: 1, size: 1.4 } });
     for (const manner of MANNERS) {
-      const svg = main.renderGarden(garden, moment, { manner, id: `page "one" & <two> (#) Été K ſ`, scale: 10 });
+      const svg = main.renderGarden(visited, { t: 1, fullness: 0.6 }, { manner, id: `page "one" & <two> (#) Été K ſ`, scale: 10, guestFigure: "figures/oie.png" });
       const ids = [...svg.matchAll(/\bid="([^"]*)"/gu)].map(match => match[1]!);
       const references = [...svg.matchAll(/(?:href="#|url\(#)([^")]+)/gu)].map(match => match[1]!);
       expect(ids.every(id => /^[A-Za-z0-9_-]+$/u.test(id)), manner).toBe(true);
@@ -157,6 +158,15 @@ describe("rendering", () => {
     const literal = new Sheet("page_22_one").id(`shape"`);
     expect(quoted).toMatch(/^[a-z0-9_-]+$/iu);
     expect(quoted).not.toBe(literal);
+  });
+
+  it("lays every manner's filter over its guest once masked, never on the masked figure, whose filter would run before its mask", () => {
+    const visited = growGarden({ seed: 1793, form: "capitule", variant: {}, guest: { kind: "visitor", aspect: 1, size: 1.4 } });
+    for (const manner of MANNERS) {
+      const svg = main.renderGarden(visited, { t: 1, fullness: 0.6 }, { manner, id: "g", scale: 10, guestFigure: "figures/oie.png" });
+      expect(svg, manner).toContain(" mask=\"url(#");
+      expect([...svg.matchAll(/<[^>]*>/gu)].filter(([tag]) => tag.includes(" mask=") && tag.includes(" filter=")), manner).toEqual([]);
+    }
   });
 
   it("draws a garden alike every time in the screen manners, each square coming from its place and the seed", () => {

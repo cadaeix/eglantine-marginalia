@@ -155,6 +155,8 @@ The screen manners are not of any period. They raise the plant as light on a dar
 - **`carreaux`** — panes: each form becomes a few large, see-through panes chained along its length and turned any way, some dripping light below them, among chips of colour and lit windows; stems break into loose squares. Its colours go from the wash to the accent and back by the greens and reds, so a palette of two inks gives a whole neon city.
 - **`nekyia`** — the plant called up as a digital necromancer would: leaves and the foot it stands on in fine tesserae of a neon of their own, blooms and stems in panes, so the leaves' shapes stay legible while the flowers turn to blocks of colour.
 
+Guests come apart too. An animal or a tool is lit by the manner's colours running across it and broken into squares on the same grid, with a ragged fringe of it thrown loose and a sparse trail of it left behind, as a broken signal leaves a figure. The browser takes the squares from the drawn engraving through an SVG filter, so the core still never reads the image; the noise is seeded by the garden, and a guest arrives already in pieces, so a moment only reveals. Thin tools, a scythe or a spade, come out faint, since a line thinner than a square can fall between its samples.
+
 `mosaique` and `carreaux` take every colour from the palette. `nekyia`'s tesserae keep their own neon whatever the palette, and only its panes follow it. The in-between colours are CSS `color-mix()`, which browsers draw and some standalone SVG editors do not. The main entry draws them by their ids; the light entry loads them first with `loadManner` (see [Light entry](#light-entry-code-splitting)), so a page that never draws one never fetches them.
 
 ### Inks

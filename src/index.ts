@@ -5,7 +5,7 @@ export { type Festival, type FestivalModule, FESTIVALS } from "./festival.js";
 export { type Decorations, type Inlay, type Moment } from "./render.js";
 export { mannerInput, paintShapes, renderGarden, type RenderOptions } from "./draw.js";
 export { loadManner } from "./load-manner.js";
-export { type Manner, type MannerInput, type MannerModule, MANNERS, type MannerStyle, type Part, type PeriodManner, type ScreenManner, Sheet } from "./paint.js";
+export { type FigureInk, type Manner, type MannerInput, type MannerModule, MANNERS, type MannerStyle, type Part, type PeriodManner, type ScreenManner, Sheet } from "./paint.js";
 export { DEFAULT_INKS, INK_PROPERTIES, inkRef, type Inks, withInks } from "./inks.js";
 export { type Palette, PALETTES, paletteInks, palettesCss } from "./palettes.js";
 export { FESTIVAL_MODULES, FORM_MODULES, plantForm } from "./registry.js";

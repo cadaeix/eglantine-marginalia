@@ -287,6 +287,15 @@ function woodcutBody(body: Body, sheet: Sheet): string {
 /** Which part of the plant a motif is: its blooms, with their fruit and shed petals; its leaves; its stems; or the foot it stands on. */
 export type Part = "bloom" | "leaf" | "stem" | "foot";
 
+/** How a guest's engraving is inked: the attributes of its fill, and any filter laid over it, by its id. */
+export interface FigureInk {
+  readonly fill: string;
+  readonly filter?: string;
+}
+
+/** A guest inked with a fill alone, as the period manners ink theirs. */
+const inked = (fill: string) => (): FigureInk => ({ fill });
+
 /** How a manner paints: its modelled forms, and the ink its solids, lines and dots take when they are not accented. */
 export interface MannerStyle {
   body(body: Body, sheet: Sheet): string;
@@ -294,8 +303,8 @@ export interface MannerStyle {
   readonly solid: string;
   readonly line: string;
   readonly dots: string;
-  /** The attributes that ink a guest's engraving, which is drawn as a mask. */
-  readonly figure: string;
+  /** How a guest's engraving is inked, once a garden; it is drawn as a mask, and any filter lies over the masked figure. */
+  figure(sheet: Sheet, seed: number): FigureInk;
   /** A filter laid over the whole garden, giving its id. */
   filter?(sheet: Sheet, seed: number): string;
   /** Paints a motif's shapes all at once, in place of painting them one by one, knowing which part of the plant they are. */
@@ -305,15 +314,15 @@ export interface MannerStyle {
 }
 
 const STYLES = {
-  "taille-douce": { body: engraveBody, solid: ` fill="${INK}"`, line: ` stroke="${INK}"`, dots: ` fill="${INK}"`, figure: `fill="${INK}"` },
+  "taille-douce": { body: engraveBody, solid: ` fill="${INK}"`, line: ` stroke="${INK}"`, dots: ` fill="${INK}"`, figure: inked(`fill="${INK}"`) },
   lavis: {
     body: washBody, solid: ` fill="${WASH}" fill-opacity="0.82"`, line: ` stroke="${WASH}" stroke-opacity="0.85"`, dots: ` fill="${WASH}"`,
-    figure: `fill="${WASH}" fill-opacity="0.85"`, filter: washFilter,
+    figure: inked(`fill="${WASH}" fill-opacity="0.85"`), filter: washFilter,
   },
   // Stems are eased back a little, as the wash's are, so they sit with the dots rather than over them.
-  pointille: { body: stippleBody, solid: ` fill="${WASH}" fill-opacity="0.85"`, line: ` stroke="${WASH}" stroke-opacity="0.85"`, dots: ` fill="${WASH}"`, figure: `fill="${WASH}"` },
-  crayon: { body: chalkBody, solid: ` fill="${WASH}" fill-opacity="0.9"`, line: ` stroke="${WASH}" stroke-opacity="0.9"`, dots: ` fill="${WASH}"`, figure: `fill="${WASH}"`, filter: chalkFilter },
-  bois: { body: woodcutBody, solid: ` fill="${INK}"`, line: ` stroke="${INK}"`, dots: ` fill="${INK}"`, figure: `fill="${INK}"`, filter: woodFilter },
+  pointille: { body: stippleBody, solid: ` fill="${WASH}" fill-opacity="0.85"`, line: ` stroke="${WASH}" stroke-opacity="0.85"`, dots: ` fill="${WASH}"`, figure: inked(`fill="${WASH}"`) },
+  crayon: { body: chalkBody, solid: ` fill="${WASH}" fill-opacity="0.9"`, line: ` stroke="${WASH}" stroke-opacity="0.9"`, dots: ` fill="${WASH}"`, figure: inked(`fill="${WASH}"`), filter: chalkFilter },
+  bois: { body: woodcutBody, solid: ` fill="${INK}"`, line: ` stroke="${INK}"`, dots: ` fill="${INK}"`, figure: inked(`fill="${INK}"`), filter: woodFilter },
 } as const satisfies Record<string, MannerStyle>;
 
 /** The period manners a garden can be painted in here. The screen manners are painted in screen.ts. */
