@@ -192,13 +192,23 @@ describe("rendering", () => {
     expect(() => renderGarden(garden, moment, { manner: "nekyia" as PeriodManner, id: "n", scale: 10 })).toThrow(RangeError);
   });
 
-  it("raises nekyia's leaves and foot in fine tesserae and sets its blooms and stems in panes", () => {
+  it("raises nekyia's leaves in fine tesserae, sets its blooms and stems in panes, and etches its ground in light", () => {
     const leaf = bladeBody({ spine: v => [0.3 * v * v, 3 * v], halfWidth: v => 0.7 * Math.sin(Math.PI * v), shade: 1, spacing: 0.055, grain: "across", weight: 0.6 }, createRng(1793));
     const paint = (manner: Manner, part: Part): string => main.paintShapes([leaf], manner, new Sheet("p"), part);
     const squares = (svg: string): number => svg.match(/M/gu)?.length ?? 0;
     for (const part of ["bloom", "stem"] as const) expect(paint("nekyia", part), part).toBe(paint("carreaux", part));
-    expect(paint("nekyia", "foot")).toBe(paint("nekyia", "leaf"));
     expect(squares(paint("nekyia", "leaf"))).toBeGreaterThan(5 * squares(paint("nekyia", "bloom")));
+    expect(paint("nekyia", "foot")).not.toBe(paint("nekyia", "leaf"));
+  });
+
+  it("etches the ground in lines whose colour changes along them, hidden under a form drawn over them", () => {
+    const strokes = (forms: Body[]) => [...main.paintShapes(forms, "nekyia", new Sheet("e"), "foot").matchAll(/<path d="([^"]*)" fill="none" stroke="([^"]*)"/gu)];
+    expect(new Set(strokes([squareForm(0, 0, 3)]).map(([, , colour]) => colour)).size).toBeGreaterThan(1);
+    // Two squares, the second drawn over the first: no line of the first may show inside the second.
+    const points = strokes([squareForm(0, 0, 2), squareForm(1, 1, 2)])
+      .flatMap(([, d]) => [...d!.matchAll(/(-?[\d.]+) (-?[\d.]+)/gu)].map(([, x, y]): Pt => [Number(x), Number(y)]));
+    expect(points.length).toBeGreaterThan(40);
+    expect(points.filter(([x, y]) => x > 1.1 && x < 2.9 && y > 1.1 && y < 2.9)).toEqual([]);
   });
 
   it("hides a form's tesserae under a form drawn over it", () => {

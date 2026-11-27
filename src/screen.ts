@@ -14,8 +14,9 @@ const INK = inkRef("ink"), PAPER = inkRef("paper"), ACCENT = inkRef("accent"), W
 // page's frame, so a leaf lying aslant is still set square. Carreaux abstracts further: each form is a few large
 // panes of light chained along its length, turned any way and see-through where they overlap, some dripping light
 // below them, with chips of colour and lit windows scattered among them, and its stems broken into loose squares.
-// Nékyia raises the plant as a digital necromancer would, in both at once: its leaves and the foot it stands on in
-// fine tesserae of a neon of their own, its blooms and stems in panes. Each is a row naming a glazing for each part.
+// Nékyia raises the plant as a digital necromancer would, in both at once: its leaves in fine tesserae of a neon of
+// their own, its blooms and stems in panes. In all three, the ground a plant stands on is etched in light, as the
+// copperplate draws it, in lines whose colour changes along them. Each is a row naming a glazing for each part.
 
 /** The mosaic's tessera, and the finer pixel its stems, lines and veins are stepped in, in centimetres. */
 const TESSERA = 0.08, PIXEL = 0.04;
@@ -58,9 +59,12 @@ const WINDOWSILL: MosaicColours = {
 /** The share of a stem's or a line's pixels that spark in the ink, the brightest light there is. */
 const SPARK = 0.15;
 
-/** The colour of the light at a point, as it sweeps up the page and sways across it; `jitter` loosens it a little. */
-function lightAt(colours: MosaicColours, x: number, y: number, jitter: number): string {
-  const sweep = y * SWEEP + SWAY * Math.sin(x * 1.1 + y * 0.31) + 0.2 * jitter;
+/**
+ * The colour of the light at a point, as it sweeps up the page and sways across it; `jitter` loosens it a little,
+ * and `rate` quickens it, so a line can change colour along its length.
+ */
+function lightAt(colours: MosaicColours, x: number, y: number, jitter: number, rate = 1): string {
+  const sweep = rate * (y * SWEEP + SWAY * Math.sin(x * 1.1 + y * 0.31)) + 0.2 * jitter;
   return colours.ramp[Math.floor((sweep - Math.floor(sweep)) * colours.ramp.length)]!;
 }
 
@@ -72,11 +76,12 @@ const enum Course { Block, Tessera, Leading, Lit }
  * squares are given in units of its cell, which keeps the path data short; panes, which lie askew, in centimetres.
  */
 class Tiles {
-  readonly #runs = new Map<string, { course: Course; colour: string; opacity: number; unit: number; d: string[] }>();
-  #run(course: Course, colour: string, opacity: number, unit: number): string[] {
-    const key = `${course}|${unit}|${opacity}|${colour}`;
+  readonly #runs = new Map<string, { course: Course; colour: string; opacity: number; unit: number; stroke: number; d: string[] }>();
+  /** The marks of one course, colour and opacity, filled or, when `stroke` is a width, stroked. */
+  #run(course: Course, colour: string, opacity: number, unit: number, stroke = 0): string[] {
+    const key = `${course}|${unit}|${opacity}|${stroke}|${colour}`;
     let run = this.#runs.get(key);
-    if (!run) this.#runs.set(key, run = { course, colour, opacity, unit, d: [] });
+    if (!run) this.#runs.set(key, run = { course, colour, opacity, unit, stroke, d: [] });
     return run.d;
   }
   add(course: Course, colour: string, opacity: number, unit: number, x: number, y: number, width: number, height: number): void {
@@ -85,9 +90,15 @@ class Tiles {
   polygon(course: Course, colour: string, opacity: number, corners: readonly Pt[]): void {
     this.#run(course, colour, opacity, 1).push(`M${corners.map(([x, y]) => `${num(x)} ${num(y)}`).join("L")}z`);
   }
+  /** A stroked line through `points`, `width` centimetres wide; two equal points make a dot. */
+  line(course: Course, colour: string, opacity: number, width: number, points: readonly Pt[]): void {
+    this.#run(course, colour, opacity, 1, width).push(`M${points.map(([x, y]) => `${num(x)} ${num(y)}`).join("L")}`);
+  }
   svg(): string {
     return [...this.#runs.values()].sort((a, b) => a.course - b.course)
-      .map(({ colour, opacity, unit, d }) => `<path${unit === 1 ? "" : ` transform="scale(${fine(unit)})"`} d="${d.join("")}" fill="${colour}"${opacity === 1 ? "" : ` fill-opacity="${num(opacity)}"`}/>`)
+      .map(({ colour, opacity, unit, stroke, d }) => stroke > 0
+        ? `<path d="${d.join("")}" fill="none" stroke="${colour}" stroke-width="${fine(stroke)}" stroke-linecap="round" stroke-linejoin="round"${opacity === 1 ? "" : ` stroke-opacity="${num(opacity)}"`}/>`
+        : `<path${unit === 1 ? "" : ` transform="scale(${fine(unit)})"`} d="${d.join("")}" fill="${colour}"${opacity === 1 ? "" : ` fill-opacity="${num(opacity)}"`}/>`)
       .join("");
   }
 }
@@ -312,6 +323,88 @@ function glaze(body: Body, colours: MosaicColours, tiles: Tiles): void {
   }
 }
 
+/** An etched outline's width, the hatching's at the lightest and heaviest forms, and how strongly the hatching shows. */
+const ETCH_OUTLINE = 0.016, ETCH_HATCH = [0.007, 0.014] as const, ETCH_HATCH_LIGHT = 0.8;
+/** The finest an etched line or dot is drawn, in centimetres, so it still glows. */
+const ETCH_LEAST = 0.008;
+/** How much faster colour changes along an etched line than the light sweeps the page, and the longest stretch between samples of it, in centimetres. */
+const ETCH_RATE = 6, ETCH_STEP = 0.08;
+/** How far each form shifts its lines' colour from the next, so strata read as layers, and how strongly an etched solid is lit inside. */
+const ETCH_FORM_HUE = 3, ETCH_SOLID = 0.3;
+
+type Hidden = (x: number, y: number) => boolean;
+
+/**
+ * A line drawn in light whose colour changes along it, faster than the light sweeping the page: it is broken into
+ * runs of one colour each, and left out wherever `hidden` says a form drawn over it hides it.
+ */
+function etchLine(points: readonly Pt[], closed: boolean, width: number, opacity: number, colourAt: (x: number, y: number) => string, hidden: Hidden, tiles: Tiles): void {
+  const path = closed && points.length > 2 ? [...points, points[0]!] : points;
+  let run: Pt[] = [], colour = "";
+  const flush = (): void => {
+    if (run.length > 1) tiles.line(Course.Tessera, colour, opacity, width, run);
+    run = [];
+  };
+  for (let k = 1; k < path.length; k += 1) {
+    const [ax, ay] = path[k - 1]!, [bx, by] = path[k]!;
+    const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / ETCH_STEP));
+    for (let step = 1; step <= steps; step += 1) {
+      const from: Pt = [ax + (bx - ax) * (step - 1) / steps, ay + (by - ay) * (step - 1) / steps];
+      const to: Pt = [ax + (bx - ax) * step / steps, ay + (by - ay) * step / steps];
+      const mx = (from[0] + to[0]) / 2, my = (from[1] + to[1]) / 2;
+      if (hidden(mx, my)) {
+        flush();
+        continue;
+      }
+      const here = colourAt(mx, my);
+      if (run.length === 0 || here !== colour) {
+        flush();
+        colour = here;
+        run = [from];
+      }
+      run.push(to);
+    }
+  }
+  flush();
+}
+
+/**
+ * A body etched in light, as the copperplate engraves it but on the dark of a screen: its outline, its hatching
+ * where its shadow falls (all over when it has none) and its veins, in lines whose colour changes along them, with
+ * nothing filled. A form drawn over it hides its lines, as the copperplate's paper does, and each form shifts the
+ * light a little, so strata read as layers.
+ */
+function etch(body: Body, colours: MosaicColours, tiles: Tiles, neighbours: Neighbours): void {
+  const hue = ETCH_FORM_HUE * variance(body);
+  const colourAt = (x: number, y: number): string => body.tone === "accent" ? ACCENT : lightAt(colours, x, y, hue, ETCH_RATE);
+  const hidden: Hidden = (x, y) => neighbours.over(x, y);
+  etchLine(body.outline, true, ETCH_OUTLINE, 1, colourAt, hidden, tiles);
+  if (body.grain.length > 0) {
+    const outline = new Edges([body.outline], 0), shadow = body.shadow.length > 0 ? new Edges(body.shadow, 0) : null;
+    const unhatched: Hidden = (x, y) => hidden(x, y) || !outline.inside(x, y) || (shadow !== null && !shadow.inside(x, y));
+    const width = lerp(ETCH_HATCH[0], ETCH_HATCH[1], body.weight);
+    for (const line of body.grain) etchLine(line, false, width, ETCH_HATCH_LIGHT, colourAt, unhatched, tiles);
+  }
+  for (const vein of body.veins) etchLine(vein, false, ETCH_LEAST, 1, colourAt, hidden, tiles);
+}
+
+/** An engraver's line, solid or dots etched in light; a solid by its outline, over a faint light of its colour. */
+function etchMark(shape: Exclude<Shape, Body>, colours: MosaicColours, tiles: Tiles, hidden: Hidden): void {
+  const colourAt = (x: number, y: number): string => shape.tone === "accent" ? ACCENT : lightAt(colours, x, y, 0, ETCH_RATE);
+  switch (shape.type) {
+    case "line": etchLine(shape.points, false, Math.max(shape.width, ETCH_LEAST), 1, colourAt, hidden, tiles); break;
+    case "solid": {
+      let cx = 0, cy = 0;
+      for (const [x, y] of shape.outline) { cx += x; cy += y; }
+      cx /= shape.outline.length; cy /= shape.outline.length;
+      if (shape.outline.length > 2 && !hidden(cx, cy)) tiles.polygon(Course.Block, colourAt(cx, cy), ETCH_SOLID, shape.outline);
+      etchLine(shape.outline, true, ETCH_LEAST, 1, colourAt, hidden, tiles);
+      break;
+    }
+    case "dots": for (const point of shape.points) etchLine([point, point], false, Math.max(2 * shape.radius, ETCH_LEAST), 1, colourAt, hidden, tiles); break;
+  }
+}
+
 /** How a mosaic manner lays its light: its colours, how it lays a body, and how it lays the cells its stems and lines fall into. */
 interface Glazing {
   readonly colours: MosaicColours;
@@ -319,6 +412,8 @@ interface Glazing {
   /** The side of the cells stems, lines and dots are stepped into, in centimetres. */
   readonly cell: number;
   stems(cells: Pixels, colours: MosaicColours, tiles: Tiles, accent: boolean): void;
+  /** Draws an engraver's lines, solids and dots itself, if it does, rather than stepping them into cells; `hidden` says where a form drawn over them hides them. */
+  mark?(shape: Exclude<Shape, Body>, colours: MosaicColours, tiles: Tiles, hidden: Hidden): void;
 }
 
 /** Stems and lines stepped in pixels, light as the forms are, with sparks of ink along them. */
@@ -379,6 +474,11 @@ function mosaic(glazing: Glazing): (shapes: readonly Shape[]) => string {
     const withinAny = ([x, y]: Pt): boolean => forms.some(form => within(form, x, y));
     let index = 0;
     for (const shape of shapes) {
+      if (shape.type !== "body" && glazing.mark) {
+        const drawn = index;
+        glazing.mark(shape, glazing.colours, tiles, (x, y) => forms.some((form, k) => k >= drawn && within(form, x, y)));
+        continue;
+      }
       const accent = shape.tone === "accent", pixels = accent ? accented : inked;
       switch (shape.type) {
         case "body": {
@@ -412,6 +512,8 @@ function mosaic(glazing: Glazing): (shapes: readonly Shape[]) => string {
 const FOUR_INK_TESSERAE: Glazing = { colours: FOUR_INKS, body: tessellate, cell: PIXEL, stems: stepped };
 const NEON_TESSERAE: Glazing = { colours: NEON, body: tessellate, cell: PIXEL, stems: stepped };
 const PANES: Glazing = { colours: WINDOWSILL, body: glaze, cell: STEM_CELL, stems: scattered };
+/** The ground etched in light, in each manner's colours. */
+const etched = (colours: MosaicColours): Glazing => ({ colours, body: etch, cell: PIXEL, stems: stepped, mark: etchMark });
 
 /** One glazing for every part of the plant. */
 const everywhere = (glazing: Glazing): Readonly<Record<Part, Glazing>> => ({ bloom: glazing, leaf: glazing, stem: glazing, foot: glazing });
@@ -476,10 +578,10 @@ const SCREEN = {
 
 /** The screen manners, each naming a glazing for each part of the plant and the light its guests are raised in. */
 export const SCREEN_MANNERS: Readonly<Record<ScreenManner, MannerModule>> = {
-  mosaique: { id: "mosaique", ...glazed(everywhere(FOUR_INK_TESSERAE)), figure: hologram(FOUR_INKS), ...SCREEN },
-  carreaux: { id: "carreaux", ...glazed(everywhere(PANES)), figure: hologram(WINDOWSILL), ...SCREEN },
-  // Fine tesserae where the plant's shape tells, in its leaves and its foot; panes for its blooms and stems.
-  nekyia: { id: "nekyia", ...glazed({ bloom: PANES, leaf: NEON_TESSERAE, stem: PANES, foot: NEON_TESSERAE }), figure: hologram(NEON), ...SCREEN },
+  mosaique: { id: "mosaique", ...glazed({ ...everywhere(FOUR_INK_TESSERAE), foot: etched(FOUR_INKS) }), figure: hologram(FOUR_INKS), ...SCREEN },
+  carreaux: { id: "carreaux", ...glazed({ ...everywhere(PANES), foot: etched(WINDOWSILL) }), figure: hologram(WINDOWSILL), ...SCREEN },
+  // Fine tesserae where the plant's shape tells, in its leaves; panes for its blooms and stems; and its ground etched in light.
+  nekyia: { id: "nekyia", ...glazed({ bloom: PANES, leaf: NEON_TESSERAE, stem: PANES, foot: etched(NEON) }), figure: hologram(NEON), ...SCREEN },
 };
 
 /** How far a mosaic's light spreads round each tessera, in centimetres, and how strongly it glows. */
